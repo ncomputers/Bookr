@@ -27,6 +27,9 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Trial balance, financial reports and ledger monthly summaries.
 - Shared keyboard pickers, date editors, bill allocations and discard dialogs.
 
+In company addresses, Enter starts another line; Enter on an empty final line
+moves to State. Shift+Enter inserts a newline without leaving the address.
+
 Amounts use integer paise. A credit sale of ₹1,000 followed by a ₹400 receipt leaves ₹600 outstanding.
 
 The supported company year is currently **1 April 2026–31 March 2027**. Custom company dates, configurable currency, company security, public backup/restore, wider account groups, tax, inventory and other advanced modules remain unfinished. Some legacy default-book date behavior also requires further company-layer work.

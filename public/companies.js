@@ -1,4 +1,5 @@
 import {entryDate,parseEntryDate} from './entry-values.js';
+import {handleMultilineEntry} from './multiline-entry.js';
 
 export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect}){
   let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,menuOrigin='gateway';
@@ -46,7 +47,7 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
   }));
   function renderForm(profile=null){
     editingProfile=profile;
-    setScreen(profile?'Company Alteration':'Company Creation',profile?'company-alter':'company-create','Enter: next field · Ctrl+A: save · Esc: back');
+    setScreen(profile?'Company Alteration':'Company Creation',profile?'company-alter':'company-create','Enter: next field · Address: blank line to finish · Ctrl+A: save · Esc: back');
     const field=(key,label,value='',limit=120)=>`<div class="company-field company-field-${key}"><label for="company-${key.replaceAll('_','-')}">${label}</label><span>:</span>${key==='mobile'?'<div class="company-mobile"><span id="company-mobile-prefix" aria-label="Country calling code"></span>':''}<input id="company-${key.replaceAll('_','-')}" maxlength="${limit}" value="${escapeHtml(value)}">${key==='mobile'?'</div>':''}</div>`;
     main.innerHTML=`<form id="company-form" novalidate autocomplete="off"><div class="company-create-columns"><section>${field('name','Company Name',profile?.name ?? '')}${field('mailing_name','Mailing Name',profile?.mailing_name ?? '')}<div class="company-field company-address"><label for="company-address">Address</label><span>:</span><textarea id="company-address" maxlength="1000" rows="4">${escapeHtml(profile?.address ?? '')}</textarea></div>${field('state','State',profile?.state ?? 'Not Applicable')}${field('country','Country',profile?.country ?? 'India')}${field('pincode','Pincode',profile?.pincode ?? '',20)}${contacts.map(([key,label])=>field(key,label,profile?.[key]??'')).join('')}</section><section class="company-year"><div class="company-field"><label for="company-financial-year">Financial year beginning from</label><span>:</span><input id="company-financial-year" value="${entryDate(dates.financial_year_from)}" readonly tabindex="-1"></div><div class="company-field"><label for="company-books-from">Books beginning from</label><span>:</span><input id="company-books-from" value="${entryDate(dates.books_from)}" readonly tabindex="-1"></div></section></div><section class="company-currency" aria-label="Base currency"><div class="company-field"><span>Base Currency symbol</span><span>:</span><strong id="company-base-currency-symbol">₹</strong></div><div class="company-field"><span>Formal name</span><span>:</span><strong id="company-currency-formal-name">INR</strong></div></section><p id="company-error" class="company-error" role="alert"></p></form>`;
     const name=main.querySelector('#company-name'),mail=main.querySelector('#company-mailing-name');let previous='';
@@ -93,7 +94,10 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
       event.preventDefault();if(event.key==='Enter'){if(rows.length)select(rows[index].id);else main.querySelector('#company-error').textContent='Choose a matching company.';}else highlight(event.key==='Home'?0:event.key==='End'?rows.length-1:index+(event.key==='ArrowDown'?1:-1));return true;
     }
     if(['company-create','company-alter'].includes(getView()) && event.key==='Enter' && !event.target.closest('button')){
-      event.preventDefault();const fields=[...main.querySelectorAll('#company-form input,#company-form textarea')].filter(field=>!field.disabled && !field.readOnly && field.getClientRects().length),i=fields.indexOf(document.activeElement);if(i<fields.length-1)fields[i+1].focus();else askDialog('Accept this company?',save);return true;
+      const fields=[...main.querySelectorAll('#company-form input,#company-form textarea')].filter(field=>!field.disabled && !field.readOnly && field.getClientRects().length),i=fields.indexOf(document.activeElement);
+      const next=()=>{if(i<fields.length-1)fields[i+1].focus();else askDialog('Accept this company?',save);};
+      if(handleMultilineEntry(event,next))return true;
+      event.preventDefault();next();return true;
     }
     return false;
   }

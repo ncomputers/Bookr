@@ -1,0 +1,21 @@
+{
+  "application": "Bookr",
+  "complete": false,
+  "priority": "Finish company management before expanding other accounting layers.",
+  "implemented": [
+    "Create and select companies with separate books and per-tab selection",
+    "Alter identity, mailing and five contact fields with revision checks",
+    "Preserve company books and reject missing established database files",
+    "Shared address entry: populated Enter adds a line, empty final Enter advances",
+    "Reusable confirmation dialogs preserve unsaved drafts when No is chosen"
+  ],
+  "remaining": [
+    {"area":"Company calendar","status":"Research and dependency audit in progress; dates currently fixed"},
+    {"area":"State and country selection","status":"Text fields work; reference-style region pickers remain"},
+    {"area":"Base currency","status":"INR display only; configuration remains"},
+    {"area":"Open and shut company workflows","status":"Selection works; broader lifecycle remains"},
+    {"area":"Company backup and restore","status":"Public portable workflow remains"},
+    {"area":"Company features and access controls","status":"Not implemented"}
+  ],
+  "evidencePolicy": "Observed behavior, original web conventions and unverified rules are distinguished. Planned features are not counted as completed."
+}
