@@ -6,6 +6,7 @@ import { isIP } from 'node:net';
 import { BookError } from './lib/accounting.mjs';
 import {CompanyStore} from './lib/companies.mjs';
 import {currentPeriodHeader,normalizeCurrentPeriod} from './lib/company-period.mjs';
+import {exportCompanyBundle,restoreCompanyBundle} from './lib/company-backup.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4315);
@@ -23,10 +24,16 @@ await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
-const body = async req => {
-  let text = '';
-  for await (const chunk of req) { text += chunk; if (Buffer.byteLength(text) > 16384) throw new BookError('Request is too large.', 413); }
-  try { return JSON.parse(text); } catch { throw new BookError('Invalid JSON request.'); }
+const body = async (req,limit=16384) => {
+  if(Number(req.headers['content-length'])>limit){req.resume();throw new BookError('Request is too large.',413);}
+  const chunks=[];let bytes=0;
+  for await (const chunk of req.iterator({destroyOnReturn:false})) {
+    const buffer=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk);bytes+=buffer.length;
+    if(bytes>limit){req.resume();throw new BookError('Request is too large.',413);}
+    chunks.push(buffer);
+  }
+  try { return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks,bytes))); }
+  catch { throw new BookError('Invalid UTF-8 JSON request.'); }
 };
 const handler = async (req, res) => {
   res.setHeader('X-Content-Type-Options','nosniff');
@@ -42,6 +49,17 @@ const handler = async (req, res) => {
         if (!String(req.headers['content-type']).startsWith('application/json')) throw new BookError('JSON content type required.',415);
       }
       const requestPeriod=currentPeriodHeader(req.headers['x-bookr-period']);
+      const backupMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/backup$/);
+      if(req.method==='GET'&&backupMatch){
+        if(url.search)throw new BookError('Company backup does not accept query overrides.');
+        return send(res,200,exportCompanyBundle(companies,backupMatch[1]));
+      }
+      if(req.method==='POST'&&url.pathname==='/api/companies/restore'){
+        if(url.search)throw new BookError('Company restore does not accept query overrides.');
+        const input=await body(req,25*1024*1024+4096);
+        if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==2||!Object.hasOwn(input,'name')||!Object.hasOwn(input,'bundle'))throw new BookError('Restore requires only a new company name and a portable bundle.');
+        return send(res,201,restoreCompanyBundle(companies,input.bundle,{name:input.name}));
+      }
       if(req.method==='GET' && url.pathname==='/api/companies')return send(res,200,{companies:companies.list(),default_company_id:'default'});
       if(req.method==='POST' && url.pathname==='/api/companies')return send(res,201,companies.create(await body(req)));
       const companyMatch=url.pathname.match(/^\/api\/companies\/([^/]+)$/);
@@ -49,7 +67,7 @@ const handler = async (req, res) => {
       if(req.method==='PUT' && companyMatch)return send(res,200,companies.update(companyMatch[1],await body(req)));
       const companyId=req.headers['x-bookr-company'];
       const book=companies.book(companyId===undefined?'default':companyId);
-      if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities:{general_journal:true,company_alter:true,cash_purchases:true,current_period:true},...(previewLabel?{preview:{label:previewLabel}}:{})});
+      if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities:{general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true},...(previewLabel?{preview:{label:previewLabel}}:{})});
       if(req.method==='GET' && url.pathname==='/api/outstanding'){
         const allowed=['direction','as_of','ledger'];
         if([...url.searchParams.keys()].some(key=>!allowed.includes(key)) || allowed.some(key=>url.searchParams.getAll(key).length>1))throw new BookError('Choose each outstanding filter once: direction, as_of and ledger.');

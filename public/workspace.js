@@ -16,6 +16,7 @@ import {companyCalendar,companyPeriod,shortCompanyDate,companyDateCaption} from 
 import {entryDate} from './entry-values.js';
 import {createWorkingDateContext,followingWorkingDate} from './working-date.js';
 import {editReportDate,editReportPeriod} from './report-period.js';
+import {createCompanyDataWorkspace} from './company-data.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -71,7 +72,8 @@ const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshB
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const chart=createChartWorkspace({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,renderGateway,escapeHtml,openLedger:(ledger,returnTo)=>openFresh(async()=>renderLedger(await api('/api/ledgers/'+ledger.id),'',returnTo)),createLedger:(kind,returnTo)=>openFresh(()=>{ledgerKind=kind;renderLedger(null,'',returnTo);})});
 const companyUI=createCompanyWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:activeCompanyId,onSelect:id=>{sessionStorage.setItem('bookr.company',id);location.reload();}});
-const busy = () => saving || sales.isSaving() || receipts.isSaving() || payments.isSaving() || purchases.isSaving() || contra.isSaving() || journal.isSaving() || generalJournal.isSaving() || reports.isSaving() || financial.isSaving() || chart.isSaving() || companyUI.isSaving();
+const companyDataUI=createCompanyDataWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,refreshBook,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:activeCompanyId,onSelect:id=>{sessionStorage.setItem('bookr.company',id);location.reload();}});
+const busy = () => saving || sales.isSaving() || receipts.isSaving() || payments.isSaving() || purchases.isSaving() || contra.isSaving() || journal.isSaving() || generalJournal.isSaving() || reports.isSaving() || financial.isSaving() || chart.isSaving() || companyUI.isSaving() || companyDataUI.isSaving();
 
 async function refreshBook() {
   const next=await api('/api/state');
@@ -120,6 +122,7 @@ function setScreen(name, screen, message) {
     company.className = 'screen-company'; company.textContent = book.company; title.after(company);
   }
   document.title = `${name} | Bookr`;
+  const dataKey=document.querySelector('[data-company-data]');if(dataKey)dataKey.disabled=book?.capabilities?.company_backup!==true;
   document.querySelectorAll('[data-sales-rail]').forEach(button => button.remove());
   const dateKey = document.querySelector('.function-rail button');
   dateKey.disabled = true; dateKey.onclick = null;dateKey.innerHTML='<span><u>F2</u>: Date</span><span>‹</span>';
@@ -249,7 +252,7 @@ function ledgerValues() {
   return {kind,...Object.fromEntries(['name','alias','mailing_name','address','state','country','pincode'].map(name => [name,main.querySelector(`[name="${name}"]`).value])),...(['expense','income'].includes(kind)?{ledger_type:'Not Applicable'}:{}),...(kind==='bank'?{bank:Object.fromEntries([...main.querySelectorAll('[data-bank-field]')].map(field=>[field.dataset.bankField,field.value]))}:{})};
 }
 const ledgerDraft=()=>({...ledgerValues(),opening:openingEditor?.snapshot()});
-function isDirty() { return (view === 'ledger' && JSON.stringify(ledgerDraft()) !== initialValues) || sales.dirty() || receipts.dirty() || payments.dirty() || purchases.dirty() || contra.dirty() || journal.dirty() || generalJournal.dirty() || companyUI.dirty(); }
+function isDirty() { return (view === 'ledger' && JSON.stringify(ledgerDraft()) !== initialValues) || sales.dirty() || receipts.dirty() || payments.dirty() || purchases.dirty() || contra.dirty() || journal.dirty() || generalJournal.dirty() || companyUI.dirty() || companyDataUI.dirty(); }
 function renderLedger(ledger = null, message = '',returnTo = null) {
   editing = ledger;
   if(ledger)ledgerKind=ledger.kind;
@@ -355,6 +358,7 @@ async function saveLedger() {
 function goBack() {
   if (busy() || document.querySelector('dialog')) return;
   if(['company-menu','companies','company-create','company-alter'].includes(view)){companyUI.back();return;}
+  if(['company-data-menu','company-backup','company-restore'].includes(view)){companyDataUI.back();return;}
   if(!book)return;
   if (['sale','daybook','postings'].includes(view)) { sales.goBack(); return; }
   if (['receipt','receipt-postings'].includes(view)) { receipts.goBack(); return; }
@@ -379,6 +383,7 @@ function goBack() {
 document.addEventListener('keydown', event => {
   const dialog = document.querySelector('dialog');
   if (dialog) return;
+  if(companyDataUI.onKey(event))return;
   if(view==='gateway'&&event.altKey&&!event.ctrlKey&&!event.metaKey&&event.key==='F2'){event.preventDefault();changeCompanyPeriod();return;}
   if(companyUI.onKey(event))return;
   if(ledgerGroupPicker?.onKey(event))return;
@@ -409,6 +414,7 @@ document.addEventListener('keydown', event => {
 });
 closeButton.addEventListener('click', goBack);
 document.querySelector('[data-company-menu]').addEventListener('click',companyUI.openMenu);
+document.querySelector('[data-company-data]').addEventListener('click',companyDataUI.openMenu);
 const companyKey=document.querySelectorAll('.function-rail>button')[1];companyKey.disabled=false;companyKey.onclick=companyUI.openSelector;
 document.querySelector('#home').addEventListener('click', event => {
   event.preventDefault();

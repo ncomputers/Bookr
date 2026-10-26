@@ -21,6 +21,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 
 - Create, select and alter companies, including mailing and contact details.
 - Revision checks, separate company books and missing-database protection.
+- Download a complete company backup and restore it as a separate new company.
 - Choose the initial financial-year and books-beginning dates when creating a company.
 - Change the working date from Gateway with F2; new vouchers use that date.
 - Change the current period from Gateway with Alt+F2, including later years without changing company master dates.
@@ -41,7 +42,9 @@ Gateway Alt+F2 changes the current period and moves an out-of-range working date
 
 Saved company master dates remain read-only. Shutting/reopening loaded companies is unfinished. API requests without a selected period retain the existing initial-window and default-company compatibility behavior.
 
-Configurable currency, company security, public backup/restore, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
+Company Data (Alt+Y) downloads an original Bookr JSON backup covering all saved dates. Restore requires a new company name and preserves saved identities, revisions, postings and bill allocations. It never merges into an existing company. Backups support up to 25 MB and 200,000 rows; a checksum detects corruption and does not authenticate a file. Legacy vouchers dated before Books cannot currently be restored into a new company because their date-edit policy differs.
+
+Configurable currency, company security, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
 
 ## Tests
 

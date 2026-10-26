@@ -12,6 +12,7 @@
     "Keep per-company working-date context in each browser tab without changing accounting rows",
     "Change the current period without altering initial company dates or creating carry-forward vouchers",
     "Validate voucher dates with request-local periods and carry prior movements into selected monthly reports",
+    "Download a whole-company portable backup and restore validated records into a separate new company",
     "Shared address entry: populated Enter adds a line, empty final Enter advances",
     "Reusable confirmation dialogs preserve unsaved drafts when No is chosen"
   ],
@@ -21,7 +22,7 @@
     {"area":"State and country selection","status":"Text fields work; reference-style region pickers remain"},
     {"area":"Base currency","status":"INR display only; configuration remains"},
     {"area":"Open and shut company workflows","status":"Selection works; broader lifecycle remains"},
-    {"area":"Company backup and restore","status":"Public portable workflow remains"},
+    {"area":"Company backup and restore","status":"Portable whole-company download and restore-as-new work; merging and before-Books legacy voucher-policy transfer are unsupported"},
     {"area":"Company features and access controls","status":"Not implemented"}
   ],
   "evidencePolicy": "Observed behavior, original web conventions and unverified rules are distinguished. Planned features are not counted as completed."
