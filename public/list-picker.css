@@ -1,0 +1,13 @@
+.list-picker{position:absolute;inset:0 0 0 auto;width:min(298px,100%);z-index:8;background:var(--menu);border:1px solid #6a8ca6;display:flex;flex-direction:column;font-size:13px;min-height:240px;color:#000}
+.list-picker[hidden]{display:none}
+.list-picker>h2{font-size:13px;font-weight:normal;color:#fff;background:var(--toolbar);line-height:17px;min-height:17px;margin:0;padding:0 8px}
+.list-picker>input{font:inherit;margin:10px 6px 8px;padding:2px 4px;min-width:0;width:calc(100% - 12px);border:1px solid #8ebdf0;border-radius:0;background:white;outline:none;line-height:18px}
+.list-picker>input:focus{background:var(--selected);border-color:#158be2}
+.list-picker-more{align-self:stretch;text-align:right;border:0;background:transparent;color:inherit;font:inherit;padding:3px 8px;min-height:24px}.list-picker-more:focus{outline:1px solid #158be2;background:var(--selected)}
+.list-picker-options{overflow:auto;min-height:0;flex:1;border-top:1px solid #a4bac9;padding-top:0}
+.list-picker-options>button{display:block;width:100%;border:0;background:transparent;text-align:left;padding:0 7px;font:inherit;line-height:16px;min-height:16px;overflow-wrap:anywhere}
+.list-picker-options>button.selected{background:var(--selected)}
+.list-picker-error,.list-picker-empty{font-size:12px;line-height:17px;margin:5px 7px;overflow-wrap:anywhere}
+.list-picker-error{color:#9b3025}.list-picker-error:empty{display:none}
+.list-picker-footer{font-size:10px;margin:0;padding:5px 7px;border-top:1px solid #a4bac9;color:#355b79}
+@media(max-width:650px){.list-picker{width:min(298px,100%);font-size:12px}.list-picker-options>button{line-height:22px;min-height:22px}.list-picker-footer{font-size:10px}}

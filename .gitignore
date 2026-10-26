@@ -1,0 +1,15 @@
+/node_modules/
+/storage/
+/evidence/
+/test-results/
+/coverage/
+/tools/
+*.log
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db

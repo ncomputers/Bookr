@@ -1,0 +1,6 @@
+#receipt-form[data-voucher-type=payment-single]{background:#fffaf1}
+#entry-mode-dialog{width:300px;padding:0 0 8px}#entry-mode-options{min-height:80px;padding-top:12px}
+.expense-ledger-settings{margin-top:28px}.expense-ledger-settings input{width:100%;min-width:0}.expense-ledger-settings[hidden]{display:none}
+.command-strip #receipt-change-mode{width:140px}
+.command-strip button[hidden]{display:none!important}
+@media(max-width:650px){#entry-mode-dialog{width:calc(100vw - 81px)}.command-strip #receipt-change-mode{width:115px;font-size:10px}}

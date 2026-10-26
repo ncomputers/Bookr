@@ -1,0 +1,25 @@
+.bank-allocation{width:min(660px,calc(100vw - 150px));min-height:370px;padding:14px 16px 9px}
+.bank-allocation form{min-height:350px;display:flex;flex-direction:column;font-size:13px}
+.bank-allocation-heading{text-align:center}.bank-allocation-heading p{margin:12px 0}
+.bank-allocation-columns,.bank-allocation-row{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:12px}
+.bank-allocation-columns{padding:5px 2px;border-top:1px solid #aaa;border-bottom:1px solid #aaa;margin-bottom:25px}
+.bank-allocation-columns>:last-child{text-align:right}
+.bank-allocation-row{background:#fff0bf}.bank-allocation #bank-amount{text-align:right;font-weight:bold}
+.bank-detail-row{display:grid;grid-template-columns:100px 9px minmax(0,1fr);align-items:center;gap:1px;padding:3px 14px}
+.bank-instrument-row{display:grid;grid-template-columns:1fr 1fr}
+.bank-instrument-row .bank-detail-row:last-child{grid-template-columns:68px 9px minmax(0,1fr)}
+.bank-dialog-space{flex:1;min-height:80px}
+.bank-ledger-fields{margin-top:25px}.bank-ledger-fields h2{font-size:13px;margin:0 0 8px;text-decoration:underline}
+.bank-ledger-fields .accounting-row{grid-template-columns:255px 9px minmax(0,1fr)}
+.bank-ledger-fields input{min-width:0;width:100%}
+.bank-ledger-fields[hidden],.billwise-row[hidden]{display:none}
+.bank-voucher-summary{font-size:11px;padding:5px 36px}.saved-bank-details{padding:10px;font-size:12px}
+.cash-denominations{width:310px;padding:10px 12px;font-size:13px}.cash-denominations h2,.cash-denominations p{text-align:center;margin:2px 0;font-size:13px}.cash-denominations table{border-collapse:collapse;width:100%;margin-top:14px}.cash-denominations th,.cash-denominations td{padding:1px 3px;text-align:right}.cash-denominations thead,.cash-denominations tfoot{border-top:1px solid #aaa}.cash-denominations td:first-child{display:flex;justify-content:flex-end;gap:3px}.cash-denominations input{width:58px;text-align:right}.cash-denominations #denomination-others{width:100%}.cash-denominations table td:last-child{width:45%;font-variant-numeric:tabular-nums}.cash-denominations .details-commands{margin-top:12px}
+#contra-form{height:100%;min-height:540px;display:flex;flex-direction:column;background:#f8f8f8;font-size:13px}
+#contra-form input,#contra-form select,#contra-form textarea{font:inherit;border:1px solid transparent;background:transparent;border-radius:0;padding:0 3px;outline:none;min-width:0}
+#contra-form input:focus,#contra-form select:focus,#contra-form textarea:focus{background:#ffcc34;border-color:#158be2}
+.contra-account-row{display:grid;grid-template-columns:100px 9px minmax(100px,260px);margin:22px 3px 0}
+.contra-line{display:grid;grid-template-columns:minmax(0,1fr) 120px;margin-top:18px;padding:0 5px;gap:12px}.contra-line select{max-width:300px}.contra-line input{text-align:right}
+.contra-balance{padding:3px 12px;color:#526f83;font-size:12px}.contra-account-row+.contra-balance{padding-left:112px}
+@media(max-width:650px){#contra-form{font-size:11px}.contra-account-row{grid-template-columns:60px 6px minmax(0,1fr)}.contra-account-row+.contra-balance{padding-left:69px}.contra-line{grid-template-columns:minmax(0,1fr) 78px;gap:3px}.contra-balance{font-size:10px}.cash-denominations{width:min(310px,calc(100vw - 81px));padding:8px;font-size:11px}.cash-denominations h2,.cash-denominations p{font-size:11px}.cash-denominations .details-commands{gap:3px}.application:has(#contra-form){grid-template-rows:66px minmax(0,1fr) 49px}.command-strip:has(#accept-contra){flex-wrap:wrap;align-content:flex-start;row-gap:2px}.command-strip:has(#accept-contra)>button{height:20px;font-size:10px}.command-strip #accept-contra{width:95px}.command-strip #contra-bank-details{width:100px}.command-strip #contra-daybook{width:75px}}
+@media(max-width:650px){.bank-allocation{width:calc(100vw - 81px);padding:10px 7px;min-height:340px}.bank-allocation form{font-size:11px;min-height:320px}.bank-instrument-row{grid-template-columns:1fr}.bank-detail-row,.bank-instrument-row .bank-detail-row:last-child{padding:4px 2px;grid-template-columns:70px 7px minmax(0,1fr)}.bank-allocation-columns,.bank-allocation-row{grid-template-columns:minmax(0,1fr) 88px}.bank-ledger-fields .accounting-row{grid-template-columns:120px 6px minmax(0,1fr)}.bank-ledger-fields h2{font-size:11px}.command-strip #receipt-bank-details{width:100px;font-size:10px}.bank-voucher-summary{padding:4px 12px}.application:has(.bank-ledger-fields:not([hidden])) .ledger-detail-columns{overflow:visible}}

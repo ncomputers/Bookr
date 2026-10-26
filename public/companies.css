@@ -1,0 +1,31 @@
+.company-menu .master-menu-content button{background:transparent}.company-menu .master-menu-content button.selected{background:var(--selected)}
+.company-selector{width:min(560px,92%);margin:28px auto;background:var(--menu);border:1px solid #8ebdf0;padding-top:16px}
+.company-selector>label{display:block;text-align:center;margin-bottom:7px}.company-selector>input{display:block;margin:0 auto 18px;width:85%;font:inherit;border:1px solid #8ebdf0;padding:4px 7px;background:#fff5b9}
+#company-options{max-height:340px;min-height:160px;overflow:auto;padding:10px 0}#company-options>button{display:flex;flex-direction:column;gap:3px;width:100%;border:0;background:transparent;font:inherit;text-align:left;padding:5px 14px;overflow-wrap:anywhere}#company-options>button.selected{background:var(--selected)}#company-options small{font-size:11px;color:#435465}#company-options>p{padding:6px 14px}
+.company-error{color:#9b3025;font-size:12px;margin:10px;line-height:1.5;overflow-wrap:anywhere}.company-error:empty{display:none}
+#company-form{min-height:100%;background:#fff;padding:12px 8px}.company-create-columns{display:grid;grid-template-columns:54% 46%;min-height:380px}.company-create-columns>section{min-width:0;padding-right:20px}.company-create-columns h2{font-size:13px;text-decoration:underline;margin:0 0 15px}.company-field{display:grid;grid-template-columns:minmax(0,180px) 10px minmax(0,1fr);align-items:start;gap:0;margin:3px 0;font-size:13px;line-height:20px}.company-field input,.company-field textarea{font:inherit;background:transparent;border:1px solid transparent;border-radius:0;padding:0 3px;outline:none;min-width:0;width:100%}.company-field input:focus,.company-field textarea:focus{background:var(--selected);border-color:#158be2}.company-field textarea{resize:vertical;min-height:85px}.company-field #company-name{font-weight:bold}.company-year{padding:30px 0 0 18px}.company-year .company-field{grid-template-columns:minmax(0,230px) 10px minmax(80px,1fr)}.company-year p{font-size:11px;line-height:1.5;margin:15px 0 30px}.company-year input{font-weight:bold}.command-strip #accept-company{width:140px}
+@media(max-width:750px){.company-create-columns{grid-template-columns:1fr}.company-create-columns>section{padding-right:0}.company-year{border-top:1px solid var(--rule);padding:15px 0 0;margin-top:20px}.company-field{grid-template-columns:minmax(0,105px) 8px minmax(0,1fr);font-size:11px}.company-year .company-field{grid-template-columns:minmax(0,145px) 8px minmax(0,1fr)}.company-field input,.company-field textarea{font-size:11px}#company-form{padding:10px 6px}.company-selector{margin-top:20px}#company-options small{font-size:10px}}
+
+/* Company profile geometry observed in the fictional native company. */
+main.entry-workspace:has(#company-form){background:#b3b8ba}
+#company-form{width:calc(100% - 42px);min-height:505px;padding:15px 8px}
+.company-create-columns{grid-template-columns:476px minmax(0,1fr);min-height:0}
+.company-create-columns>section{padding-right:10px}
+.company-field{grid-template-columns:minmax(0,170px) 10px minmax(0,1fr);margin:0;font-size:13px;line-height:18px}
+.company-field input{height:18px}.company-field-name{margin-bottom:12px}
+.company-field textarea{min-height:120px;height:120px}
+.company-field-state{margin-bottom:18px}
+.company-create-columns>.company-year{padding:0}
+.company-year .company-field{grid-template-columns:minmax(0,300px) 10px minmax(80px,1fr)}
+.company-mobile{display:flex;align-items:center;min-width:0;gap:6px}.company-mobile>span{flex-shrink:0}.company-mobile>input{flex:1;min-width:0}
+.company-currency{margin-top:16px;padding-top:8px;border-top:1px solid var(--rule)}
+.company-currency .company-field{max-width:466px}.company-currency strong{font-weight:normal}
+@media(max-width:1000px){
+  main.entry-workspace:has(#company-form){background:white}
+  #company-form{width:100%;min-height:100%;padding:10px 6px}
+  .company-create-columns{grid-template-columns:1fr}.company-create-columns>section{padding-right:0}
+  .company-create-columns>.company-year{margin-top:20px;border-top:1px solid var(--rule);padding:15px 0 0}
+  .company-field{grid-template-columns:minmax(0,105px) 8px minmax(0,1fr);font-size:11px}
+  .company-year .company-field{grid-template-columns:minmax(0,145px) 8px minmax(0,1fr)}
+  .company-field input,.company-field textarea{font-size:11px}
+}

@@ -1,0 +1,35 @@
+#purchase-form{position:relative;min-height:100%;display:flex;flex-direction:column;background:#fff5ff;font-size:13px}
+#purchase-form input,#purchase-form select,#purchase-form textarea{font:inherit;color:#000;border:1px solid transparent;border-radius:0;background:transparent;outline:none;padding:1px 3px;min-width:0}
+#purchase-form input:focus,#purchase-form select:focus,#purchase-form textarea:focus{background:#ffcc34;border-color:#158be2}
+#purchase-form .voucher-heading{height:30px}#purchase-form .voucher-party input{font-weight:bold}
+.supplier-invoice{display:grid;grid-template-columns:125px 5px 110px 40px 5px 110px;gap:3px;align-items:center;min-height:24px;padding:0 4px 5px}
+.supplier-invoice label{white-space:nowrap}
+.supplier-invoice input{width:100%}.supplier-invoice label:nth-of-type(2){margin-left:5px}
+#purchase-form select{appearance:none;font-weight:bold}#purchase-form .sale-line input{text-align:right}
+#receipt-form[data-voucher-type=payment]{background:#fffaf1;position:relative}
+[data-voucher-type=payment] .voucher-lines-heading{display:grid;grid-template-columns:minmax(0,1fr) 100px 100px;gap:2px}
+[data-voucher-type=payment] .voucher-lines-heading strong:not(:first-child){text-align:right}
+[data-voucher-type=payment] .payment-party-line{grid-template-columns:18px minmax(0,1fr) 100px 100px;gap:2px}
+.payment-party-line #receipt-amount{grid-column:3;width:100%}.payment-party-line #receipt-customer{width:100%}
+.payment-cash-line{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:3px;align-items:start;padding:0 4px}
+.payment-cash-line .receipt-account{grid-template-columns:18px 0 minmax(0,207px);margin:0}
+.payment-cash-line .receipt-account>span{display:none}.payment-cash-line select{max-width:100%}
+.payment-cash-line select{grid-column:3}
+.payment-cash-line .amount{text-align:right;font-weight:bold;padding:2px 0}
+[data-voucher-type=payment] .receipt-account-balance{padding-left:48px}
+[data-voucher-type=payment] .voucher-total{display:grid;grid-template-columns:1fr 1fr;gap:2px;min-width:204px;text-align:right}
+.purchase-entries{background:#fff5ff}.trial-balance .voucher-report th:first-child{text-align:left}
+.trial-balance .voucher-report th:not(:first-child){width:160px;text-align:right}
+.trial-balance .report-ledger-name{display:flex;align-items:center;gap:8px;text-align:left}
+.trial-totals{display:grid;grid-template-columns:minmax(0,1fr) 160px 160px;border-top:1px solid #bbb;padding:4px 5px;font-size:13px;margin-top:auto}
+.trial-totals strong:not(:first-child){text-align:right}.trial-balance .posting-status{padding:3px 5px}
+.trial-balance .report-table-scroll .voucher-report{min-width:450px}
+@media(max-width:650px){
+  #purchase-form{font-size:11px;min-height:540px}.supplier-invoice{grid-template-columns:103px 5px minmax(0,1fr);gap:3px;padding:0 4px 7px}
+  .supplier-invoice label:nth-of-type(2){margin-left:0}#purchase-form .sale-line{grid-template-columns:minmax(0,1fr) 90px}
+  [data-voucher-type=payment] .voucher-lines-heading{grid-template-columns:minmax(0,1fr) 65px 65px}
+  [data-voucher-type=payment] .payment-party-line{grid-template-columns:14px minmax(0,1fr) 65px 65px}
+  .payment-cash-line{grid-template-columns:minmax(0,1fr) 65px}.payment-cash-line .receipt-account{grid-template-columns:14px 0 minmax(0,1fr)}
+  [data-voucher-type=payment] .voucher-total{min-width:134px}
+  .trial-totals{grid-template-columns:minmax(0,1fr) 90px 90px;font-size:11px}
+}

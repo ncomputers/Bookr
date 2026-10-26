@@ -1,0 +1,31 @@
+.financial-report{background:#fff;min-height:100%;display:flex;flex-direction:column;color:#000;font-size:13px}
+.financial-caption{display:flex;flex-direction:column;gap:5px;text-align:center;padding:12px;border-bottom:1px solid #6a7f8b}
+.financial-columns{display:grid;grid-template-columns:1fr 1fr;flex:1;min-height:320px}
+.financial-side{display:flex;flex-direction:column;min-width:0}
+.financial-side+.financial-side{border-left:1px solid var(--rule)}
+.financial-pane-heading{height:40px;flex-shrink:0;border-bottom:1px solid var(--rule);padding:7px 18px 0}
+.financial-pane-heading>strong{display:block;text-align:right;line-height:16px}
+.financial-pane-heading>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;line-height:16px}
+.financial-pane-heading h2{font-size:13px;font-weight:bold;letter-spacing:3px;margin:0}
+.financial-pane-heading span{white-space:nowrap}
+.financial-side>table{margin-top:36px}
+.financial-report table{width:100%;border-collapse:collapse;table-layout:fixed}
+.financial-report td,.financial-report th{padding:0 5px 6px;text-align:left;overflow-wrap:anywhere;line-height:16px}
+.financial-report td.amount,.financial-report th:last-child{width:32%;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.financial-report button{color:inherit;background:none;border:0;font:inherit;text-align:left;cursor:pointer;width:100%;padding:0}
+.financial-report tr.selected{background:var(--selected)}
+.financial-side tr[data-financial-row]{font-weight:bold}
+.financial-side tr[data-financial-row] td{padding-bottom:0;height:16px}
+.financial-side tr[data-financial-row]+.financial-result td{padding-top:6px}
+.financial-report button:focus-visible{outline:1px dotted #162c40;outline-offset:2px}
+.financial-result{font-weight:bold;font-style:italic}
+.financial-trading-total td{padding-top:0;padding-bottom:10px}
+.financial-trading-total td:last-child{background:linear-gradient(var(--rule),var(--rule)) right top/19% 1px no-repeat,linear-gradient(var(--rule),var(--rule)) right 17px/19% 1px no-repeat}
+.financial-profit-detail{font-style:italic;font-size:12px}
+.financial-profit-detail td:first-child{padding-left:26px}
+.financial-grand-total{display:flex;justify-content:space-between;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:2px 5px;margin-top:auto;font-variant-numeric:tabular-nums;gap:10px;line-height:16px}
+#financial-status{display:block;margin-top:8px;white-space:normal;overflow-wrap:anywhere}
+.rail-preview #financial-status.opening-report-warning{font-size:11px;padding:0;color:#9b4520}
+.financial-group-table{flex:1;display:flex;flex-direction:column}
+.financial-group-table th{border-bottom:1px solid #6a7f8b;font-size:12px}
+@media(max-width:600px){.financial-columns{grid-template-columns:1fr;min-height:400px}.financial-side{min-height:220px}.financial-side+.financial-side{border-left:0;border-top:1px solid var(--rule)}.financial-pane-heading{height:auto;min-height:48px;padding:5px 9px}.financial-pane-heading>div{flex-wrap:wrap;gap:0 12px}.financial-pane-heading h2{font-size:12px;letter-spacing:1px}.financial-pane-heading span{font-size:11px;white-space:normal}.financial-side>table{margin-top:18px}.financial-report td,.financial-report th{padding-left:9px;padding-right:9px}.financial-report td.amount{width:35%}}

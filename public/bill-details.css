@@ -1,0 +1,23 @@
+.native-entry-dialog.billwise-dialog{width:min(460px,calc(100vw - 152px));height:min(472px,80dvh);padding:0;overflow:auto}
+.billwise-dialog form{height:100%;min-height:300px;display:flex;flex-direction:column}
+.bill-dialog-heading{text-align:center;line-height:16px;padding:8px 3px 10px;font-size:13px}
+.bill-columns{display:grid;grid-template-columns:104px minmax(0,1fr) 103px 103px 30px;align-items:start}
+.bill-column-headings{border-top:1px solid #c4c4c4;border-bottom:1px solid #c4c4c4;min-height:51px;line-height:16px;font-size:12px;padding-top:1px}
+.bill-column-headings>span{padding:0 3px}.bill-amount-column{text-align:right}
+.bill-entry-row{margin-top:15px;background:#fff0bf;min-height:19px}
+.billwise-dialog .bill-entry-row input,.billwise-dialog .bill-entry-row select{font:inherit;font-size:13px;line-height:17px;height:19px;width:100%;min-width:0;padding:0 3px;border:1px solid transparent;background:transparent;border-radius:0;outline:none}
+.billwise-dialog .bill-entry-row select{appearance:none;color:#000}
+.billwise-dialog .bill-entry-row input:focus,.billwise-dialog .bill-entry-row select:focus{background:#ffcc34;border-color:#158be2}
+.billwise-dialog .bill-entry-row input[aria-invalid=true]{border-color:#a52c20}
+#bill-reference,#bill-amount,#bill-side{font-weight:bold}#bill-amount{text-align:right}#bill-side{padding-left:1px}
+.bill-dialog-space{flex:1;min-height:45px}.bill-dialog-scope{font-size:10px;line-height:15px;color:#60748a;margin:12px 5px}
+.bill-dialog-total{font-size:13px;font-weight:bold;text-align:right;align-self:flex-end;min-width:130px;margin:0 0 6px;border-top:1px solid #c4c4c4;border-bottom:3px double #c4c4c4;padding:2px 5px}
+.billwise-dialog .details-commands{padding:0 5px 6px;margin-top:0}.billwise-dialog .details-error{padding:0 5px}
+.command-strip #bill-details{width:108px;font-size:12px}
+.bill-term-editor{min-width:0}.bill-term-editor output{display:block;padding:2px 3px;font-size:10px;line-height:14px;color:#40566b;overflow-wrap:anywhere}
+.opening-bills .bill-entry-row{row-gap:3px;border-bottom:1px solid #c4c4c4;padding-bottom:5px;margin-bottom:5px}
+.opening-bills [data-opening-step=date]{grid-column:1;grid-row:1}.opening-bills [data-opening-step=reference]{grid-column:2;grid-row:1}.opening-bills [data-opening-step=amount]{grid-column:3;grid-row:1}.opening-bills [data-opening-step=side]{grid-column:4;grid-row:1}
+.opening-term-editor{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:150px minmax(0,140px) minmax(0,1fr);align-items:center;gap:4px;padding:2px 3px;font-size:11px;min-width:0}.opening-term-editor output{font-size:10px;color:#40566b;overflow-wrap:anywhere}.opening-term-editor label{white-space:normal}
+@media(max-width:650px){.bill-terms-dialog .bill-entry-row #bill-method{grid-column:1;grid-row:1}.bill-terms-dialog #bill-reference{grid-column:2;grid-row:1}.bill-terms-dialog #bill-amount{grid-column:3;grid-row:1}.bill-terms-dialog #bill-side{grid-column:4;grid-row:1}.bill-terms-dialog .bill-term-editor{display:grid;grid-column:1/-1;grid-row:2;grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:5px 3px;gap:2px 5px}.bill-terms-dialog .bill-term-editor label{position:static;width:auto;height:auto;padding:0;margin:0;overflow:visible;clip:auto;white-space:normal;grid-column:1/-1;font-size:10px}.bill-terms-dialog .bill-term-editor input{background:white}.bill-terms-dialog .bill-term-editor output{padding:2px 0}.opening-term-editor{grid-template-columns:minmax(0,1fr) minmax(0,1fr);font-size:10px;gap:2px 5px}.opening-term-editor label{grid-column:1/-1}.opening-term-editor input{background:white}}
+@media(max-width:1000px){.native-entry-dialog.billwise-dialog{width:min(460px,calc(100vw - 129px))}}
+@media(max-width:650px){.native-entry-dialog.billwise-dialog{width:calc(100vw - 81px);height:min(472px,75dvh)}.bill-columns{grid-template-columns:58px minmax(0,1fr) 82px 25px}.bill-due-column{display:none}.bill-dialog-heading{font-size:11px;line-height:16px}.bill-column-headings{font-size:10px;min-height:34px}.billwise-dialog .bill-entry-row input,.billwise-dialog .bill-entry-row select{font-size:11px}.bill-dialog-total{font-size:11px}.bill-dialog-scope{font-size:9px}.application:has(#bill-details){grid-template-rows:66px minmax(0,1fr) 49px}.command-strip:has(#bill-details){flex-wrap:wrap;align-content:flex-start;row-gap:2px;padding-bottom:2px}.command-strip:has(#bill-details)>button{height:20px}.command-strip #bill-details{width:105px;font-size:10px}.command-strip:has(#bill-details) #screen-hint{flex:1;min-width:0;line-height:20px}}

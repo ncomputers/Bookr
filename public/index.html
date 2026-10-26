@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookr · Gateway</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="gateway.css?v=10">
+  <link rel="stylesheet" href="bill-details.css?v=2">
+  <link rel="stylesheet" href="receipts.css?v=4">
+  <link rel="stylesheet" href="purchases.css?v=1">
+  <link rel="stylesheet" href="financial-reports.css?v=4">
+  <link rel="stylesheet" href="banking.css?v=2">
+  <link rel="stylesheet" href="chart-of-accounts.css?v=1">
+  <link rel="stylesheet" href="expenses.css?v=1">
+  <link rel="stylesheet" href="monthly-summary.css?v=1">
+  <link rel="stylesheet" href="journal.css?v=1">
+  <link rel="stylesheet" href="general-journal.css?v=1">
+  <link rel="stylesheet" href="list-picker.css?v=1">
+  <link rel="stylesheet" href="companies.css?v=2">
+  <script type="module" src="workspace.js?v=37"></script>
+</head>
+<body>
+  <div class="application">
+    <header class="application-header">
+      <a class="application-name" href="#" id="home" aria-label="Bookr Gateway">Bookr<strong>DEMO</strong></a>
+      <div class="header-workspace">
+        <div class="header-category">MANAGE</div>
+        <nav class="application-toolbar" aria-label="Application toolbar">
+          <button data-company-menu><u>K</u>: Company</button><button disabled><u>Y</u>: Data</button><button disabled><u>Z</u>: Exchange</button>
+          <button class="go-to" disabled><u>G</u>: Go To</button><button disabled><u>O</u>: Import</button><button disabled><u>E</u>: Export</button>
+          <button disabled><u>M</u>: Share</button><button disabled><u>P</u>: Print</button><button disabled><u>F1</u>: Help</button>
+        </nav>
+      </div>
+    </header>
+    <div class="application-body">
+      <div class="screen-title"><h1>Gateway of Bookr</h1><button disabled aria-label="Close screen">×</button></div>
+      <main id="main" tabindex="-1" aria-label="Gateway workspace"><div class="loading">Opening company…</div></main>
+      <aside class="function-rail" aria-label="Function keys">
+        <button disabled><span><u>F2</u>: Date</span><span>‹</span></button>
+        <button disabled><span><u>F3</u>: Company</span><span>‹</span></button>
+        <div class="rail-space"></div>
+        <div class="rail-preview">Bookr<br><span>INR · Fictional accounts</span></div>
+      </aside>
+    </div>
+    <footer class="command-strip"><span id="screen-hint" role="status" aria-live="polite">Opening customer ledger workspace…</span></footer>
+  </div>
+</body>
+</html>
