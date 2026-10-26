@@ -83,7 +83,7 @@ async function capture(ledger,width){
 }
 await mkdir(out,{recursive:true});let step='select isolated maximum-opening company';
 try{
-  const before=await state();await page.keyboard.press('F3');await page.locator('#company-search').fill(f.company.name);await page.locator('[data-company-id="'+f.company.id+'"]').click();await page.waitForFunction(name=>document.querySelector('.company-name')?.textContent===name,f.company.name);
+  const before=await state();await page.keyboard.press('Alt+F3');await page.locator('#company-search').fill(f.company.name);await page.locator('[data-company-id="'+f.company.id+'"]').click();await page.waitForFunction(name=>document.querySelector('.company-name')?.textContent===name,f.company.name);
   for(const ledger of [f.cash,f.capital]){
     step='desktop maximum '+ledger.name;await page.setViewportSize({width:1229,height:654});await monthly(ledger);await page.mouse.move(5,5);
     assert.equal(await page.locator('.monthly-table [data-month]').count(),12);

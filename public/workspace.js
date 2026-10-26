@@ -17,6 +17,7 @@ import {entryDate} from './entry-values.js';
 import {createWorkingDateContext,followingWorkingDate} from './working-date.js';
 import {editReportDate,editReportPeriod} from './report-period.js';
 import {createCompanyDataWorkspace} from './company-data.js';
+import {createCompanyLifecycle} from './company-lifecycle.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -39,7 +40,8 @@ let ledgerKind='customer';
 let openingEditor=null;
 let ledgerGroupPicker=null;
 let workingDateStore=null;
-const activeCompanyId=sessionStorage.getItem('bookr.company') ?? 'default';
+let activeCompanyId=null,loadedSummaries=[],serverCapabilities={};
+const lifecycle=createCompanyLifecycle({storage:sessionStorage,api,reload:()=>location.reload()});
 const ledgerFields=()=>[...main.querySelectorAll('#ledger-form input,#ledger-form select,#ledger-form textarea')].filter(field=>!field.disabled && field.getClientRects().length>0);
 function openVoucher(voucher,from='gateway',type=voucher?.type ?? 'sale'){
   if(type==='purchase')purchases.renderPurchase(voucher,from);
@@ -71,11 +73,12 @@ const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshB
   openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);}});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const chart=createChartWorkspace({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,renderGateway,escapeHtml,openLedger:(ledger,returnTo)=>openFresh(async()=>renderLedger(await api('/api/ledgers/'+ledger.id),'',returnTo)),createLedger:(kind,returnTo)=>openFresh(()=>{ledgerKind=kind;renderLedger(null,'',returnTo);})});
-const companyUI=createCompanyWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:activeCompanyId,onSelect:id=>{sessionStorage.setItem('bookr.company',id);location.reload();}});
-const companyDataUI=createCompanyDataWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,refreshBook,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:activeCompanyId,onSelect:id=>{sessionStorage.setItem('bookr.company',id);location.reload();}});
+const companyUI=createCompanyWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:()=>activeCompanyId,onSelect:id=>lifecycle.select(id),getLoadedIds:()=>lifecycle.read().loadedIds,onShut:id=>lifecycle.shut(id)});
+const companyDataUI=createCompanyDataWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,getCapabilities:()=>serverCapabilities,refreshBook,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:()=>activeCompanyId,onSelect:id=>lifecycle.select(id)});
 const busy = () => saving || sales.isSaving() || receipts.isSaving() || payments.isSaving() || purchases.isSaving() || contra.isSaving() || journal.isSaving() || generalJournal.isSaving() || reports.isSaving() || financial.isSaving() || chart.isSaving() || companyUI.isSaving() || companyDataUI.isSaving();
 
 async function refreshBook() {
+  if(activeCompanyId===null)throw new Error('Select a company to open its books.');
   const next=await api('/api/state');
   for(const voucher of next.vouchers){
     if(voucher.type==='purchase' && next.ledgers.find(ledger=>ledger.id===voucher.customer_id)?.kind==='cash' && next.capabilities?.cash_purchases!==true)throw new Error('This preview cannot safely open Cash Purchases. Open the latest Bookr server before continuing.');
@@ -92,19 +95,22 @@ async function refreshBook() {
   workingDateStore??=createWorkingDateContext({companyId:activeCompanyId,booksFrom:calendar.books_from,period:{from:calendar.financial_year_from,to:calendar.financial_year_to},storage:sessionStorage});
   next.working_context=workingDateStore.current();
   next.current_period=workingDateStore.period();
+  loadedSummaries=await lifecycle.loadedSummaries();
   book=next;document.querySelector('.application-name strong').textContent=book.preview?.label || 'DEMO';return book;
 }
 async function openFresh(action) {
   if (busy()) return;
   saving = true;
+  const paused=view==='gateway'?[...main.querySelectorAll('button')].map(button=>({button,disabled:button.disabled})):[];
+  if(paused.length){main.setAttribute('aria-busy','true');for(const {button}of paused)button.disabled=true;}
   try { await refreshBook(); await action(); }
   catch (error) { hint.textContent = `Unable to refresh company: ${error.message}`; }
-  finally { saving = false; }
+  finally {for(const {button,disabled}of paused)if(button.isConnected)button.disabled=disabled;if(paused.length)main.removeAttribute('aria-busy');saving = false;}
 }
 
 async function api(path, options = {}) {
   const period=workingDateStore?.period();
-  const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json','X-Bookr-Company':activeCompanyId,...(period?{'X-Bookr-Period':period.from+'/'+period.to}:{}), ...options.headers } });
+  const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json',...(activeCompanyId!==null?{'X-Bookr-Company':activeCompanyId}:{}),...(period?{'X-Bookr-Period':period.from+'/'+period.to}:{}), ...options.headers } });
   const value = await response.json();
   if (!response.ok) throw new Error(value.error || 'Unable to complete this request.');
   return value;
@@ -114,6 +120,7 @@ function setScreen(name, screen, message) {
   generalJournal.dispose();
   view = screen;
   main.dataset.screen=screen;
+  delete main.dataset.mode;
   main.className = screen === 'gateway' ? '' : 'entry-workspace';
   title.textContent = name;
   document.querySelector('.screen-company')?.remove();
@@ -122,7 +129,7 @@ function setScreen(name, screen, message) {
     company.className = 'screen-company'; company.textContent = book.company; title.after(company);
   }
   document.title = `${name} | Bookr`;
-  const dataKey=document.querySelector('[data-company-data]');if(dataKey)dataKey.disabled=book?.capabilities?.company_backup!==true;
+  const dataKey=document.querySelector('[data-company-data]');if(dataKey)dataKey.disabled=serverCapabilities.company_backup!==true;
   document.querySelectorAll('[data-sales-rail]').forEach(button => button.remove());
   const dateKey = document.querySelector('.function-rail button');
   dateKey.disabled = true; dateKey.onclick = null;dateKey.innerHTML='<span><u>F2</u>: Date</span><span>‹</span>';
@@ -156,16 +163,19 @@ function menuButton(item, index, className = '') {
   return `<button class="${className}" data-menu="${index}" aria-disabled="${!enabled}" title="${enabled ? 'Open ' + escapeHtml(item.label) : 'Available in a later layer'}">${label}</button>`;
 }
 function renderGateway(focusIndex = 0) {
+  if(!book){renderEmptyCompany();return;}
   setScreen('Gateway of Bookr', 'gateway', '');
   let itemIndex = 0;
-  const lastVoucher = book.vouchers.at(-1);
+  const lastVoucherDate = loadedSummaries.find(row=>row.profile.id===activeCompanyId)?.last_voucher_date??null;
   const period=companyPeriod(book);
-  const lastEntry = lastVoucher ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric'}).format(new Date(lastVoucher.date + 'T12:00:00Z')) : 'No Vouchers Entered';
+  const dateCaption=value=>value?entryDate(value):'No Vouchers Entered';
+  const lastEntry = dateCaption(lastVoucherDate);
   main.innerHTML = `
     <section class="company-pane" aria-label="Selected company">
       <div class="period-info"><div><div class="small-label">CURRENT PERIOD</div><button type="button" id="change-company-period" class="period-value" aria-label="Change current period" ${book.capabilities?.current_period===true?'':'disabled'}>${shortCompanyDate(period.from)} to ${shortCompanyDate(period.to)}</button></div><div class="date"><div class="small-label">CURRENT DATE</div><div class="period-value">${companyDateCaption(book)}</div></div></div>
       <div class="company-table-heading"><span class="small-label">NAME OF COMPANY</span><span class="small-label">DATE OF LAST ENTRY</span></div>
       <div class="company-row"><span class="company-name">${escapeHtml(book.company)}</span><span class="last-entry">${escapeHtml(lastEntry)}</span></div>
+      <div class="loaded-companies" aria-label="Loaded companies">${loadedSummaries.map(row=>`<button type="button" class="company-row loaded-company-row" data-loaded-company="${row.profile.id}" ${row.profile.id===activeCompanyId?'aria-current="true"':''}><span>${escapeHtml(row.profile.name)}</span><span>${dateCaption(row.last_voucher_date)}</span></button>`).join('')}</div>
     </section>
     <section class="menu-pane" aria-label="Gateway menu"><div class="gateway-menu"><div class="gateway-menu-title">Gateway of Bookr</div><div class="gateway-menu-body">
       ${groups.map(group => `<div class="menu-section ${group.className || ''}"><h2 class="menu-heading">${group.title}</h2>${group.items.map(item => menuButton(item,itemIndex++)).join('')}</div>`).join('')}
@@ -177,6 +187,13 @@ function renderGateway(focusIndex = 0) {
   selectMenu(focusIndex);
   const dateKey=document.querySelector('.function-rail button');dateKey.disabled=false;dateKey.onclick=changeWorkingDate;
   main.querySelector('#change-company-period').onclick=changeCompanyPeriod;
+  main.querySelectorAll('[data-loaded-company]').forEach(button=>button.onclick=()=>{if(busy())return;saving=true;lifecycle.select(button.dataset.loadedCompany).catch(error=>{hint.textContent=error.message;}).finally(()=>{saving=false;});});
+}
+function renderEmptyCompany(){
+  book=null;workingDateStore=null;loadedSummaries=[];
+  setScreen('Gateway of Bookr','company-empty','Alt+F3: select company · Alt+K: company · Alt+Y: restore');
+  main.innerHTML=`<section class="company-empty"><h2>No company loaded</h2><p>Select a company to open its books.</p><button type="button" id="select-company-empty">Select Company <small>Alt+F3</small></button><button type="button" id="create-company-empty">Create Company</button></section>`;
+  main.querySelector('#select-company-empty').onclick=()=>companyUI.openSelector('select');main.querySelector('#create-company-empty').onclick=companyUI.openCreate;main.querySelector('#select-company-empty').focus();
 }
 function changeWorkingDate(){
   if(view!=='gateway'||busy()||document.querySelector('dialog')||!workingDateStore)return;
@@ -415,14 +432,15 @@ document.addEventListener('keydown', event => {
 closeButton.addEventListener('click', goBack);
 document.querySelector('[data-company-menu]').addEventListener('click',companyUI.openMenu);
 document.querySelector('[data-company-data]').addEventListener('click',companyDataUI.openMenu);
-const companyKey=document.querySelectorAll('.function-rail>button')[1];companyKey.disabled=false;companyKey.onclick=companyUI.openSelector;
+const companyKey=document.querySelectorAll('.function-rail>button')[1];companyKey.disabled=false;companyKey.onclick=()=>companyUI.openSelector();
 document.querySelector('#home').addEventListener('click', event => {
   event.preventDefault();
-  if (!book || busy() || document.querySelector('dialog')) return;
-  if (isDirty()) askDialog('Discard unsaved changes and return to Gateway?', () => openFresh(() => renderGateway()));
-  else openFresh(() => renderGateway());
+  if (busy() || document.querySelector('dialog')) return;
+  const home=()=>book?openFresh(()=>renderGateway()):renderGateway();
+  if (isDirty()) askDialog('Discard unsaved changes and return to Gateway?',home);
+  else home();
 });
-try { await refreshBook(); renderGateway(); }
+try { const selectedCompany=await lifecycle.initialize();activeCompanyId=selectedCompany.activeId;serverCapabilities=lifecycle.capabilities();if(activeCompanyId!==null)await refreshBook();renderGateway(); }
 catch (error) {
   main.innerHTML = `<div class="connection-error"><strong>Unable to open company</strong>${escapeHtml(error.message)}</div>`;
   hint.textContent = 'Connection unavailable';

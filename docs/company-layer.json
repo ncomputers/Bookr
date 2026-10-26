@@ -3,7 +3,7 @@
   "complete": false,
   "priority": "Finish company management before expanding other accounting layers.",
   "implemented": [
-    "Create and select companies with separate books and per-tab selection",
+    "Create separate company books and load, change or shut companies within each browser tab",
     "Alter identity, mailing and five contact fields with revision checks",
     "Preserve company books and reject missing established database files",
     "Create companies with custom initial financial-year and books-beginning dates",
@@ -14,16 +14,40 @@
     "Validate voucher dates with request-local periods and carry prior movements into selected monthly reports",
     "Download a whole-company portable backup and restore validated records into a separate new company",
     "Shared address entry: populated Enter adds a line, empty final Enter advances",
-    "Reusable confirmation dialogs preserve unsaved drafts when No is chosen"
+    "Reusable confirmation dialogs preserve unsaved drafts when No is chosen",
+    "Keep explicit no-company state after the last company is shut, without reopening default books",
+    "Reopen with a bounded last-entry date model while retaining each company period",
+    "Retry opening a successfully saved company or restore without publishing it twice"
   ],
   "remaining": [
-    {"area":"Company calendar","status":"Creation, working-date and current-period controls work; saved master-date alteration remains"},
-    {"area":"Historical opening bills","status":"Earlier-than-books dates use an existing Bookr convention; reference report behaviour remains under study"},
-    {"area":"State and country selection","status":"Text fields work; reference-style region pickers remain"},
-    {"area":"Base currency","status":"INR display only; configuration remains"},
-    {"area":"Open and shut company workflows","status":"Selection works; broader lifecycle remains"},
-    {"area":"Company backup and restore","status":"Portable whole-company download and restore-as-new work; merging and before-Books legacy voucher-policy transfer are unsupported"},
-    {"area":"Company features and access controls","status":"Not implemented"}
+    {
+      "area": "Company calendar",
+      "status": "Creation, working-date and current-period controls work; saved master-date alteration remains"
+    },
+    {
+      "area": "Historical opening bills",
+      "status": "Earlier-than-books dates use an existing Bookr convention; reference report behaviour remains under study"
+    },
+    {
+      "area": "State and country selection",
+      "status": "Text fields work; reference-style region pickers remain"
+    },
+    {
+      "area": "Base currency",
+      "status": "INR display only; configuration remains"
+    },
+    {
+      "area": "Company alteration selection",
+      "status": "Loaded/disk selection and shut/reopen work; alteration currently opens only the active company"
+    },
+    {
+      "area": "Company backup and restore",
+      "status": "Portable whole-company download and restore-as-new work; merging and before-Books legacy voucher-policy transfer are unsupported"
+    },
+    {
+      "area": "Company features and access controls",
+      "status": "Not implemented"
+    }
   ],
   "evidencePolicy": "Observed behavior, original web conventions and unverified rules are distinguished. Planned features are not counted as completed."
 }

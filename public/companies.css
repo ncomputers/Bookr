@@ -18,6 +18,22 @@
 .period-info button.period-value{font-family:inherit;border:0;padding:0;background:transparent;text-align:left;color:inherit;cursor:pointer}
 .period-info button.period-value:focus-visible{outline:2px solid #158be2;outline-offset:3px}
 .company-current-period-dialog{width:min(220px,calc(100vw - 24px))}
+.command-strip #create-company{width:165px;white-space:nowrap}
+.loaded-companies{margin-top:18px}
+.loaded-company-row{display:flex;width:100%;min-height:16px;line-height:16px;padding:0 21px;border:0;background:transparent;text-align:left;color:inherit;font:inherit;cursor:pointer;gap:12px}
+.loaded-company-row>span:first-child{min-width:0;overflow-wrap:anywhere}
+.loaded-company-row>span:last-child{flex-shrink:0;text-align:right;font-size:12px;font-weight:normal}
+.loaded-company-row[aria-current=true]{font-weight:bold}
+.loaded-company-row:focus-visible{outline:2px solid #158be2;outline-offset:2px}
+main[aria-busy=true] .gateway-menu button:disabled,main[aria-busy=true] .loaded-company-row:disabled{cursor:progress;opacity:.65}
+.company-empty{max-width:480px;margin:36px auto;padding:20px;border:1px solid var(--rule)}
+.company-empty h2{font-size:16px}.company-empty button{display:block;width:100%;margin:12px 0;padding:10px;text-align:left;font:inherit}
+.company-empty small{float:right}.company-empty p{overflow-wrap:anywhere}
+.company-selection-actions{display:flex;align-items:flex-end;flex-direction:column;padding:14px 7px 2px}
+.company-selection-actions button{background:transparent;border:0;padding:0;font:inherit;line-height:16px;cursor:pointer}
+.company-selection-actions button:focus-visible{outline:2px solid #158be2;background:var(--selected)}
+@media(min-width:751px){.company-selector{width:min(386px,92%);margin-top:0;padding-top:9px}.company-selector>input{margin-bottom:0}.company-selector #company-options{min-height:300px;padding-top:0}.company-selector #company-options>button{padding:0 7px;gap:0;line-height:16px}.company-selector #company-options small{line-height:14px}}
+@media(max-width:650px){.loaded-company-row{padding:0 8px}.loaded-company-row>span:last-child{font-size:10px}.company-empty{margin:20px 8px}}
 main.entry-workspace:has(#company-form){background:#b3b8ba}
 #company-form{width:calc(100% - 42px);min-height:505px;padding:15px 8px}
 .company-create-columns{grid-template-columns:476px minmax(0,1fr);min-height:0}

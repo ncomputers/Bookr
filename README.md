@@ -19,7 +19,8 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 
 ## Current features
 
-- Create, select and alter companies, including mailing and contact details.
+- Create and alter companies, including mailing and contact details.
+- Load, change and shut companies independently in each browser tab.
 - Revision checks, separate company books and missing-database protection.
 - Download a complete company backup and restore it as a separate new company.
 - Choose the initial financial-year and books-beginning dates when creating a company.
@@ -36,11 +37,13 @@ moves to State. Shift+Enter inserts a newline without leaving the address.
 
 Amounts use integer paise. A credit sale of ₹1,000 followed by a ₹400 receipt leaves ₹600 outstanding.
 
-New companies support a custom initial financial year, with books beginning within that year. The initial working date and opening-balance labels use the company's books-beginning date. Gateway F2 changes the working date within the displayed current period without changing company master dates or saved vouchers. Each browser tab keeps a separate working date for each company; this tab retention is a web convention. In the date dialog, Esc clears the field before a second Esc returns without accepting.
+New companies support a custom initial financial year, with books beginning within that year. A newly created company starts at its books-beginning date, which also labels its opening balances. Gateway F2 changes the working date within the displayed current period without changing company master dates or saved vouchers. Each browser tab keeps a separate working date for each company; this tab retention is a web convention. In the date dialog, Esc clears the field before a second Esc returns without accepting.
 
 Gateway Alt+F2 changes the current period and moves an out-of-range working date to the nearest period boundary. Voucher entry uses the selected period, and monthly summaries follow it. Other reports retain their displayed All saved/F2 date filters. Period selection is separate for each company in each browser tab; tab retention is a web convention.
 
-Saved company master dates remain read-only. Shutting/reopening loaded companies is unfinished. API requests without a selected period retain the existing initial-window and default-company compatibility behavior.
+F3 changes among loaded companies, Alt+F3 lists all company books, and Ctrl+F3 shuts a loaded company. Company list dates show the initial financial year. Shutting leaves saved books intact. Shutting the last company leaves an empty workspace through reload, where Company Creation and Restore remain available. A fresh load starts at the later of Books and last-entry date, clipped to the retained period; this is Bookr's bounded reopen model. Changing among already loaded companies keeps their working dates. If a company saves successfully but opening it fails, Open Company retries the saved result without saving it again.
+
+Saved company master dates remain read-only. Alteration currently opens the active company; a selector for altering other loaded companies remains. API requests without a selected period retain the existing initial-window and default-company compatibility behavior.
 
 Company Data (Alt+Y) downloads an original Bookr JSON backup covering all saved dates. Restore requires a new company name and preserves saved identities, revisions, postings and bill allocations. It never merges into an existing company. Backups support up to 25 MB and 200,000 rows; a checksum detects corruption and does not authenticate a file. Legacy vouchers dated before Books cannot currently be restored into a new company because their date-edit policy differs.
 

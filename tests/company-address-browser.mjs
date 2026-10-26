@@ -17,7 +17,7 @@ page.on('request',request=>{if(request.url().includes('/api/')&&request.method()
 const active=()=>page.evaluate(()=>sessionStorage.getItem('bookr.company')??'default');
 async function get(path,id=f.company.id){const response=await page.request.get(base+path,{headers:{'X-Bookr-Company':id}});assert.equal(response.ok(),true,await response.text());return response.json();}
 async function evidence(){assert.equal(await active(),f.company.id);return {profile:await get('/api/companies/'+f.company.id),book:await get('/api/state')};}
-async function choose(company){await page.keyboard.press('F3');await page.locator('#company-search').fill(company.name);await page.locator('[data-company-id="'+company.id+'"]').click();await page.waitForFunction(name=>document.querySelector('.company-pane .company-name')?.textContent===name,company.name);}
+async function choose(company){await page.keyboard.press('Alt+F3');await page.locator('#company-search').fill(company.name);await page.locator('[data-company-id="'+company.id+'"]').click();await page.waitForFunction(name=>document.querySelector('.company-pane .company-name')?.textContent===name,company.name);}
 async function home(){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();if(await page.locator('#entry-dialog').count()){await page.keyboard.press('y');await page.locator('#entry-dialog').waitFor({state:'detached'});}await page.locator('#main[data-screen="gateway"]').waitFor();}
 async function alter(){await page.keyboard.press('Alt+k');await page.locator('#company-alter-menu').waitFor();await page.keyboard.press('a');await page.locator('#main[data-screen="company-alter"] #company-form').waitFor();}
 const focused=selector=>page.locator(selector).evaluate(element=>element===document.activeElement);

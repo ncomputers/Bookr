@@ -2,39 +2,47 @@ import {entryDate,parseEntryDate} from './entry-values.js';
 import {handleMultilineEntry} from './multiline-entry.js';
 import {initialFinancialYearTo} from './calendar-values.js';
 
-export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect}){
-  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,menuOrigin='gateway',commitYear=null,readCalendar=null;
+export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect,getLoadedIds,onShut}){
+  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,pendingSelection=null,menuOrigin='gateway',commitYear=null,readCalendar=null;
   const views=['company-menu','companies','company-create','company-alter'];
   const contacts=[['telephone','Telephone'],['mobile','Mobile'],['fax','Fax'],['email','E-mail'],['website','Website']];
   const value=id=>main.querySelector('#'+id).value;
   const values=()=>Object.fromEntries(['name','mailing_name','address','state','country','pincode',...contacts.map(([key])=>key)].map(key=>[key,value('company-'+key.replaceAll('_','-'))]));
   const draft=()=>({...values(),financial_year_from:value('company-financial-year'),books_from:value('company-books-from')});
-  const dirty=()=>['company-create','company-alter'].includes(getView()) && JSON.stringify(draft())!==initial;
+  const dirty=()=>!pendingSelection && ['company-create','company-alter'].includes(getView()) && JSON.stringify(draft())!==initial;
   function command(id,label,action){const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.onclick=action;document.querySelector('.command-strip').insertBefore(button,hint);}
   function guard(action){if(isBusy() || document.querySelector('dialog'))return;if(isDirty())askDialog('Discard unsaved changes and open Company?',action,'Discard');else action();}
   async function run(action){if(busy || switching)return;busy=true;try{await action();}catch(error){const box=main.querySelector('#company-error');if(box)box.textContent=error.message;else hint.textContent=error.message;}finally{busy=false;}}
-  function select(id){if(busy || switching)return;switching=true;onSelect(id);}
+  async function select(id){
+    if(busy || switching)return;
+    await run(async()=>{await (main.dataset.mode==='shut'?onShut(id):onSelect(id));switching=true;});
+  }
   function menu(){
     setScreen('Company','company-menu','↑ ↓ Enter: open · Esc: Gateway');
     const canAlter=menuOrigin==='gateway' && getBook()?.capabilities?.company_alter===true;
-    main.innerHTML=`<section class="master-menu company-menu"><div class="gateway-menu-title">Company</div><div class="master-menu-content"><h2 class="menu-heading">COMPANY</h2><button id="company-create-menu" class="selected">Create Company</button><button id="company-alter-menu" ${canAlter?'':'disabled'}>Alter Company</button><button id="company-select-menu">Select Company</button><p>${escapeHtml(getBook()?.company ?? 'Select a company to open its books.')}</p>${!canAlter?'<small>Company alteration is available from Gateway with a supported server.</small>':''}</div></section>`;
-    index=0;main.querySelector('#company-create-menu').onclick=openCreate;main.querySelector('#company-alter-menu').onclick=openAlter;main.querySelector('#company-select-menu').onclick=openSelector;
+    main.innerHTML=`<section class="master-menu company-menu"><div class="gateway-menu-title">Company</div><div class="master-menu-content"><h2 class="menu-heading">COMPANY</h2><button id="company-create-menu" class="selected">Create Company</button><button id="company-alter-menu" ${canAlter?'':'disabled'}>Alter Company</button><button id="company-select-menu">Select Company</button><button id="company-shut-menu" ${getLoadedIds().length?'':'disabled'}>Shut Company</button><p>${escapeHtml(getBook()?.company ?? 'Select a company to open its books.')}</p>${!canAlter?'<small>Company alteration is available from Gateway with a supported server.</small>':''}</div></section>`;
+    index=0;main.querySelector('#company-create-menu').onclick=openCreate;main.querySelector('#company-alter-menu').onclick=openAlter;main.querySelector('#company-select-menu').onclick=()=>openSelector('select');main.querySelector('#company-shut-menu').onclick=()=>openSelector('shut');
     const buttons=[...main.querySelectorAll('.company-menu button:not(:disabled)')];buttons.forEach((button,i)=>button.onfocus=()=>{index=i;buttons.forEach((item,n)=>item.classList.toggle('selected',n===i));});buttons[0].focus();
   }
   const rememberOrigin=()=>{if(!views.includes(getView()))menuOrigin=getView();};
   const openMenu=()=>guard(()=>{rememberOrigin();menu();});
-  const openSelector=()=>guard(()=>run(async()=>{
+  const openSelector=(selectionMode='change')=>guard(()=>run(async()=>{
     rememberOrigin();
-    const data=await api('/api/companies');rows=data.companies;dates=data.companies.find(row=>row.id==='default');
-    setScreen('Select Company','companies','Type to filter · ↑ ↓ Enter: select · Alt+C: create · Esc: Company');
-    main.innerHTML=`<section class="company-selector"><label for="company-search">Name of Company</label><input id="company-search" autocomplete="off" aria-controls="company-options"><div class="selection-heading">List of Companies</div><div id="company-options" role="listbox" aria-label="Companies"></div><p id="company-error" class="company-error" role="alert"></p></section>`;
-    const search=main.querySelector('#company-search');search.addEventListener('input',()=>filter(data.companies,search.value));filter(data.companies,'');
+    const data=await api('/api/companies'),loaded=new Set(getLoadedIds());dates=data.companies.find(row=>row.id==='default');
+    const all=data.companies.filter(row=>selectionMode==='select'||loaded.has(row.id)).sort((a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
+    const name=selectionMode==='shut'?'Shut Company':selectionMode==='select'?'Select Company':'Change Company';
+    setScreen(name,'companies','Type to filter · ↑ ↓ Enter: '+(selectionMode==='shut'?'shut':'select')+' · Alt+F3: all companies · Esc: Company');main.dataset.mode=selectionMode;
+    const canAlter=menuOrigin==='gateway'&&getBook()?.capabilities?.company_alter===true;
+    main.innerHTML=`<section class="company-selector"><label for="company-search">${name}</label><input id="company-search" aria-label="Name of Company" autocomplete="off" aria-controls="company-options"><div class="selection-heading">${selectionMode==='select'?'List of Companies':'List of Loaded Companies'}</div><nav class="company-selection-actions" aria-label="Company actions">${selectionMode==='change'?`<button type="button" id="selector-create-company">Create Company</button><button type="button" id="selector-alter-company" ${canAlter?'':'disabled'}>Alter Company</button>`:''}${selectionMode!=='select'?'<button type="button" id="select-all-companies">Select Company</button>':''}${selectionMode==='change'?`<button type="button" id="selector-shut-company" ${getLoadedIds().length?'':'disabled'}>Shut Company</button>`:''}</nav><div id="company-options" role="listbox" aria-label="Companies"></div><p id="company-error" class="company-error" role="alert"></p></section>`;
+    const search=main.querySelector('#company-search');search.addEventListener('input',()=>filter(all,search.value));filter(all,'');
+    main.querySelector('#select-all-companies')?.addEventListener('click',()=>openSelector('select'));
+    main.querySelector('#selector-create-company')?.addEventListener('click',openCreate);main.querySelector('#selector-alter-company')?.addEventListener('click',openAlter);main.querySelector('#selector-shut-company')?.addEventListener('click',()=>openSelector('shut'));
     command('create-company','Create Company  Alt+C',openCreate);search.focus();
   }));
   function filter(all,query){
-    rows=all.filter(row=>row.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));index=Math.max(0,rows.findIndex(row=>row.id===activeId));
+    rows=all.filter(row=>row.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));index=Math.max(0,rows.findIndex(row=>row.id===activeId()));
     const list=main.querySelector('#company-options');
-    list.innerHTML=rows.length?rows.map((row,i)=>`<button type="button" role="option" data-company-id="${row.id}" data-company-index="${i}" aria-selected="false"><strong>${escapeHtml(row.name)}</strong><small>${entryDate(row.financial_year_from)} to ${entryDate(row.financial_year_to)}${row.id===activeId?' · Current':''}</small></button>`).join(''):'<p>No matching company.</p>';
+    list.innerHTML=rows.length?rows.map((row,i)=>`<button type="button" role="option" data-company-id="${row.id}" data-company-index="${i}" aria-selected="false"><strong>${escapeHtml(row.name)}</strong><small>${entryDate(row.financial_year_from)} to ${entryDate(row.financial_year_to)}${row.id===activeId()?' · Current':''}</small></button>`).join(''):'<p>No matching company.</p>';
     list.querySelectorAll('button').forEach((button,i)=>{button.onclick=()=>select(rows[i].id);button.onfocus=()=>highlight(i);});highlight(index);
   }
   function highlight(next){if(!rows.length)return;index=(next+rows.length)%rows.length;main.querySelectorAll('[data-company-id]').forEach((button,i)=>{button.classList.toggle('selected',i===index);button.setAttribute('aria-selected',String(i===index));if(i===index)button.scrollIntoView({block:'nearest'});});}
@@ -45,9 +53,10 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
   }));
   const openAlter=()=>guard(()=>run(async()=>{
     if(menuOrigin!=='gateway' || getBook()?.capabilities?.company_alter!==true){hint.textContent='Return to Gateway on the latest server to alter company details.';return;}
-    const profile=await api('/api/companies/'+activeId);dates=profile;renderForm(profile);
+    const profile=await api('/api/companies/'+activeId());dates=profile;renderForm(profile);
   }));
   function renderForm(profile=null){
+    pendingSelection=null;
     editingProfile=profile;
     setScreen(profile?'Company Alteration':'Company Creation',profile?'company-alter':'company-create','Enter: next field · Address: blank line to finish · Ctrl+A: save · Esc: back');
     const field=(key,label,value='',limit=120)=>`<div class="company-field company-field-${key}"><label for="company-${key.replaceAll('_','-')}">${label}</label><span>:</span>${key==='mobile'?'<div class="company-mobile"><span id="company-mobile-prefix" aria-label="Country calling code"></span>':''}<input id="company-${key.replaceAll('_','-')}" maxlength="${limit}" value="${escapeHtml(value)}">${key==='mobile'?'</div>':''}</div>`;
@@ -76,22 +85,30 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
   }
   async function save(){
     if(busy || switching || !['company-create','company-alter'].includes(getView()) || document.querySelector('dialog'))return;
+    if(pendingSelection){
+      busy=true;const accept=document.querySelector('#accept-company');accept.disabled=true;
+      try{await onSelect(pendingSelection.id);switching=true;}
+      catch(failure){main.querySelector('#company-error').textContent='Company saved as '+pendingSelection.name+'. Unable to open: '+failure.message;}
+      finally{busy=false;if(!switching)accept.disabled=false;}return;
+    }
     const input=values(),error=main.querySelector('#company-error');error.textContent='';
     if(!input.name.trim()){error.textContent='Enter a company name.';main.querySelector('#company-name').setAttribute('aria-invalid','true');main.querySelector('#company-name').focus();return;}
     try{Object.assign(input,readCalendar());}catch(failure){error.textContent=failure.message;return;}
     busy=true;const fields=[...main.querySelectorAll('input,textarea')];fields.forEach(field=>field.disabled=true);document.querySelector('#accept-company').disabled=true;
-    try{const profile=await api(editingProfile?'/api/companies/'+editingProfile.id:'/api/companies',{method:editingProfile?'PUT':'POST',body:JSON.stringify({...input,...(editingProfile?{revision:editingProfile.revision}:{})})});switching=true;onSelect(profile.id);}
-    catch(failure){error.textContent=failure.message;fields.forEach(field=>field.disabled=false);document.querySelector('#accept-company').disabled=false;}
+    try{const profile=await api(editingProfile?'/api/companies/'+editingProfile.id:'/api/companies',{method:editingProfile?'PUT':'POST',body:JSON.stringify({...input,...(editingProfile?{revision:editingProfile.revision}:{})})});
+      pendingSelection=profile;initial=JSON.stringify(draft());
+      try{await onSelect(profile.id);switching=true;}catch(failure){throw new Error('Company saved as '+profile.name+'. Select it from Company to open its books. '+failure.message);}}
+    catch(failure){error.textContent=failure.message;if(!pendingSelection)fields.forEach(field=>field.disabled=false);const accept=document.querySelector('#accept-company');accept.disabled=false;if(pendingSelection)accept.textContent='Open Company  Ctrl+A';accept.focus();}
     finally{busy=false;}
   }
   function back(){
     if(busy || switching)return;
     if(['company-create','company-alter'].includes(getView())){
       if(dirty())askDialog('Discard unsaved company changes?',menu,'Discard');else menu();
-    }else if(getView()==='companies')menu();else if(getBook())renderGateway();else openSelector();
+    }else if(getView()==='companies')menu();else renderGateway();
   }
   function onKey(event){
-    if(event.key==='F3' && !event.ctrlKey && !event.metaKey){event.preventDefault();openSelector();return true;}
+    if(event.key==='F3' && !event.metaKey && !(event.ctrlKey&&event.altKey)){event.preventDefault();openSelector(event.ctrlKey?'shut':event.altKey?'select':'change');return true;}
     if(event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase()==='k'){event.preventDefault();openMenu();return true;}
     if(!views.includes(getView()))return false;
     if(busy || switching){event.preventDefault();return true;}
@@ -121,5 +138,5 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     }
     return false;
   }
-  return {openMenu,openSelector,onKey,back,dirty,isSaving:()=>busy || switching};
+  return {openMenu,openSelector,openCreate,onKey,back,dirty,isSaving:()=>busy || switching};
 }

@@ -23,6 +23,7 @@ const previewLabel=String(process.env.BOOKR_PREVIEW_LABEL || '').trim().slice(0,
 await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
+const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true});
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
 const body = async (req,limit=16384) => {
   if(Number(req.headers['content-length'])>limit){req.resume();throw new BookError('Request is too large.',413);}
@@ -48,6 +49,17 @@ const handler = async (req, res) => {
         if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) throw new BookError('Origin not allowed.',403);
         if (!String(req.headers['content-type']).startsWith('application/json')) throw new BookError('JSON content type required.',415);
       }
+      if(url.pathname==='/api/capabilities'){
+        if(req.method!=='GET')throw new BookError('Method not supported.',405);
+        if(url.search)throw new BookError('Capabilities do not accept query overrides.');
+        return send(res,200,{capabilities});
+      }
+      const summaryMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/summary$/);
+      if(summaryMatch){
+        if(req.method!=='GET')throw new BookError('Method not supported.',405);
+        if(url.search)throw new BookError('Company summary does not accept query overrides.');
+        return send(res,200,companies.summary(summaryMatch[1]));
+      }
       const requestPeriod=currentPeriodHeader(req.headers['x-bookr-period']);
       const backupMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/backup$/);
       if(req.method==='GET'&&backupMatch){
@@ -67,7 +79,7 @@ const handler = async (req, res) => {
       if(req.method==='PUT' && companyMatch)return send(res,200,companies.update(companyMatch[1],await body(req)));
       const companyId=req.headers['x-bookr-company'];
       const book=companies.book(companyId===undefined?'default':companyId);
-      if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities:{general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true},...(previewLabel?{preview:{label:previewLabel}}:{})});
+      if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities,...(previewLabel?{preview:{label:previewLabel}}:{})});
       if(req.method==='GET' && url.pathname==='/api/outstanding'){
         const allowed=['direction','as_of','ledger'];
         if([...url.searchParams.keys()].some(key=>!allowed.includes(key)) || allowed.some(key=>url.searchParams.getAll(key).length>1))throw new BookError('Choose each outstanding filter once: direction, as_of and ledger.');
