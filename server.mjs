@@ -62,7 +62,7 @@ const handler = async (req, res) => {
       if (req.method === 'GET' && url.pathname === '/api/financial-reports') return send(res,200,book.financialReports({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/statement') return send(res,200,book.statement(url.searchParams.get('ledger'),{from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/monthly-summary') {
-        if([...url.searchParams.keys()].some(key=>key!=='ledger'))throw new BookError('Monthly Summary currently supports only the company fiscal year, 1-Apr-2026 to 31-Mar-2027.');
+        if([...url.searchParams.keys()].some(key=>key!=='ledger'))throw new BookError('Monthly Summary currently uses the selected company\'s initial financial year.');
         return send(res,200,book.monthlySummary(url.searchParams.get('ledger')));
       }
       const ledgerMatch=url.pathname.match(/^\/api\/ledgers\/(\d+)$/);

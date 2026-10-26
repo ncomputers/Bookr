@@ -1,9 +1,10 @@
 import {entryDate,parseEntryDate,formatRupees,formatBalance,inputRupees,parseRupees} from './entry-values.js';
 import {savedLedgerBalance} from './ledger-balance.js';
+import {initialEntryDate} from './company-context.js';
 import {editBankAllocation} from './bank-allocation.js';
 
 export function createContraWorkspace({main,hint,api,setScreen,getView,getBook,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook,openVoucher}) {
-  let editing=null,origin='gateway',busy=false,initial='',bankData=null,sourceBankData=null,reviewed='',currentDate='2026-04-01';
+  let editing=null,origin='gateway',busy=false,initial='',bankData=null,sourceBankData=null,reviewed='',currentDate=null;
   const value=id=>main.querySelector('#'+id).value;
   const signature=input=>`${input.source_id}:${input.destination_id}:${input.amount}:${input.date}`;
   const snapshot=()=>JSON.stringify({date:value('contra-date'),source:value('contra-source'),destination:value('contra-destination'),amount:value('contra-amount'),narration:value('contra-narration'),bankData,sourceBankData});
@@ -30,6 +31,7 @@ export function createContraWorkspace({main,hint,api,setScreen,getView,getBook,r
     }catch(error){main.querySelector('#contra-error').textContent=error.message;}
   }
   function render(voucher=null,from='gateway',message=''){
+    currentDate??=initialEntryDate(getBook());
     editing=voucher;origin=from;bankData=structuredClone(voucher?.details?.bank ?? null);sourceBankData=structuredClone(voucher?.details?.source_bank ?? null);reviewed=voucher?signature(voucher):'';if(voucher)currentDate=voucher.date;
     setScreen(voucher?'Accounting Voucher Alteration':'Accounting Voucher Creation','contra',message || 'F4: Contra · Enter: next · Ctrl+A: accept · F2: date · Esc: back');
     const accounts=getBook().ledgers.filter(ledger=>['cash','bank'].includes(ledger.kind)).sort((a,b)=>a.name.localeCompare(b.name));

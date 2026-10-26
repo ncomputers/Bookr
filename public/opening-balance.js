@@ -1,13 +1,14 @@
 import {formatRupees,formatBalance,inputRupees,parseRupees} from './entry-values.js';
 import {editOpeningBills} from './opening-bills.js';
+import {shortCompanyDate} from './company-context.js';
 
 // Reused master opening editor. Parties use full bill-wise breakup in their
 // normal Dr/Cr direction; a draft may be incomplete until separate acceptance.
 export const supportsOpeningBalance=kind=>['cash','bank','capital','customer','supplier'].includes(kind);
 export const partyOpening=kind=>['customer','supplier'].includes(kind);
-export function createOpeningBalanceEditor({host,summary,ledger,getLedgers,getName=()=>ledger?.name ?? 'Ledger',escapeHtml,onError=()=>{}}){
+export function createOpeningBalanceEditor({host,summary,ledger,openingDate=ledger?.opening_date,getLedgers,getName=()=>ledger?.name ?? 'Ledger',escapeHtml,onError=()=>{}}){
   host.className='opening-balance opening-editor';
-  host.innerHTML='<label for="ledger-opening-amount">Opening Balance</label><strong>(on 1-Apr-26) :</strong><div class="opening-controls"><input id="ledger-opening-amount" inputmode="decimal" maxlength="20" aria-label="Opening balance in rupees" aria-describedby="opening-balance-warning"><select id="ledger-opening-side" aria-label="Opening balance side"><option value="Dr">Dr</option><option value="Cr">Cr</option></select></div><span id="opening-unavailable">0.00</span><p id="opening-balance-warning" role="status" hidden></p>';
+  host.innerHTML=`<label for="ledger-opening-amount">Opening Balance</label><strong>(on ${shortCompanyDate(openingDate)}) :</strong><div class="opening-controls"><input id="ledger-opening-amount" inputmode="decimal" maxlength="20" aria-label="Opening balance in rupees" aria-describedby="opening-balance-warning"><select id="ledger-opening-side" aria-label="Opening balance side"><option value="Dr">Dr</option><option value="Cr">Cr</option></select></div><span id="opening-unavailable">0.00</span><p id="opening-balance-warning" role="status" hidden></p>`;
   summary.innerHTML='<strong>Total Opening Balance</strong><div class="opening-total-line"><b>Debit</b><b id="opening-debit"></b></div><div class="opening-total-line"><b>Credit</b><b id="opening-credit"></b></div><div class="opening-total-line opening-total-difference"><b>Difference</b><b id="opening-difference"></b></div>';
   const amount=host.querySelector('#ledger-opening-amount'),side=host.querySelector('#ledger-opening-side'),controls=host.querySelector('.opening-controls'),unavailable=host.querySelector('#opening-unavailable'),warning=host.querySelector('#opening-balance-warning');
   const billButton=document.createElement('button');billButton.id='ledger-opening-bills';billButton.type='button';billButton.textContent='Bill-wise Details';const billSummary=document.createElement('span');billSummary.id='opening-bill-summary';warning.before(billButton,billSummary);
@@ -49,7 +50,7 @@ export function createOpeningBalanceEditor({host,summary,ledger,getLedgers,getNa
   function showBills(selectedId=null){
     if(disabled || !partyOpening(currentKind) || document.querySelector('dialog'))return;
     let value;try{value=read();if(!value)throw new Error('Enter an opening balance before adding opening references.');}catch(error){onError(error.message);focusError();return;}
-    editOpeningBills({name:getName(),amount:Math.abs(value),side:currentKind==='supplier'?'Cr':'Dr',bills,selectedId,escapeHtml,onDone:next=>{bills=next.map(draftBill);reviewed=currentKind+':'+Math.abs(value);updateSummary();billButton.focus();}});
+    editOpeningBills({name:getName(),amount:Math.abs(value),side:currentKind==='supplier'?'Cr':'Dr',openingDate,bills,selectedId,escapeHtml,onDone:next=>{bills=next.map(draftBill);reviewed=currentKind+':'+Math.abs(value);updateSummary();billButton.focus();}});
   }
   function billsReady(){const value=read();return !partyOpening(currentKind) || !value || (bills.length>0 && reviewed===currentKind+':'+Math.abs(value) && bills.reduce((sum,row)=>sum+row.amount,0)===Math.abs(value));}
   billButton.onclick=()=>showBills();

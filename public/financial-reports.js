@@ -1,5 +1,6 @@
 import {entryDate,formatRupees,formatBalance} from './entry-values.js';
 import {editReportPeriod} from './report-period.js';
+import {initialEntryDate} from './company-context.js';
 
 export function createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook,getView,renderGateway,openLedger,escapeHtml}) {
   let busy=false,context=null,entries=[],index=0;
@@ -8,7 +9,7 @@ export function createFinancialWorkspace({main,hint,api,setScreen,refreshBook,ge
   const label=report=>report==='balance-sheet'?'Balance Sheet':'Profit & Loss A/c';
   const money=amount=>formatRupees(amount);
   const query=period=>period?'?'+new URLSearchParams(Object.entries(period).filter(([,value])=>value!==null)):'';
-  function reportDates(){const book=getBook(),dates=book.vouchers.map(voucher=>voucher.date);if(book.ledgers.some(ledger=>ledger.opening_balance))dates.push(book.opening_balances?.date ?? '2026-04-01');return dates.sort();}
+  function reportDates(){const book=getBook(),dates=book.vouchers.map(voucher=>voucher.date);if(book.ledgers.some(ledger=>ledger.opening_balance))dates.push(book.opening_balances?.date ?? initialEntryDate(book));return dates.sort();}
   async function run(action){if(busy)return;busy=true;try{await refreshBook();await action();}catch(error){hint.textContent=error.message;}finally{busy=false;}}
   function select(next=index,focus=false){
     if(!entries.length)return;index=(next+entries.length)%entries.length;
@@ -97,7 +98,7 @@ export function createFinancialWorkspace({main,hint,api,setScreen,refreshBook,ge
   function showPeriod(){
     if(busy || document.querySelector('dialog'))return;
     const dates=reportDates();
-    const period={from:context.period?.from ?? dates[0] ?? '2026-04-01',to:context.period?.to ?? dates.at(-1) ?? '2026-04-01'};
+    const period={from:context.period?.from ?? dates[0] ?? initialEntryDate(getBook()),to:context.period?.to ?? dates.at(-1) ?? initialEntryDate(getBook())};
     editReportPeriod({period,onDone:async next=>{busy=true;try{await refreshBook();await render({...context,period:next});}finally{busy=false;}}});
   }
   function goBack(){if(context.path.length)run(()=>render({...context,path:context.path.slice(0,-1)}));else if(context.origin)context.origin();else renderGateway(context.report==='balance-sheet'?9:10);}

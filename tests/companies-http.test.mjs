@@ -65,9 +65,9 @@ test('invalid or unknown Company headers never fall back to the default book, wh
  });
 });
 
-test('Company creation validates fixed dates and name without adding a profile or mutating the original book',async()=>{
+test('Company creation validates calendar dates and name without adding a profile or mutating the original book',async()=>{
  await withServer(async({before,request})=>{
-  const list=await json(request,'/api/companies');for(const patch of [{name:''},{financial_year_from:'2025-04-01'},{books_from:'2026-04-02'},{financial_year_to:'2028-03-31'}]){const response=await request('/api/companies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...metadata('Invalid Company Must Not Persist'),...patch})});assert.equal(response.status,400);assert.deepEqual(await json(request,'/api/companies'),list);assert.deepEqual(await json(request,'/api/state'),before);}
+  const list=await json(request,'/api/companies');for(const patch of [{name:''},{financial_year_from:'2025-04-01'},{books_from:'2027-04-01'},{financial_year_to:'2028-03-31'}]){const response=await request('/api/companies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...metadata('Invalid Company Must Not Persist'),...patch})});assert.equal(response.status,400);assert.deepEqual(await json(request,'/api/companies'),list);assert.deepEqual(await json(request,'/api/state'),before);}
  });
 });
 

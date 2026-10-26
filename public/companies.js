@@ -1,13 +1,15 @@
 import {entryDate,parseEntryDate} from './entry-values.js';
 import {handleMultilineEntry} from './multiline-entry.js';
+import {initialFinancialYearTo} from './calendar-values.js';
 
 export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect}){
-  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,menuOrigin='gateway';
+  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,menuOrigin='gateway',commitYear=null,readCalendar=null;
   const views=['company-menu','companies','company-create','company-alter'];
   const contacts=[['telephone','Telephone'],['mobile','Mobile'],['fax','Fax'],['email','E-mail'],['website','Website']];
   const value=id=>main.querySelector('#'+id).value;
   const values=()=>Object.fromEntries(['name','mailing_name','address','state','country','pincode',...contacts.map(([key])=>key)].map(key=>[key,value('company-'+key.replaceAll('_','-'))]));
-  const dirty=()=>['company-create','company-alter'].includes(getView()) && JSON.stringify(values())!==initial;
+  const draft=()=>({...values(),financial_year_from:value('company-financial-year'),books_from:value('company-books-from')});
+  const dirty=()=>['company-create','company-alter'].includes(getView()) && JSON.stringify(draft())!==initial;
   function command(id,label,action){const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.onclick=action;document.querySelector('.command-strip').insertBefore(button,hint);}
   function guard(action){if(isBusy() || document.querySelector('dialog'))return;if(isDirty())askDialog('Discard unsaved changes and open Company?',action,'Discard');else action();}
   async function run(action){if(busy || switching)return;busy=true;try{await action();}catch(error){const box=main.querySelector('#company-error');if(box)box.textContent=error.message;else hint.textContent=error.message;}finally{busy=false;}}
@@ -38,7 +40,7 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
   function highlight(next){if(!rows.length)return;index=(next+rows.length)%rows.length;main.querySelectorAll('[data-company-id]').forEach((button,i)=>{button.classList.toggle('selected',i===index);button.setAttribute('aria-selected',String(i===index));if(i===index)button.scrollIntoView({block:'nearest'});});}
   const openCreate=()=>guard(()=>run(async()=>{
     rememberOrigin();
-    if(!dates){const data=await api('/api/companies');dates=data.companies.find(row=>row.id==='default');}
+    const data=await api('/api/companies');dates=data.companies.find(row=>row.id==='default');
     renderForm();
   }));
   const openAlter=()=>guard(()=>run(async()=>{
@@ -51,16 +53,32 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     const field=(key,label,value='',limit=120)=>`<div class="company-field company-field-${key}"><label for="company-${key.replaceAll('_','-')}">${label}</label><span>:</span>${key==='mobile'?'<div class="company-mobile"><span id="company-mobile-prefix" aria-label="Country calling code"></span>':''}<input id="company-${key.replaceAll('_','-')}" maxlength="${limit}" value="${escapeHtml(value)}">${key==='mobile'?'</div>':''}</div>`;
     main.innerHTML=`<form id="company-form" novalidate autocomplete="off"><div class="company-create-columns"><section>${field('name','Company Name',profile?.name ?? '')}${field('mailing_name','Mailing Name',profile?.mailing_name ?? '')}<div class="company-field company-address"><label for="company-address">Address</label><span>:</span><textarea id="company-address" maxlength="1000" rows="4">${escapeHtml(profile?.address ?? '')}</textarea></div>${field('state','State',profile?.state ?? 'Not Applicable')}${field('country','Country',profile?.country ?? 'India')}${field('pincode','Pincode',profile?.pincode ?? '',20)}${contacts.map(([key,label])=>field(key,label,profile?.[key]??'')).join('')}</section><section class="company-year"><div class="company-field"><label for="company-financial-year">Financial year beginning from</label><span>:</span><input id="company-financial-year" value="${entryDate(dates.financial_year_from)}" readonly tabindex="-1"></div><div class="company-field"><label for="company-books-from">Books beginning from</label><span>:</span><input id="company-books-from" value="${entryDate(dates.books_from)}" readonly tabindex="-1"></div></section></div><section class="company-currency" aria-label="Base currency"><div class="company-field"><span>Base Currency symbol</span><span>:</span><strong id="company-base-currency-symbol">₹</strong></div><div class="company-field"><span>Formal name</span><span>:</span><strong id="company-currency-formal-name">INR</strong></div></section><p id="company-error" class="company-error" role="alert"></p></form>`;
     const name=main.querySelector('#company-name'),mail=main.querySelector('#company-mailing-name');let previous='';
+    const year=main.querySelector('#company-financial-year'),books=main.querySelector('#company-books-from');
+    for(const field of [year,books]){field.readOnly=Boolean(profile);field.tabIndex=profile?-1:0;}
+    let acceptedYear=dates.financial_year_from;
+    const calendarError=(field,error)=>{field.setAttribute('aria-invalid','true');main.querySelector('#company-error').textContent=error.message;field.focus();};
+    commitYear=()=>{
+      let from,to;try{from=parseEntryDate(year.value);to=initialFinancialYearTo(from);}catch(error){calendarError(year,error);throw error;}
+      if(!profile && from!==acceptedYear)books.value=entryDate(from);
+      acceptedYear=from;year.value=entryDate(from);year.removeAttribute('aria-invalid');return {from,to};
+    };
+    readCalendar=()=>{
+      const {from,to}=commitYear();let booksFrom;
+      try{booksFrom=parseEntryDate(books.value);if(booksFrom<from || booksFrom>to)throw new Error('Choose a books-beginning date within the initial financial year.');}
+      catch(error){calendarError(books,error);throw error;}
+      books.value=entryDate(booksFrom);books.removeAttribute('aria-invalid');return {financial_year_from:from,books_from:booksFrom,financial_year_to:to};
+    };
+    year.addEventListener('change',()=>{if(!profile){try{commitYear();}catch{}}});
     const country=main.querySelector('#company-country'),prefix=main.querySelector('#company-mobile-prefix');
     const updatePrefix=()=>{prefix.textContent=country.value.trim().toLocaleLowerCase()==='india'?'+91':'';};country.addEventListener('input',updatePrefix);updatePrefix();
     name.addEventListener('input',()=>{if(!editingProfile && (!mail.value || mail.value===previous))mail.value=name.value;previous=name.value;name.removeAttribute('aria-invalid');main.querySelector('#company-error').textContent='';});
-    main.querySelector('form').onsubmit=event=>{event.preventDefault();save();};command('accept-company','A: Accept  Ctrl+A',save);initial=JSON.stringify(values());name.focus();name.select();
+    main.querySelector('form').onsubmit=event=>{event.preventDefault();save();};command('accept-company','A: Accept  Ctrl+A',save);initial=JSON.stringify(draft());name.focus();name.select();
   }
   async function save(){
     if(busy || switching || !['company-create','company-alter'].includes(getView()) || document.querySelector('dialog'))return;
     const input=values(),error=main.querySelector('#company-error');error.textContent='';
     if(!input.name.trim()){error.textContent='Enter a company name.';main.querySelector('#company-name').setAttribute('aria-invalid','true');main.querySelector('#company-name').focus();return;}
-    try{input.financial_year_from=parseEntryDate(value('company-financial-year'));input.books_from=parseEntryDate(value('company-books-from'));input.financial_year_to=dates.financial_year_to;}catch(failure){error.textContent=failure.message;return;}
+    try{Object.assign(input,readCalendar());}catch(failure){error.textContent=failure.message;return;}
     busy=true;const fields=[...main.querySelectorAll('input,textarea')];fields.forEach(field=>field.disabled=true);document.querySelector('#accept-company').disabled=true;
     try{const profile=await api(editingProfile?'/api/companies/'+editingProfile.id:'/api/companies',{method:editingProfile?'PUT':'POST',body:JSON.stringify({...input,...(editingProfile?{revision:editingProfile.revision}:{})})});switching=true;onSelect(profile.id);}
     catch(failure){error.textContent=failure.message;fields.forEach(field=>field.disabled=false);document.querySelector('#accept-company').disabled=false;}
@@ -94,6 +112,8 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
       event.preventDefault();if(event.key==='Enter'){if(rows.length)select(rows[index].id);else main.querySelector('#company-error').textContent='Choose a matching company.';}else highlight(event.key==='Home'?0:event.key==='End'?rows.length-1:index+(event.key==='ArrowDown'?1:-1));return true;
     }
     if(['company-create','company-alter'].includes(getView()) && event.key==='Enter' && !event.target.closest('button')){
+      if(event.target.id==='company-financial-year' && !event.target.readOnly){try{commitYear();}catch{event.preventDefault();return true;}}
+      if(event.target.id==='company-books-from' && !event.target.readOnly){try{readCalendar();}catch{event.preventDefault();return true;}}
       const fields=[...main.querySelectorAll('#company-form input,#company-form textarea')].filter(field=>!field.disabled && !field.readOnly && field.getClientRects().length),i=fields.indexOf(document.activeElement);
       const next=()=>{if(i<fields.length-1)fields[i+1].focus();else askDialog('Accept this company?',save);};
       if(handleMultilineEntry(event,next))return true;

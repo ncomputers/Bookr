@@ -1,4 +1,5 @@
 import {savedLedgerBalance} from './ledger-balance.js';
+import {initialEntryDate} from './company-context.js';
 import { parseRupees, formatRupees, inputRupees, parseEntryDate, entryDate } from './entry-values.js';
 import { editVoucherDetails } from './voucher-details.js';
 import { editBillReference } from './bill-details.js';
@@ -8,7 +9,7 @@ import { editVoucherType } from './voucher-type.js';
 export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,renderGateway,getView,openLedgerFromSale,openReceipt,openOtherVoucher}) {
   const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal'}[type]);
   const partyDebit=type=>type==='sale' || type==='payment';
-  let editing = null, origin = 'gateway', initialValues = '', saving = false, currentDate = '2026-04-01';
+  let editing = null, origin = 'gateway', initialValues = '', saving = false, currentDate = null;
   let reportRows = [], reportIndex = 0;
   let dayBookFilter={from:null,to:null,type:'all'};
   let details = {};
@@ -110,6 +111,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     },onCancel:restore});
   }
   function renderSale(voucher = null,from = 'gateway',message = '') {
+    currentDate??=initialEntryDate(getBook());
     editing = voucher; origin = from;
     details = structuredClone(voucher?.details ?? {});
     if (voucher) currentDate = voucher.date;
@@ -265,7 +267,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
   function filterCommit(filter){return async()=>{saving=true;try{await refreshBook();await renderDayBook(filter);}finally{saving=false;}};}
   function showDayBookDates(range){
     if(saving || document.querySelector('dialog'))return;
-    const date=dayBookFilter.from ?? currentDate;
+    const date=dayBookFilter.from ?? currentDate ?? initialEntryDate(getBook());
     const onDone=next=>filterCommit({...dayBookFilter,...next})();
     if(range)editReportPeriod({period:{from:date,to:dayBookFilter.to ?? date},onDone});
     else editReportDate({date,onDone});

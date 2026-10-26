@@ -2,12 +2,13 @@ import {entryDate,parseEntryDate,formatRupees,formatBalance,inputRupees,parseRup
 import {editReceiptAllocations} from './receipt-allocations.js';
 import {editBankAllocation} from './bank-allocation.js';
 import {savedLedgerBalance} from './ledger-balance.js';
+import {initialEntryDate} from './company-context.js';
 import {editEntryMode} from './entry-mode.js';
 import {sameBill,allocationPayload} from './bill-identity.js';
 
 export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,renderGateway,getView,openDayBook,openSale,openPurchase,openPayment,openReceipt,openContra,openJournal,type='receipt'}) {
   const payable=type==='payment',label=payable?'Payment':'Receipt',partyKind=payable?'supplier':'customer',postingsView=payable?'payment-postings':'receipt-postings';
-  let editing=null,origin='gateway',saving=false,loadingBills=false,initial='',currentDate='2026-04-01',allocations=[],reviewed='';
+  let editing=null,origin='gateway',saving=false,loadingBills=false,initial='',currentDate=null,allocations=[],reviewed='';
   let bankData=null,bankReviewed='';
   let entryMode='double';
   const doubleEntry=()=>payable && entryMode==='double';
@@ -40,6 +41,7 @@ export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshB
     main.querySelector('#receipt-bank-summary').textContent=account()?.kind==='bank' && bankData?`${bankData.transaction_type} · Inst No. ${bankData.instrument_number || '—'} · ${entryDate(bankData.instrument_date)}`:'';
   }
   function renderReceipt(voucher=null,from='gateway',message='',draft=null){
+    currentDate??=initialEntryDate(getBook());
     editing=voucher;origin=from;allocations=structuredClone(voucher?.allocations ?? []);reviewed=voucher?signature(voucher):'';
     bankData=structuredClone(voucher?.details?.bank ?? null);bankReviewed=bankData?bankSignature(voucher):'';
     if(voucher)currentDate=voucher.date;

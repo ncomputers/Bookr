@@ -65,10 +65,10 @@ test('company creation validation and case-insensitive duplicate names cannot mu
  }finally{store?.close();cleanup(f.directory);}
 });
 
-test('unsupported financial year and books dates reject rather than storing metadata inconsistent with the accounting engine',async()=>{
+test('invalid financial dates, mismatched year ends and out-of-period books reject without changing existing accounting',async()=>{
  const CompanyStore=await loadStore(),f=fixture();let store;
  try{
-  store=new CompanyStore({defaultFile:f.defaultFile});const before=store.list();for(const patch of [{financial_year_from:'2025-04-01'},{financial_year_from:'2026-01-01'},{books_from:'2026-04-02'},{books_from:'2026-03-31'},{financial_year_to:'2027-12-31'},{financial_year_to:'2026-03-31'},{books_from:null},{financial_year_from:'1-Apr-2026'}]){assert.throws(()=>store.create(profile('Unsupported Date Fictional',patch)),BookError);assert.deepEqual(store.list(),before);assert.deepEqual(store.book().state(),f.state);}
+  store=new CompanyStore({defaultFile:f.defaultFile});const before=store.list();for(const patch of [{financial_year_from:'2025-02-29'},{financial_year_from:null},{books_from:'2027-04-01'},{books_from:'2026-03-31'},{financial_year_to:'2027-12-31'},{financial_year_to:'2026-03-31'},{books_from:null},{financial_year_from:'1-Apr-2026'}]){assert.throws(()=>store.create(profile('Unsupported Date Fictional',patch)),BookError);assert.deepEqual(store.list(),before);assert.deepEqual(store.book().state(),f.state);}
   const valid=store.create(profile('Supported Dates Fictional',dated));for(const [key,value]of Object.entries(dated))assert.equal(valid[key],value);
  }finally{store?.close();cleanup(f.directory);}
 });

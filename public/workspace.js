@@ -12,6 +12,8 @@ import {createOpeningBalanceEditor,supportsOpeningBalance,partyOpening} from './
 import {ledgerGroups} from './ledger-groups.js';
 import {createListPicker} from './list-picker.js';
 import {createCompanyWorkspace} from './companies.js';
+import {companyCalendar,shortCompanyDate,companyDateCaption} from './company-context.js';
+import {entryDate} from './entry-values.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -146,10 +148,11 @@ function renderGateway(focusIndex = 0) {
   setScreen('Gateway of Bookr', 'gateway', '');
   let itemIndex = 0;
   const lastVoucher = book.vouchers.at(-1);
+  const calendar=companyCalendar(book);
   const lastEntry = lastVoucher ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric'}).format(new Date(lastVoucher.date + 'T12:00:00Z')) : 'No Vouchers Entered';
   main.innerHTML = `
     <section class="company-pane" aria-label="Selected company">
-      <div class="period-info"><div><div class="small-label">CURRENT PERIOD</div><div class="period-value">1-Apr-26 to 31-Mar-27</div></div><div class="date"><div class="small-label">CURRENT DATE</div><div class="period-value">Wednesday, 1-Apr-2026</div></div></div>
+      <div class="period-info"><div><div class="small-label">CURRENT PERIOD</div><div class="period-value">${shortCompanyDate(calendar.financial_year_from)} to ${shortCompanyDate(calendar.financial_year_to)}</div></div><div class="date"><div class="small-label">CURRENT DATE</div><div class="period-value">${companyDateCaption(book)}</div></div></div>
       <div class="company-table-heading"><span class="small-label">NAME OF COMPANY</span><span class="small-label">DATE OF LAST ENTRY</span></div>
       <div class="company-row"><span class="company-name">${escapeHtml(book.company)}</span><span class="last-entry">${escapeHtml(lastEntry)}</span></div>
     </section>
@@ -244,7 +247,7 @@ function renderLedger(ledger = null, message = '',returnTo = null) {
     <div id="ledger-opening-editor"></div>
   </form>`;
   const name = main.querySelector('#ledger-name');
-  openingEditor=createOpeningBalanceEditor({host:main.querySelector('#ledger-opening-editor'),summary:main.querySelector('.opening-total'),ledger,getLedgers:()=>book.ledgers,getName:()=>name.value || 'Ledger',escapeHtml,onError:message=>{main.querySelector('#ledger-error').textContent=message;}});
+  openingEditor=createOpeningBalanceEditor({host:main.querySelector('#ledger-opening-editor'),summary:main.querySelector('.opening-total'),ledger,openingDate:companyCalendar(book).books_from,getLedgers:()=>book.ledgers,getName:()=>name.value || 'Ledger',escapeHtml,onError:message=>{main.querySelector('#ledger-error').textContent=message;}});
   const bankSection=document.createElement('div');bankSection.className='bank-ledger-fields';
   bankSection.innerHTML='<h2>Bank Account Details</h2>'+Object.entries({account_holder:"A/c Holder's Name",account_number:'A/c No.',ifs_code:'IFS Code',swift_code:'SWIFT Code',bank_name:'Bank Name',branch:'Branch'}).map(([key,label])=>`<div class="accounting-row"><label for="bank-${key}">${label}</label><span>:</span><input id="bank-${key}" data-bank-field="${key}" maxlength="120" value="${escapeHtml(ledger?.bank?.[key] ?? (key==='account_holder'?book.company:key==='bank_name'?'Not Applicable':''))}" ${key==='bank_name'?'readonly':''}></div>`).join('');
   main.querySelector('.ledger-accounting').append(bankSection);
@@ -257,7 +260,7 @@ function renderLedger(ledger = null, message = '',returnTo = null) {
     main.querySelector('.billwise-row').hidden=!party;main.querySelector('#ledger-billwise').disabled=!party;bankSection.hidden=!bank;bankSection.querySelectorAll('input').forEach(field=>field.disabled=!bank);
     expenseSettings.hidden=!expense;main.querySelector('#expense-ledger-type').disabled=!expense;
     if(expense && !ledger){if(main.querySelector('#mailing-name').value===name.value)main.querySelector('#mailing-name').value='';if(main.querySelector('#mailing-state').value==='Not Applicable')main.querySelector('#mailing-state').value='';if(main.querySelector('#mailing-country').value==='India')main.querySelector('#mailing-country').value='';}
-    main.querySelector('#ledger-scope').textContent=`${group.name} · ${party?'bill-by-bill balances · ':''}${supportsOpeningBalance(ledgerKind)?'opening balance on 1-Apr-2026.':'opening balance is zero in this version.'}`;
+    main.querySelector('#ledger-scope').textContent=`${group.name} · ${party?'bill-by-bill balances · ':''}${supportsOpeningBalance(ledgerKind)?'opening balance on '+entryDate(companyCalendar(book).books_from)+'.':'opening balance is zero in this version.'}`;
     openingEditor.setKind(ledgerKind);
   };
   main.querySelector('#ledger-group').addEventListener('change',updateKind);updateKind();

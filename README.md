@@ -21,6 +21,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 
 - Create, select and alter companies, including mailing and contact details.
 - Revision checks, separate company books and missing-database protection.
+- Choose the initial financial-year and books-beginning dates when creating a company.
 - Ledger creation and alteration with supported account groups and opening balances.
 - Sales, purchases, receipts, payments, contra and supported journal entries.
 - Save and reopen vouchers, view postings, ledger statements and outstanding bills.
@@ -32,7 +33,9 @@ moves to State. Shift+Enter inserts a newline without leaving the address.
 
 Amounts use integer paise. A credit sale of ₹1,000 followed by a ₹400 receipt leaves ₹600 outstanding.
 
-The supported company year is currently **1 April 2026–31 March 2027**. Custom company dates, configurable currency, company security, public backup/restore, wider account groups, tax, inventory and other advanced modules remain unfinished. Some legacy default-book date behavior also requires further company-layer work.
+New companies support a custom initial financial year, with books beginning within that year. Entry dates and opening-balance labels use the company's books-beginning date. Saved company dates are read-only in this increment; changing the working date or current period remains unfinished. The default company retains its existing date compatibility behavior.
+
+Configurable currency, company security, public backup/restore, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
 
 ## Tests
 

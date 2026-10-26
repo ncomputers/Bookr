@@ -2,6 +2,7 @@ import {entryDate,formatRupees,formatBalance} from './entry-values.js';
 import {editReportPeriod,editReportDate} from './report-period.js';
 import {monthlyMarkup} from './monthly-summary.js';
 import {dueDateText} from './bill-terms.js';
+import {companyCalendar,initialEntryDate} from './company-context.js';
 
 export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster}) {
   let ledgerId=null,rows=[],index=0,busy=false;
@@ -53,7 +54,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   async function renderMonthly(context){
     const report=await api('/api/monthly-summary?ledger='+context.id);
     monthlyContext=context;ledgerId=context.id;rows=report.rows;index=context.index;
-    setScreen('Ledger Monthly Summary','monthly-summary','Company year: Apr 2026–Mar 2027 · ↑ ↓ Enter: month vouchers · Esc: back');
+    setScreen('Ledger Monthly Summary','monthly-summary','Company year: '+entryDate(report.period.from)+' to '+entryDate(report.period.to)+' · ↑ ↓ Enter: month vouchers · Esc: back');
     main.innerHTML=monthlyMarkup(report,getBook().company,escapeHtml);
     const dateKey=document.querySelector('.function-rail button');dateKey.innerHTML='<span><u>F2</u>: Period</span><span>‹</span>';
     main.querySelectorAll('[data-month-row]').forEach((button,i)=>{button.onclick=()=>openMonth(i);button.onfocus=()=>{index=i;highlight();};});
@@ -70,7 +71,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     const trial=getView()==='trial-balance';
     const dates=getBook().vouchers.filter(v=>trial || v.customer_id===ledgerId || v.account_id===ledgerId).map(v=>v.date).sort();
     const selected=trial?trialPeriod:periods.get(ledgerId);
-    const period={from:selected?.from ?? dates[0] ?? '2026-04-01',to:selected?.to ?? dates.at(-1) ?? '2026-04-01'};
+    const period={from:selected?.from ?? dates[0] ?? initialEntryDate(getBook()),to:selected?.to ?? dates.at(-1) ?? initialEntryDate(getBook())};
     editReportPeriod({period,onDone:async next=>{busy=true;try{await refreshBook();if(trial)await renderTrialBalance(next);else await renderStatement(ledgerId,next);}finally{busy=false;}}});
   }
   async function renderOutstanding(id=null,direction=null,asOf=undefined){
@@ -94,7 +95,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   }
   function showOutstandingAsOf(){
     if(busy || getView()!=='outstanding' || document.querySelector('dialog'))return;
-    const customer=ledgerId,direction=outstandingDirection,date=outstandingAsOf ?? getBook().vouchers.map(voucher=>voucher.date).sort().at(-1) ?? '2026-04-01';
+    const customer=ledgerId,direction=outstandingDirection,date=outstandingAsOf ?? getBook().vouchers.map(voucher=>voucher.date).sort().at(-1) ?? initialEntryDate(getBook());
     const dialog=editReportDate({date,onDone:async period=>{busy=true;try{await refreshBook();await renderOutstanding(customer,direction,period.from);}finally{busy=false;}}});
     dialog.classList.add('outstanding-asof-dialog');
   }
@@ -140,7 +141,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       if(['ArrowDown','ArrowUp','Home','End','Enter','F2'].includes(e.key)){
         e.preventDefault();
         if(e.key==='Enter')openMonth(index);
-        else if(e.key==='F2')hint.textContent='Monthly Summary currently covers 1-Apr-2026 to 31-Mar-2027. Change periods in Ledger Vouchers.';
+        else if(e.key==='F2'){const calendar=companyCalendar(getBook());hint.textContent='Monthly Summary currently covers '+entryDate(calendar.financial_year_from)+' to '+entryDate(calendar.financial_year_to)+'. Change periods in Ledger Vouchers.';}
         else {if(e.key==='Home')index=0;else if(e.key==='End')index=rows.length-1;highlight(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0);}
         return true;
       }return false;

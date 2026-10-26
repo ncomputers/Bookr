@@ -1,10 +1,11 @@
 import {savedLedgerBalance} from './ledger-balance.js';
+import {initialEntryDate} from './company-context.js';
 import {entryDate,parseEntryDate,formatRupees,inputRupees,parseRupees} from './entry-values.js';
 import {editVoucherDetails} from './voucher-details.js';
 import {editBillReference} from './bill-details.js';
 
 export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,getView,renderGateway,openDayBook,openVoucher}) {
-  let editing=null,origin='gateway',saving=false,initial='',details={},reference='',billTerms=null,reviewed='',currentDate='2026-04-01',detailsPartyId=null,initialInvoice=null;
+  let editing=null,origin='gateway',saving=false,initial='',details={},reference='',billTerms=null,reviewed='',currentDate=null,detailsPartyId=null,initialInvoice=null;
   const value=id=>main.querySelector('#purchase-'+id).value;
   const parties=()=>getBook().ledgers.filter(l=>l.kind==='supplier' || (l.kind==='cash' && getBook().capabilities?.cash_purchases===true));
   const supplier=()=>parties().find(l=>l.name.toLocaleLowerCase()===value('supplier').trim().toLocaleLowerCase());
@@ -24,6 +25,7 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     document.querySelector('#purchase-bill-details').disabled=party?.kind==='cash';
   }
   function renderPurchase(voucher=null,from='gateway',message=''){
+    currentDate??=initialEntryDate(getBook());
     editing=voucher;origin=from;details=structuredClone(voucher?.details ?? {});reference=voucher?.bill?.reference ?? '';billTerms=structuredClone(voucher?.bill?.terms ?? null);detailsPartyId=voucher?.supplier_id ?? null;
     if(voucher)currentDate=voucher.date;
     reviewed='';

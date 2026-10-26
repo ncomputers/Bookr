@@ -6,11 +6,14 @@
     "Create and select companies with separate books and per-tab selection",
     "Alter identity, mailing and five contact fields with revision checks",
     "Preserve company books and reject missing established database files",
+    "Create companies with custom initial financial-year and books-beginning dates",
+    "Use company dates in entry defaults, opening balances and initial-year reports",
     "Shared address entry: populated Enter adds a line, empty final Enter advances",
     "Reusable confirmation dialogs preserve unsaved drafts when No is chosen"
   ],
   "remaining": [
-    {"area":"Company calendar","status":"Research and dependency audit in progress; dates currently fixed"},
+    {"area":"Company calendar","status":"Creation works; saved date alteration, working-date and current-period controls remain"},
+    {"area":"Historical opening bills","status":"Earlier-than-books dates use an existing Bookr convention; reference report behaviour remains under study"},
     {"area":"State and country selection","status":"Text fields work; reference-style region pickers remain"},
     {"area":"Base currency","status":"INR display only; configuration remains"},
     {"area":"Open and shut company workflows","status":"Selection works; broader lifecycle remains"},

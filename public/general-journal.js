@@ -1,12 +1,13 @@
 import {entryDate,parseEntryDate,formatRupees,formatBalance,inputRupees,parseRupees} from './entry-values.js';
 import {savedLedgerBalance} from './ledger-balance.js';
+import {initialEntryDate} from './company-context.js';
 import {createListPicker} from './list-picker.js';
 
 // Original, bounded multi-line entry mode. Party bills and bank allocations
 // remain in their dedicated voucher workflows.
 export function createGeneralJournalWorkspace({main,hint,api,setScreen,getView,getBook,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook,openVoucher,openLegacy}){
   const kinds=['cash','capital','expense','income','sales','purchase'];
-  let editing=null,origin='gateway',busy=false,initial='',date='2026-04-01',pickers=[],nextRow=0;
+  let editing=null,origin='gateway',busy=false,initial='',date=null,pickers=[],nextRow=0;
   const active=()=>getView()==='journal-general';
   const rows=()=>[...main.querySelectorAll('[data-journal-line]')];
   const field=(row,key)=>row.querySelector('[data-entry-'+key+']');
@@ -69,6 +70,7 @@ export function createGeneralJournalWorkspace({main,hint,api,setScreen,getView,g
     }catch(failure){error.textContent=failure.message;return null;}
   }
   function render(voucher=null,from='gateway',message=''){
+    date??=initialEntryDate(getBook());
     editing=voucher;origin=from;if(voucher)date=voucher.date;nextRow=0;
     setScreen(voucher?'Accounting Voucher Alteration':'Accounting Voucher Creation','journal-general',message || 'General Journal · Enter: next field · Ctrl+A: save · F2: date · Esc: back');
     main.innerHTML=`<form id="general-journal-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">Journal</strong><span>No. &nbsp;${number()}</span><div class="voucher-date"><input id="general-journal-date" aria-label="Voucher date" value="${entryDate(date)}"></div></div><div class="general-journal-columns"><span></span><strong>Particulars</strong><span>Debit</span><span>Credit</span><span></span></div><div id="general-journal-lines"></div><div class="general-add-row"><button type="button" id="general-journal-add-line">Add line</button></div><p class="general-journal-scope">General Journal · Cash, Capital, Expenses, Incomes, Sales and Purchases · no tax or bill allocations</p><div id="general-journal-error" class="ledger-error" role="alert"></div><div id="general-journal-difference" role="status"></div><div class="general-journal-totals"><span>Total</span><strong id="general-journal-debit-total"></strong><strong id="general-journal-credit-total"></strong><span></span></div><div class="voucher-bottom"><div class="voucher-narration"><label for="general-journal-narration">Narration:</label><textarea id="general-journal-narration" rows="2" maxlength="1000">${escapeHtml(voucher?.narration ?? '')}</textarea></div></div></form>`;
