@@ -23,6 +23,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Revision checks, separate company books and missing-database protection.
 - Choose the initial financial-year and books-beginning dates when creating a company.
 - Change the working date from Gateway with F2; new vouchers use that date.
+- Change the current period from Gateway with Alt+F2, including later years without changing company master dates.
 - Ledger creation and alteration with supported account groups and opening balances.
 - Sales, purchases, receipts, payments, contra and supported journal entries.
 - Save and reopen vouchers, view postings, ledger statements and outstanding bills.
@@ -36,7 +37,9 @@ Amounts use integer paise. A credit sale of ₹1,000 followed by a ₹400 receip
 
 New companies support a custom initial financial year, with books beginning within that year. The initial working date and opening-balance labels use the company's books-beginning date. Gateway F2 changes the working date within the displayed current period without changing company master dates or saved vouchers. Each browser tab keeps a separate working date for each company; this tab retention is a web convention. In the date dialog, Esc clears the field before a second Esc returns without accepting.
 
-Saved company dates are read-only in this increment. Changing the current period and shutting/reopening a loaded company remain unfinished. The default company retains its existing date compatibility behavior.
+Gateway Alt+F2 changes the current period and moves an out-of-range working date to the nearest period boundary. Voucher entry uses the selected period, and monthly summaries follow it. Other reports retain their displayed All saved/F2 date filters. Period selection is separate for each company in each browser tab; tab retention is a web convention.
+
+Saved company master dates remain read-only. Shutting/reopening loaded companies is unfinished. API requests without a selected period retain the existing initial-window and default-company compatibility behavior.
 
 Configurable currency, company security, public backup/restore, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
 

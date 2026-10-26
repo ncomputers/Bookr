@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { isIP } from 'node:net';
 import { BookError } from './lib/accounting.mjs';
 import {CompanyStore} from './lib/companies.mjs';
+import {currentPeriodHeader,normalizeCurrentPeriod} from './lib/company-period.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4315);
@@ -40,6 +41,7 @@ const handler = async (req, res) => {
         if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) throw new BookError('Origin not allowed.',403);
         if (!String(req.headers['content-type']).startsWith('application/json')) throw new BookError('JSON content type required.',415);
       }
+      const requestPeriod=currentPeriodHeader(req.headers['x-bookr-period']);
       if(req.method==='GET' && url.pathname==='/api/companies')return send(res,200,{companies:companies.list(),default_company_id:'default'});
       if(req.method==='POST' && url.pathname==='/api/companies')return send(res,201,companies.create(await body(req)));
       const companyMatch=url.pathname.match(/^\/api\/companies\/([^/]+)$/);
@@ -47,7 +49,7 @@ const handler = async (req, res) => {
       if(req.method==='PUT' && companyMatch)return send(res,200,companies.update(companyMatch[1],await body(req)));
       const companyId=req.headers['x-bookr-company'];
       const book=companies.book(companyId===undefined?'default':companyId);
-      if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities:{general_journal:true,company_alter:true,cash_purchases:true},...(previewLabel?{preview:{label:previewLabel}}:{})});
+      if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities:{general_journal:true,company_alter:true,cash_purchases:true,current_period:true},...(previewLabel?{preview:{label:previewLabel}}:{})});
       if(req.method==='GET' && url.pathname==='/api/outstanding'){
         const allowed=['direction','as_of','ledger'];
         if([...url.searchParams.keys()].some(key=>!allowed.includes(key)) || allowed.some(key=>url.searchParams.getAll(key).length>1))throw new BookError('Choose each outstanding filter once: direction, as_of and ledger.');
@@ -62,8 +64,12 @@ const handler = async (req, res) => {
       if (req.method === 'GET' && url.pathname === '/api/financial-reports') return send(res,200,book.financialReports({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/statement') return send(res,200,book.statement(url.searchParams.get('ledger'),{from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/monthly-summary') {
-        if([...url.searchParams.keys()].some(key=>key!=='ledger'))throw new BookError('Monthly Summary currently uses the selected company\'s initial financial year.');
-        return send(res,200,book.monthlySummary(url.searchParams.get('ledger')));
+        const allowed=['ledger','from','to'];
+        if([...url.searchParams.keys()].some(key=>!allowed.includes(key))||allowed.some(key=>url.searchParams.getAll(key).length>1))throw new BookError('Choose one ledger and an optional complete From/To period for Monthly Summary.');
+        const hasFrom=url.searchParams.has('from'),hasTo=url.searchParams.has('to');
+        if(hasFrom!==hasTo)throw new BookError('Enter both From and To dates for Monthly Summary.');
+        const period=hasFrom?normalizeCurrentPeriod({from:url.searchParams.get('from'),to:url.searchParams.get('to')}):requestPeriod;
+        return send(res,200,book.monthlySummary(url.searchParams.get('ledger'),period));
       }
       const ledgerMatch=url.pathname.match(/^\/api\/ledgers\/(\d+)$/);
       if(req.method==='GET' && ledgerMatch)return send(res,200,book.masterLedger(ledgerMatch[1]));
@@ -83,8 +89,8 @@ const handler = async (req, res) => {
       const voucherMatch = url.pathname.match(/^\/api\/vouchers\/(\d+)$/);
       if (req.method === 'GET' && voucherMatch) return send(res,200,book.voucher(voucherMatch[1]));
       if (req.method === 'POST' && url.pathname === '/api/customers') return send(res,201,book.createCustomer(await body(req)));
-      if (req.method === 'POST' && url.pathname === '/api/vouchers') return send(res,201,book.saveVoucher(await body(req)));
-      if (req.method === 'PUT' && voucherMatch) return send(res,200,book.saveVoucher(await body(req),Number(voucherMatch[1])));
+      if (req.method === 'POST' && url.pathname === '/api/vouchers') return send(res,201,book.saveVoucher(await body(req),null,{currentPeriod:requestPeriod}));
+      if (req.method === 'PUT' && voucherMatch) return send(res,200,book.saveVoucher(await body(req),Number(voucherMatch[1]),{currentPeriod:requestPeriod}));
       throw new BookError('Route not found.',404);
     }
     if (req.method !== 'GET') throw new BookError('Method not supported.',405);

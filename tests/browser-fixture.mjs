@@ -17,7 +17,7 @@ export async function browserFixture({port,name,seed}){
   try{
     // Every start/restart checks TCP availability and the owned child listener.
     const book=new Book(file);try{fixture=seed(book);}finally{book.close();}await mkdir(out,{recursive:true});await start();
-    browser=await chromium.launch({headless:true,executablePath:process.env.BOOKR_BROWSER_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});page=await browser.newPage({viewport:{width:1229,height:655}});page.setDefaultTimeout(8000);page.setDefaultNavigationTimeout(30000);page.on('pageerror',e=>errors.push(e.message));
+    browser=await chromium.launch({headless:true,executablePath:process.env.BOOKR_BROWSER_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});const context=await browser.newContext({viewport:{width:1229,height:655}});page=await context.newPage();page.setDefaultTimeout(8000);page.setDefaultNavigationTimeout(30000);page.on('pageerror',e=>errors.push(e.message));
     const request=async(path,data,method='get')=>{const response=await page.request[method](base+path,data===undefined?{}:{data});assert.equal(response.ok(),true,await response.text());return response.json();};
     await page.goto(base,{waitUntil:'networkidle'});await page.mouse.move(0,0);
     return {page,fixture,out,base,errors,get:path=>request(path),put:(path,data)=>request(path,data,'put'),restart:async()=>{await stop();await start();},close};

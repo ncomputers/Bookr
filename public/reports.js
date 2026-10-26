@@ -2,7 +2,7 @@ import {entryDate,formatRupees,formatBalance} from './entry-values.js';
 import {editReportPeriod,editReportDate} from './report-period.js';
 import {monthlyMarkup} from './monthly-summary.js';
 import {dueDateText} from './bill-terms.js';
-import {companyCalendar,initialEntryDate} from './company-context.js';
+import {companyPeriod,initialEntryDate} from './company-context.js';
 
 export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster}) {
   let ledgerId=null,rows=[],index=0,busy=false;
@@ -141,7 +141,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       if(['ArrowDown','ArrowUp','Home','End','Enter','F2'].includes(e.key)){
         e.preventDefault();
         if(e.key==='Enter')openMonth(index);
-        else if(e.key==='F2'){const calendar=companyCalendar(getBook());hint.textContent='Monthly Summary currently covers '+entryDate(calendar.financial_year_from)+' to '+entryDate(calendar.financial_year_to)+'. Change periods in Ledger Vouchers.';}
+        else if(e.key==='F2'){const period=companyPeriod(getBook());hint.textContent='Monthly Summary covers '+entryDate(period.from)+' to '+entryDate(period.to)+'. Change the company period at Gateway with Alt+F2, or choose dates in Ledger Vouchers.';}
         else {if(e.key==='Home')index=0;else if(e.key==='End')index=rows.length-1;highlight(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0);}
         return true;
       }return false;

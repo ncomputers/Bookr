@@ -12,10 +12,10 @@ import {createOpeningBalanceEditor,supportsOpeningBalance,partyOpening} from './
 import {ledgerGroups} from './ledger-groups.js';
 import {createListPicker} from './list-picker.js';
 import {createCompanyWorkspace} from './companies.js';
-import {companyCalendar,shortCompanyDate,companyDateCaption} from './company-context.js';
+import {companyCalendar,companyPeriod,shortCompanyDate,companyDateCaption} from './company-context.js';
 import {entryDate} from './entry-values.js';
 import {createWorkingDateContext,followingWorkingDate} from './working-date.js';
-import {editReportDate} from './report-period.js';
+import {editReportDate,editReportPeriod} from './report-period.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -89,6 +89,7 @@ async function refreshBook() {
   const calendar=companyCalendar(next);
   workingDateStore??=createWorkingDateContext({companyId:activeCompanyId,booksFrom:calendar.books_from,period:{from:calendar.financial_year_from,to:calendar.financial_year_to},storage:sessionStorage});
   next.working_context=workingDateStore.current();
+  next.current_period=workingDateStore.period();
   book=next;document.querySelector('.application-name strong').textContent=book.preview?.label || 'DEMO';return book;
 }
 async function openFresh(action) {
@@ -100,7 +101,8 @@ async function openFresh(action) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json','X-Bookr-Company':activeCompanyId, ...options.headers } });
+  const period=workingDateStore?.period();
+  const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json','X-Bookr-Company':activeCompanyId,...(period?{'X-Bookr-Period':period.from+'/'+period.to}:{}), ...options.headers } });
   const value = await response.json();
   if (!response.ok) throw new Error(value.error || 'Unable to complete this request.');
   return value;
@@ -154,11 +156,11 @@ function renderGateway(focusIndex = 0) {
   setScreen('Gateway of Bookr', 'gateway', '');
   let itemIndex = 0;
   const lastVoucher = book.vouchers.at(-1);
-  const calendar=companyCalendar(book);
+  const period=companyPeriod(book);
   const lastEntry = lastVoucher ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric'}).format(new Date(lastVoucher.date + 'T12:00:00Z')) : 'No Vouchers Entered';
   main.innerHTML = `
     <section class="company-pane" aria-label="Selected company">
-      <div class="period-info"><div><div class="small-label">CURRENT PERIOD</div><div class="period-value">${shortCompanyDate(calendar.financial_year_from)} to ${shortCompanyDate(calendar.financial_year_to)}</div></div><div class="date"><div class="small-label">CURRENT DATE</div><div class="period-value">${companyDateCaption(book)}</div></div></div>
+      <div class="period-info"><div><div class="small-label">CURRENT PERIOD</div><button type="button" id="change-company-period" class="period-value" aria-label="Change current period" ${book.capabilities?.current_period===true?'':'disabled'}>${shortCompanyDate(period.from)} to ${shortCompanyDate(period.to)}</button></div><div class="date"><div class="small-label">CURRENT DATE</div><div class="period-value">${companyDateCaption(book)}</div></div></div>
       <div class="company-table-heading"><span class="small-label">NAME OF COMPANY</span><span class="small-label">DATE OF LAST ENTRY</span></div>
       <div class="company-row"><span class="company-name">${escapeHtml(book.company)}</span><span class="last-entry">${escapeHtml(lastEntry)}</span></div>
     </section>
@@ -171,16 +173,24 @@ function renderGateway(focusIndex = 0) {
   }));
   selectMenu(focusIndex);
   const dateKey=document.querySelector('.function-rail button');dateKey.disabled=false;dateKey.onclick=changeWorkingDate;
+  main.querySelector('#change-company-period').onclick=changeCompanyPeriod;
 }
 function changeWorkingDate(){
   if(view!=='gateway'||busy()||document.querySelector('dialog')||!workingDateStore)return;
   let proposed;try{proposed=followingWorkingDate(workingDateStore.current().date);}catch{proposed=workingDateStore.current().date;}
-  if(proposed>companyCalendar(book).financial_year_to)proposed=companyCalendar(book).financial_year_to;
+  if(proposed>companyPeriod(book).to)proposed=companyPeriod(book).to;
   title.textContent='Change Current Date';document.title='Change Current Date | Bookr';
   hint.textContent='Enter: accept current date · Ctrl+A: accept · Esc: clear, then back';
   editReportDate({date:proposed,companyDate:true,onDone:({from})=>{
     book.working_context=workingDateStore.accept(from);renderGateway(selected);
   },onClose:()=>{title.textContent='Gateway of Bookr';document.title='Gateway of Bookr | Bookr';selectMenu(selected);}});
+}
+function changeCompanyPeriod(){
+  if(view!=='gateway'||busy()||document.querySelector('dialog')||!workingDateStore||book.capabilities?.current_period!==true)return;
+  let accepted=false;title.textContent='Change Period';document.title='Change Period | Bookr';
+  editReportPeriod({period:workingDateStore.period(),companyPeriod:true,onDone:next=>{
+    workingDateStore.acceptPeriod(next);accepted=true;
+  },onClose:()=>{if(accepted)location.reload();else{title.textContent='Gateway of Bookr';document.title='Gateway of Bookr | Bookr';selectMenu(selected);}}});
 }
 function openGatewayItem() {
   if (selected < 2) renderMasters(selected === 0 ? 'create' : 'alter');
@@ -369,6 +379,7 @@ function goBack() {
 document.addEventListener('keydown', event => {
   const dialog = document.querySelector('dialog');
   if (dialog) return;
+  if(view==='gateway'&&event.altKey&&!event.ctrlKey&&!event.metaKey&&event.key==='F2'){event.preventDefault();changeCompanyPeriod();return;}
   if(companyUI.onKey(event))return;
   if(ledgerGroupPicker?.onKey(event))return;
   if (sales.onKey(event)) return;
@@ -382,7 +393,7 @@ document.addEventListener('keydown', event => {
     if (event.key === 'F2') { event.preventDefault(); changeWorkingDate(); }
     else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); selectMenu(selected + (event.key === 'ArrowDown' ? 1 : -1),true); }
     else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); selectMenu(event.key === 'Home' ? 0 : menu.length-1,true); }
-    else if (event.key === 'Enter') { event.preventDefault(); openGatewayItem(); }
+    else if (event.key === 'Enter') { if(event.target.closest('button:not([data-menu])'))return;event.preventDefault(); openGatewayItem(); }
     else if (event.key.toLowerCase() === 'c' || event.key.toLowerCase() === 'a') { event.preventDefault(); renderMasters(event.key.toLowerCase() === 'c' ? 'create' : 'alter'); }
   } else if (view === 'selector') {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); selectCandidate(event.key === 'ArrowDown' ? 1 : -1); }

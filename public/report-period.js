@@ -2,7 +2,7 @@ import {entryDate,parseEntryDate} from './entry-values.js';
 
 export function editReportDate({date,onDone,companyDate=false,onClose}) { return editReportPeriod({period:{from:date,to:date},onDone,mode:'date',companyDate,onClose}); }
 
-export function editReportPeriod({period,onDone,mode='period',companyDate=false,onClose}) {
+export function editReportPeriod({period,onDone,mode='period',companyDate=false,companyPeriod=false,onClose}) {
   let saving=false;
   const dialog=document.createElement('dialog');dialog.id='report-period-dialog';dialog.className='native-entry-dialog period-dialog';dialog.setAttribute('aria-labelledby','period-heading');
   if(mode==='date')dialog.id='report-date-dialog';
@@ -12,6 +12,10 @@ export function editReportPeriod({period,onDone,mode='period',companyDate=false,
     dialog.querySelector('h2').textContent='Current Date';
     dialog.querySelector('label').textContent='Current Date';
     dialog.querySelector('input').value=Number(period.from.slice(8,10))+'-'+Number(period.from.slice(5,7))+'-'+period.from.slice(0,4);
+  }
+  if(companyPeriod){
+    dialog.id='company-period-dialog';dialog.classList.add('company-current-period-dialog');
+    for(const [i,date]of [period.from,period.to].entries())dialog.querySelectorAll('input')[i].value=Number(date.slice(8,10))+'-'+Number(date.slice(5,7))+'-'+date.slice(0,4);
   }
   document.body.append(dialog);
   const fields=[...dialog.querySelectorAll('input')];
