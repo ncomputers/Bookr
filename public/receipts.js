@@ -2,12 +2,14 @@ import {entryDate,parseEntryDate,formatRupees,formatBalance,inputRupees,parseRup
 import {editReceiptAllocations} from './receipt-allocations.js';
 import {editBankAllocation} from './bank-allocation.js';
 import {savedLedgerBalance} from './ledger-balance.js';
-import {initialEntryDate} from './company-context.js';
+import {workingDateContext} from './company-context.js';
+import {createEntryDateState} from './working-date.js';
 import {editEntryMode} from './entry-mode.js';
 import {sameBill,allocationPayload} from './bill-identity.js';
 
 export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,renderGateway,getView,openDayBook,openSale,openPurchase,openPayment,openReceipt,openContra,openJournal,type='receipt'}) {
   const payable=type==='payment',label=payable?'Payment':'Receipt',partyKind=payable?'supplier':'customer',postingsView=payable?'payment-postings':'receipt-postings';
+  const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
   let editing=null,origin='gateway',saving=false,loadingBills=false,initial='',currentDate=null,allocations=[],reviewed='';
   let bankData=null,bankReviewed='';
   let entryMode='double';
@@ -41,7 +43,7 @@ export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshB
     main.querySelector('#receipt-bank-summary').textContent=account()?.kind==='bank' && bankData?`${bankData.transaction_type} · Inst No. ${bankData.instrument_number || '—'} · ${entryDate(bankData.instrument_date)}`:'';
   }
   function renderReceipt(voucher=null,from='gateway',message='',draft=null){
-    currentDate??=initialEntryDate(getBook());
+    currentDate=entryDates.forRender(voucher?{savedDate:voucher.date}:{});
     editing=voucher;origin=from;allocations=structuredClone(voucher?.allocations ?? []);reviewed=voucher?signature(voucher):'';
     bankData=structuredClone(voucher?.details?.bank ?? null);bankReviewed=bankData?bankSignature(voucher):'';
     if(voucher)currentDate=voucher.date;
@@ -136,7 +138,7 @@ export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshB
     try{
       const saved=await api(editing?`/api/vouchers/${editing.id}`:'/api/vouchers',{method:editing?'PUT':'POST',body:JSON.stringify(input)});
       getBook().vouchers=getBook().vouchers.filter(v=>v.id!==saved.id).concat(saved);
-      await refreshBook().catch(()=>{});currentDate=saved.date;
+      await refreshBook().catch(()=>{});currentDate=saved.date;if(!editing)entryDates.rememberNew(saved.date);
       if(editing){await returnTo();hint.textContent=`Saved changes to ${label} No. ${saved.number}.`;}
       else renderReceipt(null,origin,`Saved ${label} No. ${saved.number} · ₹${formatRupees(saved.amount)} · next voucher ready`);
     }catch(failure){fields.forEach(f=>f.disabled=false);accept.disabled=false;error(failure.message);}finally{saving=false;}

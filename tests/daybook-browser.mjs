@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -9,12 +9,8 @@ import assert from 'node:assert/strict';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),output=join(root,'evidence/web');
 const directory=await mkdtemp(join(tmpdir(),'bookr-daybook-browser-')),base='http://127.0.0.1:4322';
 let server,browser,page,serverOutput='';const errors=[];
-async function start(){
-  server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4322',BOOKR_DB:join(directory,'daybook.sqlite'),BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});
-  server.stdout.on('data',d=>serverOutput+=d);server.stderr.on('data',d=>serverOutput+=d);
-  for(let i=0;i<80;i++){if(server.exitCode!==null)throw new Error(serverOutput);try{if((await fetch(base+'/api/state')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error('Day Book fixture server failed. '+serverOutput);
-}
-async function stop(){if(!server || server.exitCode!==null)return;const stopped=new Promise(r=>server.once('exit',r));server.kill();await stopped;}
+async function start(){server=await startOwnedTestServer({root,port:4322,database:join(directory,'daybook.sqlite'),onOutput:text=>{serverOutput+=text;}});}
+async function stop(){await stopOwnedTestServer(server);}
 async function post(path,data){const response=await page.request.post(base+path,{data});assert.equal(response.status(),201);return response.json();}
 const state=async()=>await(await page.request.get(base+'/api/state')).json();
 async function type(name){await page.keyboard.press('F4');await page.locator('#voucher-type-dialog').waitFor();await page.locator('#voucher-type-search').fill(name);await page.keyboard.press('Enter');await page.locator('#voucher-type-dialog').waitFor({state:'detached'});}

@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -9,12 +9,8 @@ import assert from 'node:assert/strict';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),output=join(root,'evidence/web');
 const directory=await mkdtemp(join(tmpdir(),'bookr-financial-browser-')),base='http://127.0.0.1:4325';
 let server,browser,page,serverOutput='',step='startup';const errors=[];
-async function start(){
-  server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4325',BOOKR_DB:join(directory,'book.sqlite'),BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});
-  server.stdout.on('data',d=>serverOutput+=d);server.stderr.on('data',d=>serverOutput+=d);
-  for(let i=0;i<80;i++){if(server.exitCode!==null)throw new Error(serverOutput);try{if((await fetch(base+'/api/state')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error(serverOutput);
-}
-async function stop(){if(!server || server.exitCode!==null)return;const ended=new Promise(r=>server.once('exit',r));server.kill();await ended;}
+async function start(){server=await startOwnedTestServer({root,port:4325,database:join(directory,'book.sqlite'),onOutput:text=>{serverOutput+=text;}});}
+async function stop(){await stopOwnedTestServer(server);}
 async function request(path,data,method='post'){const response=await page.request[method](base+path,{data});assert.equal(response.ok(),true,await response.text());return response.json();}
 async function get(path){const response=await page.request.get(base+path);assert.equal(response.ok(),true);return response.json();}
 async function home(){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();await page.getByRole('heading',{name:'Gateway of Bookr',exact:true}).waitFor();}

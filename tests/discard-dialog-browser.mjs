@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -9,13 +9,9 @@ import assert from 'node:assert/strict';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),base='http://127.0.0.1:4328';
 const directory=await mkdtemp(join(tmpdir(),'bookr-discard-dialog-')),output=join(root,'evidence/web');
 let server,browser,page,serverOutput='',step='startup';const errors=[],voucherWrites=[],paymentModes=[];
-async function start(){
-  server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4328',BOOKR_DB:join(directory,'book.sqlite'),BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});
-  server.stdout.on('data',data=>serverOutput+=data);server.stderr.on('data',data=>serverOutput+=data);
-  for(let attempt=0;attempt<80;attempt++){if(server.exitCode!==null)throw new Error(serverOutput);try{if((await fetch(base+'/api/state')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error('Discard-dialog server failed. '+serverOutput);
-}
+async function start(){server=await startOwnedTestServer({root,port:4328,database:join(directory,'book.sqlite'),onOutput:text=>{serverOutput+=text;}});}
 async function state(){const response=await page.request.get(base+'/api/state');assert.equal(response.ok(),true);return response.json();}
-async function stop(){if(!server || server.exitCode!==null)return;const stopped=new Promise(r=>server.once('exit',r));server.kill();await stopped;}
+async function stop(){await stopOwnedTestServer(server);}
 async function assertDraft(expected,original){
   await page.locator('#entry-dialog').waitFor({state:'detached'});
   assert.equal(await page.locator('#sales-form').count(),1);

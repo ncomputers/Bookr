@@ -7,6 +7,14 @@
 @media(max-width:750px){.company-create-columns{grid-template-columns:1fr}.company-create-columns>section{padding-right:0}.company-year{border-top:1px solid var(--rule);padding:15px 0 0;margin-top:20px}.company-field{grid-template-columns:minmax(0,105px) 8px minmax(0,1fr);font-size:11px}.company-year .company-field{grid-template-columns:minmax(0,145px) 8px minmax(0,1fr)}.company-field input,.company-field textarea{font-size:11px}#company-form{padding:10px 6px}.company-selector{margin-top:20px}#company-options small{font-size:10px}}
 
 /* Company profile geometry observed in the fictional native company. */
+.company-working-date-dialog{width:min(180px,calc(100vw - 24px));padding:10px;text-align:center}
+.company-working-date-dialog h2{font-size:13px;margin:0 0 12px}
+.company-working-date-dialog .period-field{display:block}
+.company-working-date-dialog .period-field label,.company-working-date-dialog .period-field>span{display:none}
+.company-working-date-dialog .period-field input{width:100%;text-align:center;font-weight:bold}
+.company-working-date-dialog .details-commands{display:flex;justify-content:space-between;gap:4px;margin-top:12px}
+.company-working-date-dialog .details-commands button{min-width:0;margin:0;font-size:10px}
+.company-working-date-dialog .details-error{overflow-wrap:anywhere}
 main.entry-workspace:has(#company-form){background:#b3b8ba}
 #company-form{width:calc(100% - 42px);min-height:505px;padding:15px 8px}
 .company-create-columns{grid-template-columns:476px minmax(0,1fr);min-height:0}

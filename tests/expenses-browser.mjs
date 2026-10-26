@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -15,8 +15,8 @@ function fixture(){const book=new Book(file);try{const customer=book.createCusto
   const metadata=(type,amount,number)=>({account_id:bank.id,transaction_type:type==='receipt'?'Cheque/DD':'Cheque',amount,instrument_number:number,instrument_date:'2026-04-01',bank_name:'Not Applicable',cheque_range:type==='receipt'?'':'Not Applicable'});
   book.saveVoucher({type:'receipt',date:'2026-04-01',customer_id:customer.id,account_id:bank.id,amount:30000,allocations:[{bill_id:first.bill.id,amount:30000}],details:{bank:metadata('receipt',30000,'000101')}});book.saveVoucher({type:'payment',date:'2026-04-01',supplier_id:supplier.id,account_id:bank.id,amount:10000,allocations:[{bill_id:purchase.bill.id,amount:10000}],details:{bank:metadata('payment',10000,'000201')}});
   book.saveVoucher({type:'contra',date:'2026-04-01',source_id:1,destination_id:bank.id,amount:5000,details:{bank:{...metadata('receipt',5000,''),transaction_type:'Cash',denominations:{counts:{'50':1},others:0}}}});book.saveVoucher({type:'contra',date:'2026-04-01',source_id:bank.id,destination_id:1,amount:2000,details:{bank:{...metadata('payment',2000,'000301')}}});return {customer,supplier,bank};}finally{book.close();}}
-async function start(){server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4332',BOOKR_DB:file,BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});server.stdout.on('data',d=>serverOutput+=d);server.stderr.on('data',d=>serverOutput+=d);for(let i=0;i<80;i++){if(server.exitCode!==null)throw new Error(serverOutput);try{if((await fetch(base+'/api/state')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error(serverOutput);}
-async function stop(){if(!server || server.exitCode!==null)return;const ended=new Promise(r=>server.once('exit',r));server.kill();await ended;}
+async function start(){server=await startOwnedTestServer({root,port:4332,database:file,onOutput:text=>{serverOutput+=text;}});}
+async function stop(){await stopOwnedTestServer(server);}
 async function get(path){const response=await page.request.get(base+path);assert.equal(response.ok(),true,await response.text());return response.json();}
 async function post(path,data,method='post'){const response=await page.request[method](base+path,{data});assert.equal(response.ok(),true,await response.text());return response.json();}
 async function home(){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();await page.getByRole('heading',{name:'Gateway of Bookr',exact:true}).waitFor();}

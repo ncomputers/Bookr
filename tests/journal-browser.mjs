@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -10,8 +10,8 @@ import {journalFixture} from './journal-fixture.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),out=join(root,'evidence/web'),base='http://127.0.0.1:4334',directory=await mkdtemp(join(tmpdir(),'bookr-journal-browser-')),file=join(directory,'book.sqlite');
 let server,browser,page,step='startup',output='';const errors=[];const book=new Book(file);let f;
 try{f=journalFixture(book);}finally{book.close();}
-async function start(){server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4334',BOOKR_DB:file,BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>output+=d);for(let i=0;i<80;i++){if(server.exitCode!==null)throw new Error(output);try{if((await fetch(base+'/api/state')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error(output);}
-async function stop(){if(!server || server.exitCode!==null)return;const ended=new Promise(r=>server.once('exit',r));server.kill();await ended;}
+async function start(){server=await startOwnedTestServer({root,port:4334,database:file,onOutput:text=>{output+=text;}});}
+async function stop(){await stopOwnedTestServer(server);}
 async function get(path){const response=await page.request.get(base+path);assert.equal(response.ok(),true,await response.text());return response.json();}
 async function put(path,data){const response=await page.request.put(base+path,{data});assert.equal(response.ok(),true,await response.text());return response.json();}
 async function home(){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();await page.getByRole('heading',{name:'Gateway of Bookr',exact:true}).waitFor();}

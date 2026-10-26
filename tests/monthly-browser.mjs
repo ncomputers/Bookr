@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -16,8 +16,8 @@ try{
   const sale=book.saveVoucher({type:'sale',date:'2026-04-01',customer_id:customer.id,account_id:2,amount:100000});
   book.saveVoucher({type:'receipt',date:'2026-04-01',customer_id:customer.id,account_id:1,amount:40000,allocations:[{bill_id:sale.bill.id,amount:40000}]});
 }finally{book.close();}
-async function start(){server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4333',BOOKR_DB:file,BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>output+=d);for(let i=0;i<80;i++){if(server.exitCode!==null)throw new Error(output);try{if((await fetch(base+'/api/state')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error(output);}
-async function stop(){if(!server || server.exitCode!==null)return;const ended=new Promise(r=>server.once('exit',r));server.kill();await ended;}
+async function start(){server=await startOwnedTestServer({root,port:4333,database:file,onOutput:text=>{output+=text;}});}
+async function stop(){await stopOwnedTestServer(server);}
 async function get(path){const response=await page.request.get(base+path);assert.equal(response.ok(),true,await response.text());return response.json();}
 async function selectLedger(name){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();await page.getByRole('button',{name:'Ledger Vouchers',exact:true}).click();await page.locator('#report-ledger-search').fill(name);await page.keyboard.press('Enter');await page.locator('.ledger-statement').waitFor();}
 async function monthly(){await page.keyboard.press('F6');await page.locator('.monthly-summary').waitFor();}

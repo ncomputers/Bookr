@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import { chromium } from 'playwright-core';
-import { spawn } from 'node:child_process';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
@@ -12,26 +12,8 @@ const directory = await mkdtemp(join(tmpdir(),'bookr-browser-'));
 const base = 'http://127.0.0.1:4318';
 const errors = [];
 let server, browser, page, serverOutput = '';
-async function startServer() {
-  server = spawn(process.execPath,[join(root,'server.mjs')],{
-    cwd:root, windowsHide:true,
-    env:{...process.env,PORT:'4318',BOOKR_DB:join(directory,'browser.sqlite'),BOOKR_TAILSCALE_IP:''},
-    stdio:['ignore','pipe','pipe']
-  });
-  server.stdout.on('data',chunk => { serverOutput += chunk; });
-  server.stderr.on('data',chunk => { serverOutput += chunk; });
-  for (let attempt=0;attempt<80;attempt++) {
-    if (server.exitCode !== null) throw new Error(serverOutput);
-    try { const result = await fetch(base+'/api/state'); if(result.ok) return; } catch {}
-    await new Promise(resolve => setTimeout(resolve,100));
-  }
-  throw new Error('Test server did not start: '+serverOutput);
-}
-async function stopServer() {
-  if (!server || server.exitCode !== null) return;
-  const stopped = new Promise(resolve => server.once('exit',resolve));
-  server.kill(); await stopped;
-}
+async function startServer(){server=await startOwnedTestServer({root,port:4318,database:join(directory,'browser.sqlite'),onOutput:text=>{serverOutput+=text;}});}
+async function stopServer(){await stopOwnedTestServer(server);}
 async function waitForSaved(page, fragment) {
   await page.waitForFunction(text => document.querySelector('#screen-hint').textContent.includes(text),fragment);
 }

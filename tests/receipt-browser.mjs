@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
@@ -9,12 +9,8 @@ import assert from 'node:assert/strict';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),output=join(root,'evidence/web');
 const directory=await mkdtemp(join(tmpdir(),'bookr-receipt-browser-')),base='http://127.0.0.1:4321';
 let server,browser,page,serverOutput='';const errors=[];
-async function startServer(){
-  server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4321',BOOKR_DB:join(directory,'receipt.sqlite'),BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});
-  server.stdout.on('data',d=>serverOutput+=d);server.stderr.on('data',d=>serverOutput+=d);
-  for(let i=0;i<80;i++){if(server.exitCode!==null)throw new Error(serverOutput);try{if((await fetch(base+'/api/state')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error('Receipt server failed. '+serverOutput);
-}
-async function stopServer(){if(!server || server.exitCode!==null)return;const stopped=new Promise(r=>server.once('exit',r));server.kill();await stopped;}
+async function startServer(){server=await startOwnedTestServer({root,port:4321,database:join(directory,'receipt.sqlite'),onOutput:text=>{serverOutput+=text;}});}
+async function stopServer(){await stopOwnedTestServer(server);}
 const state=async()=>await(await page.request.get(base+'/api/state')).json();
 const saved=text=>page.waitForFunction(t=>document.querySelector('#screen-hint').textContent.includes(t),text);
 async function home(){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();await page.getByRole('heading',{name:'Gateway of Bookr',exact:true}).waitFor();}

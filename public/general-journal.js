@@ -1,12 +1,14 @@
 import {entryDate,parseEntryDate,formatRupees,formatBalance,inputRupees,parseRupees} from './entry-values.js';
 import {savedLedgerBalance} from './ledger-balance.js';
-import {initialEntryDate} from './company-context.js';
+import {workingDateContext} from './company-context.js';
+import {createEntryDateState} from './working-date.js';
 import {createListPicker} from './list-picker.js';
 
 // Original, bounded multi-line entry mode. Party bills and bank allocations
 // remain in their dedicated voucher workflows.
 export function createGeneralJournalWorkspace({main,hint,api,setScreen,getView,getBook,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook,openVoucher,openLegacy}){
   const kinds=['cash','capital','expense','income','sales','purchase'];
+  const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
   let editing=null,origin='gateway',busy=false,initial='',date=null,pickers=[],nextRow=0;
   const active=()=>getView()==='journal-general';
   const rows=()=>[...main.querySelectorAll('[data-journal-line]')];
@@ -70,7 +72,7 @@ export function createGeneralJournalWorkspace({main,hint,api,setScreen,getView,g
     }catch(failure){error.textContent=failure.message;return null;}
   }
   function render(voucher=null,from='gateway',message=''){
-    date??=initialEntryDate(getBook());
+    date=entryDates.forRender(voucher?{savedDate:voucher.date}:{});
     editing=voucher;origin=from;if(voucher)date=voucher.date;nextRow=0;
     setScreen(voucher?'Accounting Voucher Alteration':'Accounting Voucher Creation','journal-general',message || 'General Journal · Enter: next field · Ctrl+A: save · F2: date · Esc: back');
     main.innerHTML=`<form id="general-journal-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">Journal</strong><span>No. &nbsp;${number()}</span><div class="voucher-date"><input id="general-journal-date" aria-label="Voucher date" value="${entryDate(date)}"></div></div><div class="general-journal-columns"><span></span><strong>Particulars</strong><span>Debit</span><span>Credit</span><span></span></div><div id="general-journal-lines"></div><div class="general-add-row"><button type="button" id="general-journal-add-line">Add line</button></div><p class="general-journal-scope">General Journal · Cash, Capital, Expenses, Incomes, Sales and Purchases · no tax or bill allocations</p><div id="general-journal-error" class="ledger-error" role="alert"></div><div id="general-journal-difference" role="status"></div><div class="general-journal-totals"><span>Total</span><strong id="general-journal-debit-total"></strong><strong id="general-journal-credit-total"></strong><span></span></div><div class="voucher-bottom"><div class="voucher-narration"><label for="general-journal-narration">Narration:</label><textarea id="general-journal-narration" rows="2" maxlength="1000">${escapeHtml(voucher?.narration ?? '')}</textarea></div></div></form>`;
@@ -93,7 +95,7 @@ export function createGeneralJournalWorkspace({main,hint,api,setScreen,getView,g
     busy=true;const fields=[...main.querySelectorAll('input,select,textarea,button')];fields.forEach(field=>field.disabled=true);document.querySelector('#accept-general-journal').disabled=true;
     try{
       const saved=await api(editing?'/api/vouchers/'+editing.id:'/api/vouchers',{method:editing?'PUT':'POST',body:JSON.stringify(input)});
-      getBook().vouchers=getBook().vouchers.filter(row=>row.id!==saved.id).concat(saved);await refreshBook().catch(()=>{});date=saved.date;
+      getBook().vouchers=getBook().vouchers.filter(row=>row.id!==saved.id).concat(saved);await refreshBook().catch(()=>{});date=saved.date;if(!editing)entryDates.rememberNew(saved.date);
       if(editing){await back();hint.textContent='Saved changes to Journal No. '+saved.number+'.';}else render(null,origin,'Saved Journal No. '+saved.number+' · next voucher ready');
     }catch(failure){fields.forEach(field=>field.disabled=false);document.querySelector('#accept-general-journal').disabled=false;main.querySelector('#general-journal-error').textContent=failure.message;}
     finally{busy=false;if(active())update();}

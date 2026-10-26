@@ -1,5 +1,6 @@
 import {savedLedgerBalance} from './ledger-balance.js';
-import {initialEntryDate} from './company-context.js';
+import {initialEntryDate,workingDateContext} from './company-context.js';
+import {createEntryDateState} from './working-date.js';
 import { parseRupees, formatRupees, inputRupees, parseEntryDate, entryDate } from './entry-values.js';
 import { editVoucherDetails } from './voucher-details.js';
 import { editBillReference } from './bill-details.js';
@@ -9,7 +10,8 @@ import { editVoucherType } from './voucher-type.js';
 export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,renderGateway,getView,openLedgerFromSale,openReceipt,openOtherVoucher}) {
   const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal'}[type]);
   const partyDebit=type=>type==='sale' || type==='payment';
-  let editing = null, origin = 'gateway', initialValues = '', saving = false, currentDate = null;
+  const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
+  let editing= null, origin = 'gateway', initialValues = '', saving = false, currentDate = null;
   let reportRows = [], reportIndex = 0;
   let dayBookFilter={from:null,to:null,type:'all'};
   let details = {};
@@ -111,7 +113,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     },onCancel:restore});
   }
   function renderSale(voucher = null,from = 'gateway',message = '') {
-    currentDate??=initialEntryDate(getBook());
+    currentDate=entryDates.forRender(voucher?{savedDate:voucher.date}:{});
     editing = voucher; origin = from;
     details = structuredClone(voucher?.details ?? {});
     if (voucher) currentDate = voucher.date;
@@ -205,7 +207,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
       const saved = await api(editing ? `/api/vouchers/${editing.id}` : '/api/vouchers',{method:editing ? 'PUT' : 'POST',body:JSON.stringify(input)});
       book().vouchers = book().vouchers.filter(row => row.id !== saved.id).concat(saved).sort((a,b) => a.date.localeCompare(b.date) || a.id-b.id);
       await refreshBook().catch(() => {});
-      currentDate = saved.date;
+      currentDate=saved.date;if(!editing)entryDates.rememberNew(saved.date);
       if (editing) { if(typeof origin==='function') await origin(); else await renderDayBook(); hint.textContent = `Saved changes to Sales No. ${saved.number}.`; }
       else renderSale(null,origin,`Saved Sales No. ${saved.number} · ₹${formatRupees(saved.amount)} · next voucher ready`);
     } catch (failure) {

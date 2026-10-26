@@ -1,9 +1,11 @@
 import {entryDate,parseEntryDate,formatRupees,formatBalance,inputRupees,parseRupees} from './entry-values.js';
 import {savedLedgerBalance} from './ledger-balance.js';
-import {initialEntryDate} from './company-context.js';
+import {workingDateContext} from './company-context.js';
+import {createEntryDateState} from './working-date.js';
 import {editBankAllocation} from './bank-allocation.js';
 
 export function createContraWorkspace({main,hint,api,setScreen,getView,getBook,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook,openVoucher}) {
+  const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
   let editing=null,origin='gateway',busy=false,initial='',bankData=null,sourceBankData=null,reviewed='',currentDate=null;
   const value=id=>main.querySelector('#'+id).value;
   const signature=input=>`${input.source_id}:${input.destination_id}:${input.amount}:${input.date}`;
@@ -31,7 +33,7 @@ export function createContraWorkspace({main,hint,api,setScreen,getView,getBook,r
     }catch(error){main.querySelector('#contra-error').textContent=error.message;}
   }
   function render(voucher=null,from='gateway',message=''){
-    currentDate??=initialEntryDate(getBook());
+    currentDate=entryDates.forRender(voucher?{savedDate:voucher.date}:{});
     editing=voucher;origin=from;bankData=structuredClone(voucher?.details?.bank ?? null);sourceBankData=structuredClone(voucher?.details?.source_bank ?? null);reviewed=voucher?signature(voucher):'';if(voucher)currentDate=voucher.date;
     setScreen(voucher?'Accounting Voucher Alteration':'Accounting Voucher Creation','contra',message || 'F4: Contra · Enter: next · Ctrl+A: accept · F2: date · Esc: back');
     const accounts=getBook().ledgers.filter(ledger=>['cash','bank'].includes(ledger.kind)).sort((a,b)=>a.name.localeCompare(b.name));
@@ -64,7 +66,7 @@ export function createContraWorkspace({main,hint,api,setScreen,getView,getBook,r
     if(busy || document.querySelector('dialog') || getView()!=='contra')return;const input=read();if(!input)return;
     if(!bankData || (Object.hasOwn(input.details,'source_bank') && !sourceBankData) || reviewed!==signature(input)){showBank();return;}
     busy=true;const fields=[...main.querySelectorAll('input,select,textarea')];fields.forEach(field=>field.disabled=true);document.querySelector('#accept-contra').disabled=true;
-    try{const saved=await api(editing?'/api/vouchers/'+editing.id:'/api/vouchers',{method:editing?'PUT':'POST',body:JSON.stringify(input)});getBook().vouchers=getBook().vouchers.filter(voucher=>voucher.id!==saved.id).concat(saved);await refreshBook().catch(()=>{});currentDate=saved.date;if(editing){await back();hint.textContent='Saved changes to Contra No. '+saved.number+'.';}else render(null,origin,'Saved Contra No. '+saved.number+' · ₹'+formatRupees(saved.amount)+' · next voucher ready');}
+    try{const saved=await api(editing?'/api/vouchers/'+editing.id:'/api/vouchers',{method:editing?'PUT':'POST',body:JSON.stringify(input)});getBook().vouchers=getBook().vouchers.filter(voucher=>voucher.id!==saved.id).concat(saved);await refreshBook().catch(()=>{});currentDate=saved.date;if(!editing)entryDates.rememberNew(saved.date);if(editing){await back();hint.textContent='Saved changes to Contra No. '+saved.number+'.';}else render(null,origin,'Saved Contra No. '+saved.number+' · ₹'+formatRupees(saved.amount)+' · next voucher ready');}
     catch(error){fields.forEach(field=>field.disabled=false);document.querySelector('#accept-contra').disabled=false;main.querySelector('#contra-error').textContent=error.message;}finally{busy=false;}
   }
   function showPostings(){setScreen('Accounting Entries','contra-postings','Saved Contra entries · Esc: return to voucher');main.innerHTML=`<section class="accounting-entries"><div class="report-company">${escapeHtml(getBook().company)}</div><div class="entries-header"><strong>Contra No. ${editing.number}</strong><span>${entryDate(editing.date)}</span></div><table class="voucher-report"><thead><tr><th>Particulars</th><th>Debit</th><th>Credit</th></tr></thead><tbody>${editing.postings.map(posting=>`<tr><td>${escapeHtml(posting.name)}</td><td class="amount">${posting.side==='debit'?formatRupees(posting.amount):''}</td><td class="amount">${posting.side==='credit'?formatRupees(posting.amount):''}</td></tr>`).join('')}</tbody><tfoot><tr><th>Total</th><th>${formatRupees(editing.amount)}</th><th>${formatRupees(editing.amount)}</th></tr></tfoot></table><p class="posting-status">Balanced · Destination debit / Source credit</p></section>`;}

@@ -8,11 +8,13 @@
     "Preserve company books and reject missing established database files",
     "Create companies with custom initial financial-year and books-beginning dates",
     "Use company dates in entry defaults, opening balances and initial-year reports",
+    "Change the Gateway working date with a shared date editor and separate new-voucher date state",
+    "Keep per-company working-date context in each browser tab without changing accounting rows",
     "Shared address entry: populated Enter adds a line, empty final Enter advances",
     "Reusable confirmation dialogs preserve unsaved drafts when No is chosen"
   ],
   "remaining": [
-    {"area":"Company calendar","status":"Creation works; saved date alteration, working-date and current-period controls remain"},
+    {"area":"Company calendar","status":"Creation and working-date controls work; saved date alteration and current-period controls remain"},
     {"area":"Historical opening bills","status":"Earlier-than-books dates use an existing Bookr convention; reference report behaviour remains under study"},
     {"area":"State and country selection","status":"Text fields work; reference-style region pickers remain"},
     {"area":"Base currency","status":"INR display only; configuration remains"},

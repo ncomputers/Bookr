@@ -1,5 +1,5 @@
+import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 ﻿import { chromium } from 'playwright-core';
-import { spawn } from 'node:child_process';
 import { mkdtemp,rm,mkdir,writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join,resolve,dirname } from 'node:path';
@@ -12,20 +12,8 @@ const directory = await mkdtemp(join(tmpdir(),'bookr-sales-browser-'));
 const base = 'http://127.0.0.1:4319';
 const errors = [];
 let server,browser,page,serverOutput = '';
-async function startServer() {
-  server = spawn(process.execPath,[join(root,'server.mjs')],{cwd:root,windowsHide:true,env:{...process.env,PORT:'4319',BOOKR_DB:join(directory,'sales.sqlite'),BOOKR_TAILSCALE_IP:''},stdio:['ignore','pipe','pipe']});
-  server.stdout.on('data',data => { serverOutput += data; }); server.stderr.on('data',data => { serverOutput += data; });
-  for(let attempt=0;attempt<80;attempt++) {
-    if(server.exitCode !== null) throw new Error(serverOutput);
-    try { if((await fetch(base+'/api/state')).ok) return; } catch {}
-    await new Promise(resolve => setTimeout(resolve,100));
-  }
-  throw new Error('Sales test server did not start. '+serverOutput);
-}
-async function stopServer() {
-  if(!server || server.exitCode !== null) return;
-  const stopped = new Promise(resolve => server.once('exit',resolve)); server.kill(); await stopped;
-}
+async function startServer(){server=await startOwnedTestServer({root,port:4319,database:join(directory,'sales.sqlite'),onOutput:text=>{serverOutput+=text;}});}
+async function stopServer(){await stopOwnedTestServer(server);}
 async function saved(message) { await page.waitForFunction(text => document.querySelector('#screen-hint').textContent.includes(text),message); }
 async function acceptBill(reference,viaEnter = false) {
   await page.locator('#bill-details-dialog').waitFor();
@@ -239,7 +227,9 @@ try {
   const firstSale = state.vouchers.find(row => row.number === 1);
   assert.equal((await page.request.put(base+`/api/vouchers/${firstSale.id}`,{data:{...firstSale,amount:234551}})).status(),200);
   await openDayBook();
-  assert.match(await page.locator('[data-sale-row="0"]').innerText(),/2,345\.51/);
+  const refreshedFirstSale=await (await page.request.get(base+`/api/vouchers/${firstSale.id}`)).json();
+  assert.equal(refreshedFirstSale.amount,234551);assert.equal(refreshedFirstSale.date,'2026-04-02');
+  assert.match(await page.locator('[data-open-sale="'+firstSale.id+'"]').locator('xpath=ancestor::tr').innerText(),/2,345\.51/);
   await page.locator('#new-sale').click();
   await page.locator('#sale-customer').fill('OtherTab');
   await page.getByRole('option',{name:'Other Tab Fictional Customer OtherTab',exact:true}).waitFor();

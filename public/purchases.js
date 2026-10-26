@@ -1,10 +1,12 @@
 import {savedLedgerBalance} from './ledger-balance.js';
-import {initialEntryDate} from './company-context.js';
+import {workingDateContext} from './company-context.js';
+import {createEntryDateState} from './working-date.js';
 import {entryDate,parseEntryDate,formatRupees,inputRupees,parseRupees} from './entry-values.js';
 import {editVoucherDetails} from './voucher-details.js';
 import {editBillReference} from './bill-details.js';
 
 export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,getView,renderGateway,openDayBook,openVoucher}) {
+  const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
   let editing=null,origin='gateway',saving=false,initial='',details={},reference='',billTerms=null,reviewed='',currentDate=null,detailsPartyId=null,initialInvoice=null;
   const value=id=>main.querySelector('#purchase-'+id).value;
   const parties=()=>getBook().ledgers.filter(l=>l.kind==='supplier' || (l.kind==='cash' && getBook().capabilities?.cash_purchases===true));
@@ -25,7 +27,7 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     document.querySelector('#purchase-bill-details').disabled=party?.kind==='cash';
   }
   function renderPurchase(voucher=null,from='gateway',message=''){
-    currentDate??=initialEntryDate(getBook());
+    currentDate=entryDates.forRender(voucher?{savedDate:voucher.date}:{});
     editing=voucher;origin=from;details=structuredClone(voucher?.details ?? {});reference=voucher?.bill?.reference ?? '';billTerms=structuredClone(voucher?.bill?.terms ?? null);detailsPartyId=voucher?.supplier_id ?? null;
     if(voucher)currentDate=voucher.date;
     reviewed='';
@@ -96,7 +98,7 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     if(!cashParty() && (!reference || reviewed!==signature(input))){showBill();return;}
     saving=true;const fields=[...main.querySelectorAll('input,select,textarea')];fields.forEach(f=>f.disabled=true);document.querySelector('#accept-purchase').disabled=true;
     try{
-      const saved=await api(editing?`/api/vouchers/${editing.id}`:'/api/vouchers',{method:editing?'PUT':'POST',body:JSON.stringify(input)});getBook().vouchers=getBook().vouchers.filter(v=>v.id!==saved.id).concat(saved);await refreshBook().catch(()=>{});currentDate=saved.date;
+      const saved=await api(editing?`/api/vouchers/${editing.id}`:'/api/vouchers',{method:editing?'PUT':'POST',body:JSON.stringify(input)});getBook().vouchers=getBook().vouchers.filter(v=>v.id!==saved.id).concat(saved);await refreshBook().catch(()=>{});currentDate=saved.date;if(!editing)entryDates.rememberNew(saved.date);
       if(editing){await returnTo();hint.textContent=`Saved changes to Purchase No. ${saved.number}.`;}else renderPurchase(null,origin,`Saved Purchase No. ${saved.number} · ₹${formatRupees(saved.amount)} · next voucher ready`);
     }catch(failure){fields.forEach(f=>f.disabled=false);document.querySelector('#accept-purchase').disabled=false;error(failure.message);}finally{saving=false;}
   }

@@ -22,6 +22,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Create, select and alter companies, including mailing and contact details.
 - Revision checks, separate company books and missing-database protection.
 - Choose the initial financial-year and books-beginning dates when creating a company.
+- Change the working date from Gateway with F2; new vouchers use that date.
 - Ledger creation and alteration with supported account groups and opening balances.
 - Sales, purchases, receipts, payments, contra and supported journal entries.
 - Save and reopen vouchers, view postings, ledger statements and outstanding bills.
@@ -33,7 +34,9 @@ moves to State. Shift+Enter inserts a newline without leaving the address.
 
 Amounts use integer paise. A credit sale of ₹1,000 followed by a ₹400 receipt leaves ₹600 outstanding.
 
-New companies support a custom initial financial year, with books beginning within that year. Entry dates and opening-balance labels use the company's books-beginning date. Saved company dates are read-only in this increment; changing the working date or current period remains unfinished. The default company retains its existing date compatibility behavior.
+New companies support a custom initial financial year, with books beginning within that year. The initial working date and opening-balance labels use the company's books-beginning date. Gateway F2 changes the working date within the displayed current period without changing company master dates or saved vouchers. Each browser tab keeps a separate working date for each company; this tab retention is a web convention. In the date dialog, Esc clears the field before a second Esc returns without accepting.
+
+Saved company dates are read-only in this increment. Changing the current period and shutting/reopening a loaded company remain unfinished. The default company retains its existing date compatibility behavior.
 
 Configurable currency, company security, public backup/restore, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
 

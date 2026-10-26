@@ -14,6 +14,8 @@ import {createListPicker} from './list-picker.js';
 import {createCompanyWorkspace} from './companies.js';
 import {companyCalendar,shortCompanyDate,companyDateCaption} from './company-context.js';
 import {entryDate} from './entry-values.js';
+import {createWorkingDateContext,followingWorkingDate} from './working-date.js';
+import {editReportDate} from './report-period.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -35,6 +37,7 @@ let ledgerReturn = null;
 let ledgerKind='customer';
 let openingEditor=null;
 let ledgerGroupPicker=null;
+let workingDateStore=null;
 const activeCompanyId=sessionStorage.getItem('bookr.company') ?? 'default';
 const ledgerFields=()=>[...main.querySelectorAll('#ledger-form input,#ledger-form select,#ledger-form textarea')].filter(field=>!field.disabled && field.getClientRects().length>0);
 function openVoucher(voucher,from='gateway',type=voucher?.type ?? 'sale'){
@@ -83,6 +86,9 @@ async function refreshBook() {
       throw new Error('This preview returned unsupported or incomplete General Journal entries. Open the latest Bookr server before continuing.');
     }
   }
+  const calendar=companyCalendar(next);
+  workingDateStore??=createWorkingDateContext({companyId:activeCompanyId,booksFrom:calendar.books_from,period:{from:calendar.financial_year_from,to:calendar.financial_year_to},storage:sessionStorage});
+  next.working_context=workingDateStore.current();
   book=next;document.querySelector('.application-name strong').textContent=book.preview?.label || 'DEMO';return book;
 }
 async function openFresh(action) {
@@ -164,6 +170,17 @@ function renderGateway(focusIndex = 0) {
     selectMenu(Number(button.dataset.menu)); openGatewayItem();
   }));
   selectMenu(focusIndex);
+  const dateKey=document.querySelector('.function-rail button');dateKey.disabled=false;dateKey.onclick=changeWorkingDate;
+}
+function changeWorkingDate(){
+  if(view!=='gateway'||busy()||document.querySelector('dialog')||!workingDateStore)return;
+  let proposed;try{proposed=followingWorkingDate(workingDateStore.current().date);}catch{proposed=workingDateStore.current().date;}
+  if(proposed>companyCalendar(book).financial_year_to)proposed=companyCalendar(book).financial_year_to;
+  title.textContent='Change Current Date';document.title='Change Current Date | Bookr';
+  hint.textContent='Enter: accept current date · Ctrl+A: accept · Esc: clear, then back';
+  editReportDate({date:proposed,companyDate:true,onDone:({from})=>{
+    book.working_context=workingDateStore.accept(from);renderGateway(selected);
+  },onClose:()=>{title.textContent='Gateway of Bookr';document.title='Gateway of Bookr | Bookr';selectMenu(selected);}});
 }
 function openGatewayItem() {
   if (selected < 2) renderMasters(selected === 0 ? 'create' : 'alter');
@@ -362,7 +379,8 @@ document.addEventListener('keydown', event => {
   if (event.ctrlKey || event.altKey || event.metaKey || saving) return;
   if (event.key === 'Escape') { event.preventDefault(); goBack(); return; }
   if (view === 'gateway') {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); selectMenu(selected + (event.key === 'ArrowDown' ? 1 : -1),true); }
+    if (event.key === 'F2') { event.preventDefault(); changeWorkingDate(); }
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); selectMenu(selected + (event.key === 'ArrowDown' ? 1 : -1),true); }
     else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); selectMenu(event.key === 'Home' ? 0 : menu.length-1,true); }
     else if (event.key === 'Enter') { event.preventDefault(); openGatewayItem(); }
     else if (event.key.toLowerCase() === 'c' || event.key.toLowerCase() === 'a') { event.preventDefault(); renderMasters(event.key.toLowerCase() === 'c' ? 'create' : 'alter'); }
