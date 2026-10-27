@@ -21,7 +21,8 @@
     "Reopen with a bounded last-entry date model while retaining each company period",
     "Retry opening a successfully saved company or restore without publishing it twice",
     "Home shows pending requests and retains existing draft confirmation when work finishes",
-    "India State suggestions share keyboard selection and discard behavior, preserve free text and save/reopen without changing accounting rows"
+    "India State suggestions share keyboard selection and discard behavior, preserve free text and save/reopen without changing accounting rows",
+    "Reject reserved identity and revision fields in stored metadata before exposing company identities or publishing edits, without dropping unknown settings"
   ],
   "remaining": [
     {

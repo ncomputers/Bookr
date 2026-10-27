@@ -23,6 +23,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Choose India State suggestions with the keyboard while preserving existing free-text values.
 - Load, change and shut companies independently in each browser tab.
 - Revision checks, separate company books and missing-database protection.
+- Reject conflicting stored company IDs or revisions without rewriting saved settings or books.
 - Download a complete company backup and restore it as a separate new company.
 - Choose the initial financial-year and books-beginning dates when creating a company.
 - Change the working date from Gateway with F2; new vouchers use that date.

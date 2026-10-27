@@ -1,0 +1,52 @@
+{
+  "application": "Bookr",
+  "feature": "Preserve the origin of stored company identity and revision",
+  "status": "implemented-and-verified",
+  "complete": true,
+  "basis": "Original Bookr catalog isolation and unsupported stored-setting preservation contracts; no new reference-app or accounting rule.",
+  "reviewedBaseline": "0d2b047d43d8126341a477714457a4d404272b35",
+  "sourceReasoning": {
+    "identity": "CompanyStore.list/profile spread raw details JSON after the trusted catalog ID. A stored details.id can replace that identity in the composed profile.",
+    "revision": "The composed profile replaces any raw details.revision with the SQL revision. Later guards therefore cannot tell that an unrecognized raw revision key existed.",
+    "guard": "Update and export inspect only composed profile keys, allow id/revision as derived fields, and can silently omit these unrecognized raw stored keys instead of rejecting them.",
+    "trigger": "A persisted legacy, future or corrupt metadata object containing a reserved identity/version key; ordinary public create/update requests already reject these keys.",
+    "reproduced": "On unchanged pre-State implementation, eight unit cases fail because no rejection occurs, both HTTP cases return 200 instead of 400, and both browser PUT cases return 200, remove the raw reserved key and advance the catalog revision. These are original Bookr fictional regressions, not reference-app rules."
+  },
+  "fields": {
+    "trusted": ["catalog row id", "catalog row revision"],
+    "reservedInRawDetails": ["id", "revision"],
+    "unchangedMetadata": ["name", "mailing_name", "address", "state", "country", "pincode", "telephone", "mobile", "fax", "email", "website", "financial_year_from", "books_from", "financial_year_to"]
+  },
+  "validation": {
+    "reservedKeys": "Fail closed when raw stored details contain id or revision, even when their values equal the trusted SQL columns. Validate their raw origin before any profile composition; do not repair, overwrite or silently drop these keys.",
+    "protectedReads": "Profile/list/summary/book access must not publish a forged company identity from such a stored object. Return a bounded unsupported-stored-settings error instead.",
+    "protectedWritesAndBackup": "Ordinary metadata update and portable export must reject before changing catalog rows/revisions, accounting rows or exported data. Roll back any started catalog transaction.",
+    "futureSettings": "Preserve existing behavior for unrelated unknown settings: retain their readonly representation, while ordinary update and export reject them without removing stored data. This fix must not silently normalize unknown currency/access settings.",
+    "unaffectedCompanies": "A different valid company's direct profile and books retain their own IDs, revisions and rows; do not remap a bad target to it.",
+    "repair": "Automatic repair/migration of corrupt stored details is excluded."
+  },
+  "defaults": "No default, calendar, currency, contact, session or company-selection change.",
+  "keys": "Existing Enter/Tab/Escape/Ctrl+A behavior remains; a rejected metadata request retains the draft through the existing error path.",
+  "accountingEffect": "None. No vouchers, postings, allocations, opening balances, company revisions or unknown stored settings may change on rejection. The fictional 100000-paise sale minus 40000-paise receipt remains 60000 paise outstanding.",
+  "verification": {
+    "draftOnly": false,
+    "globalLane": "Root granted the global test lane after State verification; run all focused and full unit/HTTP/browser checks serially.",
+    "redBeforeCode": "Draft unit cases first, run them against unchanged baseline code when authorized, and retain genuine failure receipts before any product implementation.",
+    "cases": ["Valid catalog identity/revision remains trusted", "Raw id/revision, matching and different values: reject profile and list", "Reject summary/book access without opening or reseeding", "Reject metadata update atomically", "Reject export without emitting a bundle", "Unrelated unknown future settings retain the existing readonly and rejection contracts", "Exact catalog/accounting row and file-set preservation", "Unaffected company identity and 60000-paise outstanding"],
+    "httpDraft": "Owned temporary server on 4772 only. Inject raw id/revision in one fictional catalog row, require bounded 400 responses for profile/list/summary/state/update/backup, never return a forged profile or portable bundle, preserve all exact catalog/accounting rows and unaffected company identity through server restart.",
+    "browserDraft": "Owned temporary server on 4773 only. Open a valid inactive target form first, then inject raw id/revision in that fixture's catalog. Ctrl+A and an explicit retry must each report the bounded unsupported-setting error, keep unsaved metadata editable and target identity unchanged, preserve exact session/date/period and accounting rows, avoid forged-company navigation and make no accounting writes. API-bound screenshots explicitly distinguish the last valid saved profile from the retained unsaved draft.",
+    "fixtureBoundary": "One original shared test helper seeds, snapshots and mutates only a newly owned OS-temporary fixture directory. SQL corruption injection is deliberate test setup, never a product migration or real-books action.",
+    "focusedResult": "Ten unit cases, two HTTP cases and two browser scenarios pass after genuine RED, with retained editable drafts, bounded errors, unaffected company identity, exact catalog/accounting preservation and 60000-paise outstanding. The accepted State baseline and its tests are retained.",
+    "release": "Full unit/HTTP and browser chains passed serially before exact-source promotion. Focused checks and a readonly audit then passed on the updated preview."
+  },
+  "verificationResult": {
+    "unitAndHttp": {"passed": 406, "failed": 0, "skipped": 0},
+    "browserCommands": {"passed": 54, "execution": "Complete chain after units on frozen source"},
+    "actualSource": "Twelve unit/HTTP checks and both retained-draft browser scenarios passed after exact-source promotion",
+    "screenshots": "Two error/draft fixture screenshots and three API-bound readonly preview screenshots reviewed",
+    "preview": "Updated backend loaded on the same preview books after a complete fresh preservation; old and fresh snapshots both verify exact saved records",
+    "previewWrites": 0,
+    "accounting": "Original fictional accounting rows and 60000-paise outstanding retained",
+    "boundary": "Invalid stored metadata was injected only into disposable test fixtures; the preview audit used valid existing profiles without mutations"
+  }
+}
