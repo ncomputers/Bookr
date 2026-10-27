@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {enterHighlightedCompanyEditor,acceptCompanyAndReturnHome} from './company-edit-navigation.mjs';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -15,9 +16,9 @@ const active=()=>page.evaluate(()=>sessionStorage.getItem('bookr.company')??'def
 async function json(path,{company,method='GET',data}={}){const response=await page.request.fetch(base+path,{method,headers:{'X-Bookr-Company':company??await active()},...(data===undefined?{}:{data})});assert.equal(response.ok(),true,await response.text());return response.json();}
 const profile=async()=>json('/api/companies/'+await active());
 async function evidence(){return {selection:{id:await active()},profile:await profile(),book:await json('/api/state')};}
-async function alter(){await page.keyboard.press('Alt+k');await page.locator('#company-alter-menu').waitFor();await page.keyboard.press('a');await page.locator('#main[data-screen="company-alter"] #company-form').waitFor();}
+async function alter(){await page.keyboard.press('Alt+k');await page.locator('#company-alter-menu').waitFor();await page.keyboard.press('a');await enterHighlightedCompanyEditor(page);}
 async function home(){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();if(await page.locator('#entry-dialog').count()){await page.keyboard.press('y');await page.locator('#entry-dialog').waitFor({state:'detached'});}await page.locator('#main[data-screen="gateway"]').waitFor();}
-async function save(name){await page.keyboard.press('Control+a');await page.waitForFunction(name=>document.querySelector('.company-pane .company-name')?.textContent===name,name);}
+async function save(name){await acceptCompanyAndReturnHome(page,name);}
 async function fillContacts(values,padding=false){for(const [key,value]of Object.entries(values))await page.locator('#company-'+key).fill(padding?'  '+value+'  ':value);}
 async function assertContacts(values){for(const [key,value]of Object.entries(values))assert.equal(await page.locator('#company-'+key).inputValue(),value,key);}
 async function capture(id,{mobile=false}={}){

@@ -1,0 +1,89 @@
+{
+  "application": "Bookr",
+  "feature": "Edit a loaded company without changing the active books",
+  "status": "implemented-and-verified",
+  "complete": true,
+  "policy": "Behavior-only fictional observations; original Bookr implementation and wording. No vendor source, executable inspection, file format or artwork is used.",
+  "verificationResult": {
+    "unitAndHttp": {"passed": 368, "failed": 0, "skipped": 0},
+    "browserCommands": {"passed": 52, "execution": "One full chain after the unit suite"},
+    "promotedSource": "17 focused model/lifecycle units followed by 11 grouped editor browser checks passed on the actual source",
+    "screenshots": "Seven editor captures bind visible content to saved fictional API data; desktop and 320/390 layouts reviewed",
+    "previewAudit": "Three API-bound screenshots on the existing preview; GET only, zero attempted writes and page errors, saved data and session unchanged",
+    "money": "100000 paise sale minus 40000 paise receipt retains 60000 paise outstanding; all accounting rows unchanged",
+    "limits": "Behavior and content checks do not establish native pixel equality. The State picker remains unpublished."
+  },
+  "study": {
+    "behaviorStudy": "fictional-loaded-company-edit-20261027",
+    "evidenceRetention": "Original runtime observations and verification artifacts are retained privately outside the published repository.",
+    "verified": [
+      "The edit selector lists loaded companies only.",
+      "Choosing an inactive loaded company opens that company's own profile and calendar without making it active.",
+      "Cancel returns to the edit selector with the target highlighted and its name in the search input.",
+      "Saving only mailing metadata returns to the same selector for both inactive and active targets; reopening shows the saved metadata.",
+      "The previously active company and its working date and reporting period remain unchanged."
+    ],
+    "limits": [
+      "Runtime save studies changed mailing metadata only. They do not establish rules for changing accounting dates, currency, tax or security.",
+      "State-picker empty-query Escape remains unverified and is excluded from this feature."
+    ]
+  },
+  "scope": {
+    "included": ["Loaded-company edit selection", "Target-bound existing metadata form", "Cancel/save selector return", "Original read-only refresh recovery", "Concurrency and financial isolation regression coverage"],
+    "excluded": ["Unverified State picker prototype", "Date/currency/tax/security changes", "New backend routes or schema", "Company activation during editing", "Reference source or native input", "Later accounting layers"]
+  },
+  "labels": {"selectorTitle": "Choose company to edit", "listHeading": "Loaded companies", "recoveryAction": "Refresh  Ctrl+A"},
+  "selector": {
+    "reuse": "Existing company selector DOM, IDs, layout and keyboard controller; add edit as an explicit mode.",
+    "compatibleIds": ["company-search", "company-options", "company-error", "company-alter-menu", "selector-alter-company"],
+    "modes": {"select": "All catalog companies", "change": "Loaded companies", "shut": "Loaded companies", "edit": "Loaded companies"},
+    "initialFocus": "Search input; active company ID is the preferred highlighted target when present.",
+    "returnFocus": "Search input prefilled with the edited target's latest name; highlight by target ID rather than list position or name.",
+    "search": "Trimmed case-insensitive name substring; update matching rows without mutating source catalog or loaded IDs.",
+    "allCompanies": "Existing all-company selection action remains select mode; it must not turn an edit into an unloaded-company edit or activate a target automatically.",
+    "empty": "Show an empty result and reject Enter without issuing a target request.",
+    "keys": {"ArrowUp/ArrowDown": "Move highlighted result", "Home/End": "First/last result", "Enter": "Open highlighted target for edit when mode is edit", "Escape": "Return to the existing Company menu", "F3/Alt+F3/Ctrl+F3": "Preserve existing change/select/shut behavior"}
+  },
+  "profile": {
+    "open": "GET /api/companies/:targetId immediately before rendering the form; do not use a stale catalog profile.",
+    "identity": "Form, heading, immutable calendar, PUT URL and revision bind to the selected target ID, independently of the active API header.",
+    "editableFields": ["name", "mailing_name", "address", "state", "country", "pincode", "telephone", "mobile", "fax", "email", "website"],
+    "defaults": "Preserve fresh target values. Do not replace existing values with active-company defaults.",
+    "immutableFields": ["id", "financial_year_from", "books_from", "financial_year_to", "base currency"],
+    "validation": "Retain existing Bookr metadata validation, nonempty name, maximum lengths, known profile keys and server revision checks; no additional accounting rules are inferred.",
+    "keys": {"Enter/Tab/Shift+Tab": "Existing metadata field traversal", "Ctrl+A": "Save target once", "Escape": "Existing nonempty-field clearing and reusable discard confirmation; confirmed cancel returns to the edit selector", "Escape on discard dialog": "Choose No and preserve the draft"}
+  },
+  "save": {
+    "request": "PUT /api/companies/:targetId with the freshly fetched target revision; X-Bookr-Company remains the previously active company.",
+    "success": "Mark the returned profile published; refresh catalog and active-book display through read-only requests, then return to edit selector with saved target name/query/ID selected.",
+    "session": "Never call lifecycle.select, location.reload or company activation for edit-save/cancel. Preserve loaded IDs, active ID, working date and current period.",
+    "displayRefresh": "Refresh catalog and existing active-book presentation only; this updates active-company names if the active target was renamed without replacing the session.",
+    "prepublicationFailure": "Keep draft and target identity; re-enable fields. A 409 keeps the stale draft available and reports conflict without silently reloading, overwriting or reissuing PUT.",
+    "postpublicationFailure": "If any subsequent GET fails after PUT succeeded, retain the published target and disabled fields, report that save succeeded, and offer read-only refresh retry. Retry performs GET only; never repeat PUT, activate a company or treat the published form as unsaved.",
+    "canonicalPublication": "Immediately after PUT succeeds, synchronize the disabled form fields, target heading and form target-ID/revision attributes from the returned canonical profile before issuing follow-up GETs. The server trims metadata; published fields must show those saved values even when a later catalog/state GET fails. Keep that saved profile across GET-only retries.",
+    "recoveryGeometry": "The recovery command label and Ctrl+A shortcut must be completely visible and clickable within its existing footer button at desktop, 320px and 390px widths. Use a short original label without changing the shared footer layout.",
+    "existingFlows": "Create and restore keep their existing published Open Company retry behavior; do not merge that activation recovery into edit recovery.",
+    "pending": "Use existing request lifetime and navigation guards; prevent duplicate acceptance during save/refresh."
+  },
+  "pureModel": {
+    "module": "public/company-list.js",
+    "contract": "Pure projection of catalog, loaded IDs, explicit mode, query and preferred target ID into sorted visible rows and highlighted target/index; no DOM, API, storage or mutation.",
+    "loadedModes": ["change", "shut", "edit"],
+    "allMode": "select",
+    "selectionStability": "Preserve preferred target ID across renamed or resorted fresh catalog rows when visible; otherwise use the first visible row, with no selected ID for empty results.",
+    "returnQuery": "Obtain the current target name by ID from refreshed catalog, rather than retaining a stale name."
+  },
+  "accountingEffect": {
+    "effect": "None. This feature changes company metadata only, using the existing validated endpoint.",
+    "invariants": ["No vouchers, ledger balances or outstanding amounts change", "No cross-company book reads or writes through a mistaken target", "All monetary amounts remain integer paise", "The original fictional sale 100000 paise less receipt 40000 paise remains 60000 paise outstanding"]
+  },
+  "verificationPlan": {
+    "order": ["Specification approval", "New pure model unit RED against missing module/behavior", "Smallest pure model implementation and focused GREEN", "Browser RED against existing selector/form/save behavior", "Smallest UI integration", "Full unit/HTTP chain", "Full browser chain serially", "Read-only preview audit and screenshot review"],
+    "ownedPort": 4771,
+    "protectedPorts": {"4315": "Never read or test", "4780": "Read-only preview audit only; never reset/reseed"},
+    "unitRed": ["Loaded mode filtering versus select-all", "Case-insensitive trimmed search", "Stable highlighted ID after rename/resort", "Updated return query from target ID", "Fallback and empty result", "Deep-frozen input catalog and loaded IDs remain unchanged"],
+    "browserRed": ["Edit selector shows loaded companies only", "Inactive target form/header/calendar/revision with active header unchanged", "Cancel and active/inactive save return target-highlighted selector", "Successful PUT followed by catalog/active-book GET failure and GET-only recovery", "Stale revision 409 preserves draft and both companies", "Company isolation and 60000-paise outstanding before/after", "320px and 390px keyboard/scroll visibility", "Create/restore published Open Company recovery stays unchanged"],
+    "artifacts": "Private JSON request traces, screenshots and RED/GREEN logs outside the repository's committed files; no screenshots or databases committed.",
+    "completion": "No feature checklist or README claim until required tests and review pass."
+  }
+}

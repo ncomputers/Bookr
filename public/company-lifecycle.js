@@ -12,6 +12,7 @@ export function createCompanyLifecycle({storage,api,reload}){
     return catalog;
   }
   return {
+    refreshCatalog,
     async initialize(){
       await refreshCatalog();capabilities=(await api('/api/capabilities')).capabilities;
       return session().read();

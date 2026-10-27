@@ -1,21 +1,27 @@
 import {entryDate,parseEntryDate} from './entry-values.js';
 import {handleMultilineEntry} from './multiline-entry.js';
 import {initialFinancialYearTo} from './calendar-values.js';
+import {companyList,companyName} from './company-list.js';
 
-export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect,getLoadedIds,onShut}){
-  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,pendingSelection=null,menuOrigin='gateway',commitYear=null,readCalendar=null;
+export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect,getLoadedIds,onShut,onEdited}){
+  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,pendingSelection=null,publishedEdit=null,menuOrigin='gateway',commitYear=null,readCalendar=null;
   const views=['company-menu','companies','company-create','company-alter'];
   const contacts=[['telephone','Telephone'],['mobile','Mobile'],['fax','Fax'],['email','E-mail'],['website','Website']];
   const value=id=>main.querySelector('#'+id).value;
   const values=()=>Object.fromEntries(['name','mailing_name','address','state','country','pincode',...contacts.map(([key])=>key)].map(key=>[key,value('company-'+key.replaceAll('_','-'))]));
   const draft=()=>({...values(),financial_year_from:value('company-financial-year'),books_from:value('company-books-from')});
-  const dirty=()=>!pendingSelection && ['company-create','company-alter'].includes(getView()) && JSON.stringify(draft())!==initial;
+  const dirty=()=>!pendingSelection && !publishedEdit && ['company-create','company-alter'].includes(getView()) && JSON.stringify(draft())!==initial;
   function command(id,label,action){const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.onclick=action;document.querySelector('.command-strip').insertBefore(button,hint);}
   function guard(action){if(isBusy() || document.querySelector('dialog'))return;if(isDirty())askDialog('Discard unsaved changes and open Company?',action,'Discard');else action();}
   async function run(action){if(busy || switching)return;busy=true;try{await action();}catch(error){const box=main.querySelector('#company-error');if(box)box.textContent=error.message;else hint.textContent=error.message;}finally{busy=false;}}
   async function select(id){
     if(busy || switching)return;
-    await run(async()=>{await (main.dataset.mode==='shut'?onShut(id):onSelect(id));switching=true;});
+    await run(async()=>{
+      if(main.dataset.mode==='edit'){
+        if(!getLoadedIds().includes(id))throw new Error('Choose a loaded company to edit.');
+        const profile=await api('/api/companies/'+id);dates=profile;renderForm(profile);
+      }else{await (main.dataset.mode==='shut'?onShut(id):onSelect(id));switching=true;}
+    });
   }
   function menu(){
     setScreen('Company','company-menu','↑ ↓ Enter: open · Esc: Gateway');
@@ -26,21 +32,21 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
   }
   const rememberOrigin=()=>{if(!views.includes(getView()))menuOrigin=getView();};
   const openMenu=()=>guard(()=>{rememberOrigin();menu();});
-  const openSelector=(selectionMode='change')=>guard(()=>run(async()=>{
+  const openSelector=(selectionMode='change')=>guard(()=>run(()=>loadSelector(selectionMode)));
+  async function loadSelector(selectionMode,{preferredId=activeId(),prefill=false}={}){
     rememberOrigin();
-    const data=await api('/api/companies'),loaded=new Set(getLoadedIds());dates=data.companies.find(row=>row.id==='default');
-    const all=data.companies.filter(row=>selectionMode==='select'||loaded.has(row.id)).sort((a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
-    const name=selectionMode==='shut'?'Shut Company':selectionMode==='select'?'Select Company':'Change Company';
+    const data=await api('/api/companies'),all=data.companies;dates=all.find(row=>row.id==='default');
+    const name=selectionMode==='edit'?'Choose company to edit':selectionMode==='shut'?'Shut Company':selectionMode==='select'?'Select Company':'Change Company';
     setScreen(name,'companies','Type to filter · ↑ ↓ Enter: '+(selectionMode==='shut'?'shut':'select')+' · Alt+F3: all companies · Esc: Company');main.dataset.mode=selectionMode;
     const canAlter=menuOrigin==='gateway'&&getBook()?.capabilities?.company_alter===true;
-    main.innerHTML=`<section class="company-selector"><label for="company-search">${name}</label><input id="company-search" aria-label="Name of Company" autocomplete="off" aria-controls="company-options"><div class="selection-heading">${selectionMode==='select'?'List of Companies':'List of Loaded Companies'}</div><nav class="company-selection-actions" aria-label="Company actions">${selectionMode==='change'?`<button type="button" id="selector-create-company">Create Company</button><button type="button" id="selector-alter-company" ${canAlter?'':'disabled'}>Alter Company</button>`:''}${selectionMode!=='select'?'<button type="button" id="select-all-companies">Select Company</button>':''}${selectionMode==='change'?`<button type="button" id="selector-shut-company" ${getLoadedIds().length?'':'disabled'}>Shut Company</button>`:''}</nav><div id="company-options" role="listbox" aria-label="Companies"></div><p id="company-error" class="company-error" role="alert"></p></section>`;
-    const search=main.querySelector('#company-search');search.addEventListener('input',()=>filter(all,search.value));filter(all,'');
+    main.innerHTML=`<section class="company-selector"><label for="company-search">${name}</label><input id="company-search" aria-label="Name of Company" autocomplete="off" aria-controls="company-options"><div class="selection-heading">${selectionMode==='edit'?'Loaded companies':selectionMode==='select'?'List of Companies':'List of Loaded Companies'}</div><nav class="company-selection-actions" aria-label="Company actions">${selectionMode==='change'?`<button type="button" id="selector-create-company">Create Company</button><button type="button" id="selector-alter-company" ${canAlter?'':'disabled'}>Alter Company</button>`:''}${selectionMode!=='select'?'<button type="button" id="select-all-companies">Select Company</button>':''}${selectionMode==='change'?`<button type="button" id="selector-shut-company" ${getLoadedIds().length?'':'disabled'}>Shut Company</button>`:''}</nav><div id="company-options" role="listbox" aria-label="Companies"></div><p id="company-error" class="company-error" role="alert"></p></section>`;
+    const search=main.querySelector('#company-search');search.value=prefill?companyName(all,preferredId):'';search.addEventListener('input',()=>filter(all,search.value,rows[index]?.id));filter(all,search.value,preferredId);
     main.querySelector('#select-all-companies')?.addEventListener('click',()=>openSelector('select'));
     main.querySelector('#selector-create-company')?.addEventListener('click',openCreate);main.querySelector('#selector-alter-company')?.addEventListener('click',openAlter);main.querySelector('#selector-shut-company')?.addEventListener('click',()=>openSelector('shut'));
     command('create-company','Create Company  Alt+C',openCreate);search.focus();
-  }));
-  function filter(all,query){
-    rows=all.filter(row=>row.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));index=Math.max(0,rows.findIndex(row=>row.id===activeId()));
+  }
+  function filter(all,query,preferredId=activeId()){
+    ({rows,index}=companyList({companies:all,loadedIds:getLoadedIds(),mode:main.dataset.mode,query,preferredId}));
     const list=main.querySelector('#company-options');
     list.innerHTML=rows.length?rows.map((row,i)=>`<button type="button" role="option" data-company-id="${row.id}" data-company-index="${i}" aria-selected="false"><strong>${escapeHtml(row.name)}</strong><small>${entryDate(row.financial_year_from)} to ${entryDate(row.financial_year_to)}${row.id===activeId()?' · Current':''}</small></button>`).join(''):'<p>No matching company.</p>';
     list.querySelectorAll('button').forEach((button,i)=>{button.onclick=()=>select(rows[i].id);button.onfocus=()=>highlight(i);});highlight(index);
@@ -51,12 +57,12 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     const data=await api('/api/companies');dates=data.companies.find(row=>row.id==='default');
     renderForm();
   }));
-  const openAlter=()=>guard(()=>run(async()=>{
+  const openAlter=()=>{
     if(menuOrigin!=='gateway' || getBook()?.capabilities?.company_alter!==true){hint.textContent='Return to Gateway on the latest server to alter company details.';return;}
-    const profile=await api('/api/companies/'+activeId());dates=profile;renderForm(profile);
-  }));
+    return openSelector('edit');
+  };
   function renderForm(profile=null){
-    pendingSelection=null;
+    pendingSelection=null;publishedEdit=null;
     editingProfile=profile;
     setScreen(profile?'Company Alteration':'Company Creation',profile?'company-alter':'company-create','Enter: next field · Address: blank line to finish · Ctrl+A: save · Esc: back');
     const field=(key,label,value='',limit=120)=>`<div class="company-field company-field-${key}"><label for="company-${key.replaceAll('_','-')}">${label}</label><span>:</span>${key==='mobile'?'<div class="company-mobile"><span id="company-mobile-prefix" aria-label="Country calling code"></span>':''}<input id="company-${key.replaceAll('_','-')}" maxlength="${limit}" value="${escapeHtml(value)}">${key==='mobile'?'</div>':''}</div>`;
@@ -81,10 +87,22 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     const country=main.querySelector('#company-country'),prefix=main.querySelector('#company-mobile-prefix');
     const updatePrefix=()=>{prefix.textContent=country.value.trim().toLocaleLowerCase()==='india'?'+91':'';};country.addEventListener('input',updatePrefix);updatePrefix();
     name.addEventListener('input',()=>{if(!editingProfile && (!mail.value || mail.value===previous))mail.value=name.value;previous=name.value;name.removeAttribute('aria-invalid');main.querySelector('#company-error').textContent='';});
+    if(profile)syncEditedProfile(profile);
     main.querySelector('form').onsubmit=event=>{event.preventDefault();save();};command('accept-company','A: Accept  Ctrl+A',save);initial=JSON.stringify(draft());name.focus();name.select();
+  }
+  function syncEditedProfile(profile){
+    editingProfile=profile;dates=profile;
+    for(const key of ['name','mailing_name','address','state','country','pincode',...contacts.map(([key])=>key)]){
+      const field=main.querySelector('#company-'+key.replaceAll('_','-'));
+      field.value=profile[key];
+    }
+    const form=main.querySelector('#company-form');form.dataset.companyId=profile.id;form.dataset.companyRevision=String(profile.revision);
+    const heading=document.querySelector('.screen-company');if(heading)heading.textContent=profile.name;
+    main.querySelector('#company-country').dispatchEvent(new Event('input'));
   }
   async function save(){
     if(busy || switching || !['company-create','company-alter'].includes(getView()) || document.querySelector('dialog'))return;
+    if(publishedEdit){await run(finishEdit);return;}
     if(pendingSelection){
       busy=true;const accept=document.querySelector('#accept-company');accept.disabled=true;
       try{await onSelect(pendingSelection.id);switching=true;}
@@ -96,15 +114,22 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     try{Object.assign(input,readCalendar());}catch(failure){error.textContent=failure.message;return;}
     busy=true;const fields=[...main.querySelectorAll('input,textarea')];fields.forEach(field=>field.disabled=true);document.querySelector('#accept-company').disabled=true;
     try{const profile=await api(editingProfile?'/api/companies/'+editingProfile.id:'/api/companies',{method:editingProfile?'PUT':'POST',body:JSON.stringify({...input,...(editingProfile?{revision:editingProfile.revision}:{})})});
-      pendingSelection=profile;initial=JSON.stringify(draft());
-      try{await onSelect(profile.id);switching=true;}catch(failure){throw new Error('Company saved as '+profile.name+'. Select it from Company to open its books. '+failure.message);}}
+      initial=JSON.stringify(draft());
+      if(editingProfile){syncEditedProfile(profile);initial=JSON.stringify(draft());publishedEdit=profile;await finishEdit();}
+      else{pendingSelection=profile;try{await onSelect(profile.id);switching=true;}catch(failure){throw new Error('Company saved as '+profile.name+'. Select it from Company to open its books. '+failure.message);}}}
     catch(failure){error.textContent=failure.message;if(!pendingSelection)fields.forEach(field=>field.disabled=false);const accept=document.querySelector('#accept-company');accept.disabled=false;if(pendingSelection)accept.textContent='Open Company  Ctrl+A';accept.focus();}
     finally{busy=false;}
+  }
+  async function finishEdit(){
+    const saved=publishedEdit,accept=document.querySelector('#accept-company');accept.disabled=true;
+    try{await onEdited();await loadSelector('edit',{preferredId:saved.id,prefill:true});publishedEdit=null;}
+    catch(failure){main.querySelector('#company-error').textContent='Company saved as '+saved.name+'. Unable to refresh the list: '+failure.message;accept.textContent='Refresh  Ctrl+A';accept.disabled=false;accept.focus();}
   }
   function back(){
     if(busy || switching)return;
     if(['company-create','company-alter'].includes(getView())){
-      if(dirty())askDialog('Discard unsaved company changes?',menu,'Discard');else menu();
+      const leave=editingProfile?()=>run(()=>loadSelector('edit',{preferredId:editingProfile.id,prefill:true})):menu;
+      if(dirty())askDialog('Discard unsaved company changes?',leave,'Discard');else leave();
     }else if(getView()==='companies')menu();else renderGateway();
   }
   function onKey(event){

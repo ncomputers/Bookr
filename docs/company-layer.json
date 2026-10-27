@@ -5,6 +5,8 @@
   "implemented": [
     "Create separate company books and load, change or shut companies within each browser tab",
     "Alter identity, mailing and five contact fields with revision checks",
+    "Edit any loaded company's own profile and return to its selector without changing active books, working date or current period",
+    "Show the canonical saved company profile and retry failed display refreshes without saving twice",
     "Preserve company books and reject missing established database files",
     "Create companies with custom initial financial-year and books-beginning dates",
     "Use company dates in entry defaults, opening balances and initial-year reports",
@@ -36,10 +38,6 @@
     {
       "area": "Base currency",
       "status": "INR display only; configuration remains"
-    },
-    {
-      "area": "Company alteration selection",
-      "status": "Loaded/disk selection and shut/reopen work; alteration currently opens only the active company"
     },
     {
       "area": "Company backup and restore",

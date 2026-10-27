@@ -13,6 +13,15 @@ function fixture(seed={},overrides={}){
  return {storage,calls,reloads,profiles,caps,summaries,lifecycle:createCompanyLifecycle({storage,api,reload:()=>reloads.push('reload')})};
 }
 
+test('Explicit catalog refresh after metadata save is GET-only with no session/context writes or reload',async()=>{
+ const f=fixture({[SESSION]:encoded([A,B],B),[LEGACY]:B,[key(A)]:context('2025-08-15',3),[key(B)]:context('2026-08-15',7,later)});
+ await f.lifecycle.initialize();const before=f.storage.snapshot(),calls=f.calls.length;
+ f.profiles.find(row=>row.id===A).name='Renamed Fictional Company';
+ const catalog=await f.lifecycle.refreshCatalog();assert.equal(catalog.find(row=>row.id===A).name,'Renamed Fictional Company');
+ assert.deepEqual(f.calls.slice(calls),[{path:'/api/companies',options:undefined}]);
+ assert.deepEqual(f.storage.snapshot(),before);assert.equal(f.storage.writes.length,0);assert.equal(f.reloads.length,0);assert.equal(f.lifecycle.read().activeId,B);
+});
+
 test('Lifecycle initialize reads only global catalog/capabilities and preserves explicit none without a state request or storage repair',async()=>{const f=fixture({[SESSION]:encoded([],null),[LEGACY]:'null'}),before=f.storage.snapshot();assert.deepEqual(await f.lifecycle.initialize(),{loadedIds:[],activeId:null});assert.deepEqual(f.calls.map(row=>row.path),['/api/companies','/api/capabilities']);assert.deepEqual(await f.lifecycle.loadedSummaries(),[]);assert.deepEqual(f.storage.snapshot(),before);assert.equal(f.storage.writes.length,0);const copy=f.lifecycle.capabilities();copy.company_backup=false;assert.equal(f.lifecycle.capabilities().company_backup,true);});
 
 test('Fresh select obtains a scoped summary and clamps a posted last date to the retained period without changing master dates or another company context',async()=>{const oldB=context('2025-08-15',5),f=fixture({[SESSION]:encoded([],null),[LEGACY]:'null',[key(A)]:context('2025-09-15',8),[key(B)]:oldB});f.summaries.get(A).last_voucher_date='2026-04-01';const beforeSummary=structuredClone(f.summaries.get(A));await f.lifecycle.initialize();const result=await f.lifecycle.select(A);assert.deepEqual(result,{loadedIds:[A],activeId:A,freshLoad:true});assert.deepEqual(JSON.parse(f.storage.getItem(key(A))),{date:'2026-03-31',revision:9,period:initial});assert.equal(f.storage.getItem(key(B)),oldB);assert.deepEqual(f.summaries.get(A),beforeSummary);assert.equal(f.storage.getItem(LEGACY),A);assert.equal(f.reloads.length,1);assert.deepEqual(f.calls.slice(-2).map(row=>row.path),['/api/companies','/api/companies/'+A+'/summary']);assert.ok(f.calls.every(row=>row.options===undefined));});

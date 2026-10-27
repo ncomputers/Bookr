@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {enterHighlightedCompanyEditor} from './company-edit-navigation.mjs';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -15,7 +16,7 @@ const active=()=>page.evaluate(()=>sessionStorage.getItem('bookr.company')??'def
 async function get(path,id='default'){const response=await page.request.get(base+path,{headers:{'X-Bookr-Company':id}});assert.equal(response.ok(),true,await response.text());return response.json();}
 async function home(){await page.getByRole('link',{name:'Bookr Gateway',exact:true}).click();await page.locator('#main[data-screen="gateway"]').waitFor();}
 async function choose(company){await page.keyboard.press('Alt+F3');await page.locator('#company-search').fill(company.name);await page.locator('[data-company-id="'+company.id+'"]').click();await page.waitForFunction(name=>document.querySelector('.company-pane .company-name')?.textContent===name,company.name);}
-async function alter(){await page.keyboard.press('Alt+k');await page.locator('#company-alter-menu').waitFor();await page.keyboard.press('a');await page.locator('#main[data-screen="company-alter"]').waitFor();}
+async function alter(){await page.keyboard.press('Alt+k');await page.locator('#company-alter-menu').waitFor();await page.keyboard.press('a');await enterHighlightedCompanyEditor(page);}
 async function dates(){assert.equal(parseEntryDate(await page.locator('#company-financial-year').inputValue()),expected.financial_year_from);assert.equal(parseEntryDate(await page.locator('#company-books-from').inputValue()),expected.books_from);}
 async function gateway(){const period=await page.locator('.period-info .period-value').nth(0).innerText(),date=await page.locator('.period-info .period-value').nth(1).innerText();assert.match(period,/1[- ]Apr[- ](?:20)?25\s+to\s+31[- ]Mar[- ](?:20)?26/);assert.match(date,/1[- ]Jul[- ](?:20)?25/);if(/Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/.test(date))assert.match(date,/Tuesday/,'A displayed weekday must agree with 1-Jul-2025.');return {period,date};}
 async function snapshot(){const id=await active();return {profile:await get('/api/companies/'+id,id),book:await get('/api/state',id),companies:await get('/api/companies')};}
