@@ -31,6 +31,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Save and reopen vouchers, view postings, ledger statements and outstanding bills.
 - Trial balance, financial reports and ledger monthly summaries.
 - Shared keyboard pickers, date editors, bill allocations and discard dialogs.
+- Home shows pending work and preserves unsaved-draft confirmation after failed requests.
 
 In company addresses, Enter starts another line; Enter on an empty final line
 moves to State. Shift+Enter inserts a newline without leaving the address.

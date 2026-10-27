@@ -1,0 +1,44 @@
+{
+  "application": "Bookr",
+  "feature": "Workspace activity navigation guard",
+  "layer": "company",
+  "status": "implemented",
+  "purpose": "Repair an existing navigation regression encountered during the required company-feature browser checks; no later accounting module is being added.",
+  "study": {
+    "scope": "Original Bookr interface on an owned fictional database",
+    "reproduction": "Return from a saved purchase to Day Book, hold that request, click the Bookr home link, then release it. The current link silently loses the action and leaves Day Book visible.",
+    "accountingOrReferenceRuleAssumed": false
+  },
+  "controls": {
+    "home": "Existing Bookr home link",
+    "busy": "Reflect outstanding application API work through an accessible disabled state and visible progress styling"
+  },
+  "behavior": [
+    "Mark Home unavailable while application API requests are pending, including overlapping requests",
+    "Restore availability after every request completes or fails",
+    "Do not navigate, discard a draft, or change company selection merely because activity finishes",
+    "When Home is activated after activity, retain the existing busy, dirty-form and confirmation guards",
+    "A failed save must retain its draft; declining the later navigation confirmation keeps it intact",
+    "Use a reusable activity tracker rather than controller-specific timing delays"
+  ],
+  "keyboard": "Preserve existing Home-link keyboard activation when available; do not bypass modal confirmation",
+  "defaults": "No pending activity; Home follows its existing navigation behavior",
+  "validation": "No new accounting or metadata validation",
+  "accountingEffect": "None. No API payload, ledger, voucher, posting, allocation, company context or balance changes.",
+  "verification": {
+    "unitFirst": "Failing tests for activity lifetime, overlapping requests and failure cleanup before new tracker implementation",
+    "browser": "Deterministic held Day Book response plus failed-save/dirty-confirmation checks, with no timing-wait widening",
+    "commands": [
+      "npm test",
+      "npm run test:browser"
+    ],
+    "execution": "Serial commands and owned fictional fixtures; preview 4780 is read-only; protected 4315 is excluded",
+    "result": {
+      "isolatedUnitTests": 360,
+      "isolatedBrowserCommands": 51,
+      "actualFocusedUnitTests": 4,
+      "actualBrowserChecks": 2,
+      "previewAudit": "Read-only 4780 audit passed; 0 writes and unchanged fictional data."
+    }
+  }
+}

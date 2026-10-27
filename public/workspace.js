@@ -18,6 +18,7 @@ import {createWorkingDateContext,followingWorkingDate} from './working-date.js';
 import {editReportDate,editReportPeriod} from './report-period.js';
 import {createCompanyDataWorkspace} from './company-data.js';
 import {createCompanyLifecycle} from './company-lifecycle.js';
+import {createActivityTracker} from './workspace-activity.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -41,6 +42,11 @@ let openingEditor=null;
 let ledgerGroupPicker=null;
 let workingDateStore=null;
 let activeCompanyId=null,loadedSummaries=[],serverCapabilities={};
+const homeLink=document.querySelector('#home');
+const activity=createActivityTracker(count=>{
+  homeLink.setAttribute('aria-disabled',String(count>0));
+  homeLink.setAttribute('aria-busy',String(count>0));
+});
 const lifecycle=createCompanyLifecycle({storage:sessionStorage,api,reload:()=>location.reload()});
 const ledgerFields=()=>[...main.querySelectorAll('#ledger-form input,#ledger-form select,#ledger-form textarea')].filter(field=>!field.disabled && field.getClientRects().length>0);
 function openVoucher(voucher,from='gateway',type=voucher?.type ?? 'sale'){
@@ -109,11 +115,13 @@ async function openFresh(action) {
 }
 
 async function api(path, options = {}) {
+  return activity.run(async()=>{
   const period=workingDateStore?.period();
   const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json',...(activeCompanyId!==null?{'X-Bookr-Company':activeCompanyId}:{}),...(period?{'X-Bookr-Period':period.from+'/'+period.to}:{}), ...options.headers } });
   const value = await response.json();
   if (!response.ok) throw new Error(value.error || 'Unable to complete this request.');
   return value;
+  });
 }
 function setScreen(name, screen, message) {
   ledgerGroupPicker?.destroy();ledgerGroupPicker=null;
@@ -433,9 +441,12 @@ closeButton.addEventListener('click', goBack);
 document.querySelector('[data-company-menu]').addEventListener('click',companyUI.openMenu);
 document.querySelector('[data-company-data]').addEventListener('click',companyDataUI.openMenu);
 const companyKey=document.querySelectorAll('.function-rail>button')[1];companyKey.disabled=false;companyKey.onclick=()=>companyUI.openSelector();
-document.querySelector('#home').addEventListener('click', event => {
+homeLink.addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&!event.ctrlKey&&!event.altKey&&!event.metaKey)event.stopPropagation();
+});
+homeLink.addEventListener('click', event => {
   event.preventDefault();
-  if (busy() || document.querySelector('dialog')) return;
+  if (activity.pending() || busy() || document.querySelector('dialog')) return;
   const home=()=>book?openFresh(()=>renderGateway()):renderGateway();
   if (isDirty()) askDialog('Discard unsaved changes and return to Gateway?',home);
   else home();
