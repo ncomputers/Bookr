@@ -23,7 +23,8 @@
     "Home shows pending requests and retains existing draft confirmation when work finishes",
     "India State suggestions share keyboard selection and discard behavior, preserve free text and save/reopen without changing accounting rows",
     "Reject reserved identity and revision fields in stored metadata before exposing company identities or publishing edits, without dropping unknown settings",
-    "Alter saved financial-year and Books dates before financial records exist, with two shared confirmations, atomic eligibility checks, cache refresh and unchanged loaded working context"
+    "Alter saved financial-year and Books dates before financial records exist, with two shared confirmations, atomic eligibility checks, cache refresh and unchanged loaded working context",
+    "Configure company currency symbol and formal name on empty financial books, retain labels across entry/reports and strict portable backups, and reject stale monetary draft labels without changing amounts"
   ],
   "remaining": [
     {
@@ -40,7 +41,7 @@
     },
     {
       "area": "Base currency",
-      "status": "INR display only; configuration remains"
+      "status": "Basic symbol/name configuration on empty financial books works; exchange conversion, precision, locale and changing posted-book currency remain unsupported"
     },
     {
       "area": "Company backup and restore",

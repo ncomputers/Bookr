@@ -3,7 +3,7 @@ import {createWorkingDateContext} from './working-date.js';
 
 // This tab owns only its selection and working context. Opening or shutting a
 // company never changes the server's catalog, accounting rows or other tabs.
-export function createCompanyLifecycle({storage,api,reload}){
+export function createCompanyLifecycle({storage,api,reload,beforeSelect=null}){
   let catalog=[],capabilities={};
   const session=()=>createCompanySession({storage,catalogIds:catalog.map(row=>row.id)});
   async function refreshCatalog(){
@@ -23,7 +23,7 @@ export function createCompanyLifecycle({storage,api,reload}){
       return Promise.all(session().read().loadedIds.map(id=>api('/api/companies/'+id+'/summary')));
     },
     async select(id){
-      await refreshCatalog();const current=session(),fresh=!current.read().loadedIds.includes(id);
+      await refreshCatalog();if(beforeSelect)await beforeSelect(id);const current=session(),fresh=!current.read().loadedIds.includes(id);
       let options={};
       if(fresh){
         const summary=await api('/api/companies/'+id+'/summary'),calendar=summary.calendar;

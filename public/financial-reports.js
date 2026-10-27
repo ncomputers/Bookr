@@ -1,3 +1,4 @@
+import {companyCurrency} from './company-currency.js';
 import {entryDate,formatRupees,formatBalance} from './entry-values.js';
 import {editReportPeriod} from './report-period.js';
 import {initialEntryDate} from './company-context.js';
@@ -60,7 +61,7 @@ export function createFinancialWorkspace({main,hint,api,setScreen,refreshBook,ge
     let body;
     if(group){
       const items=group.groups ?? group.ledgers.map(ledger=>({...ledger,ledger:true}));
-      body=`<div class="financial-group-table"><table><thead><tr><th>Particulars</th><th>${bs?'Closing Balance':'Period Amount'} ₹</th></tr></thead><tbody>${items.filter(item=>item.amount!==0).map(row).join('')}</tbody></table>${entries.length?'':'<p class="empty-report">No amounts in this group for the selected dates.</p>'}<div class="financial-grand-total"><strong>Total</strong><strong id="financial-group-total">${money(group.amount)}</strong></div></div>`;
+      body=`<div class="financial-group-table"><table><thead><tr><th>Particulars</th><th>${bs?'Closing Balance':'Period Amount'} ${escapeHtml(companyCurrency(getBook()).currency_symbol)}</th></tr></thead><tbody>${items.filter(item=>item.amount!==0).map(row).join('')}</tbody></table>${entries.length?'':'<p class="empty-report">No amounts in this group for the selected dates.</p>'}<div class="financial-grand-total"><strong>Total</strong><strong id="financial-group-total">${money(group.amount)}</strong></div></div>`;
     }else if(bs){
       const profit=report.profit.closing;
       const result={key:'profit',name:'Profit & Loss A/c',amount:Math.abs(profit),profit:true};
@@ -75,7 +76,7 @@ export function createFinancialWorkspace({main,hint,api,setScreen,refreshBook,ge
     }
     main.innerHTML=`<section class="financial-report" data-report="${next.report}">${group?`<div class="financial-caption"><strong>${escapeHtml(getBook().company)}</strong><span id="financial-period">${escapeHtml(caption)}</span><span>${escapeHtml(label(next.report)+' / '+group.name)}</span></div>`:''}${body}</section>`;
     const preview=document.querySelector('.rail-preview');
-    preview.innerHTML='Bookr<br><span>INR · Fictional accounts</span><span id="financial-status" role="status"></span>';
+    preview.innerHTML='Bookr<br><span>'+escapeHtml(companyCurrency(getBook()).currency_name)+' · Fictional accounts</span><span id="financial-status" role="status"></span>';
     const status=preview.querySelector('#financial-status');
     status.textContent=data.trialBalanced && (!bs || report.totals.balanced)?'Balanced':'Unbalanced postings — review Trial Balance';
     if(data.balanceSheet.openingDifference?.amount){status.classList.add('opening-report-warning');status.textContent='Difference in opening balances: '+money(data.balanceSheet.openingDifference.amount);}

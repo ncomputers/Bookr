@@ -1,9 +1,10 @@
+import {companyCurrency} from './company-currency.js';
 import {entryDate,formatRupees,inputRupees,parseRupees} from './entry-values.js';
 import {billIdentity,billReference,sameBill} from './bill-identity.js';
 
 // Agst Ref supports voucher bills and the documented opening-reference model.
 // Other adjustment methods remain outside this layer. Drafts never post.
-export function editReceiptAllocations({customer,amount,bills,allocations,escapeHtml,onDone,onCancel,payment=false}) {
+export function editReceiptAllocations({currency={},customer,amount,bills,allocations,escapeHtml,onDone,onCancel,payment=false}) {
   const side=payment?'Dr':'Cr',kind=payment?'payment':'receipt';
   const dialog=document.createElement('dialog');
   dialog.id='receipt-bills-dialog'; dialog.className='native-entry-dialog billwise-dialog receipt-bills';
@@ -11,7 +12,7 @@ export function editReceiptAllocations({customer,amount,bills,allocations,escape
   let rows=allocations.map(row=>({...billReference(row),amount:inputRupees(row.amount)}));
   if (!rows.length) rows.push({bill_id:null,amount:''});
   let pickerIndex=0,pickerRow=0,pending=[],activeRow=0;
-  dialog.innerHTML=`<form novalidate autocomplete="off"><div class="bill-dialog-heading"><div id="receipt-bills-heading">Bill-wise Details for : &nbsp;<strong>${escapeHtml(customer.name)}</strong></div><div>Up to: &nbsp;₹ <strong>${formatRupees(amount)} Cr</strong></div></div><div class="receipt-bill-columns bill-column-headings"><span>Type of Ref</span><span>Name</span><span class="bill-amount-column">Amount</span><span>Dr/Cr</span></div><div id="allocation-rows"></div><div id="pending-picker" hidden></div><div id="allocation-error" class="details-error" role="alert"></div><div class="bill-dialog-space"></div><p class="bill-dialog-scope">Agst Ref · saved bills · no advance or on-account receipts</p><div class="bill-dialog-total" id="allocation-total"></div><div class="details-commands"><button type="button" id="cancel-allocations">Back <small>Esc</small></button><button type="submit" id="accept-allocations">Accept <small>Ctrl+A</small></button></div></form>`;
+  dialog.innerHTML=`<form novalidate autocomplete="off"><div class="bill-dialog-heading"><div id="receipt-bills-heading">Bill-wise Details for : &nbsp;<strong>${escapeHtml(customer.name)}</strong></div><div>Up to: &nbsp;${escapeHtml(companyCurrency(currency).currency_symbol)} <strong>${formatRupees(amount)} Cr</strong></div></div><div class="receipt-bill-columns bill-column-headings"><span>Type of Ref</span><span>Name</span><span class="bill-amount-column">Amount</span><span>Dr/Cr</span></div><div id="allocation-rows"></div><div id="pending-picker" hidden></div><div id="allocation-error" class="details-error" role="alert"></div><div class="bill-dialog-space"></div><p class="bill-dialog-scope">Agst Ref · saved bills · no advance or on-account receipts</p><div class="bill-dialog-total" id="allocation-total"></div><div class="details-commands"><button type="button" id="cancel-allocations">Back <small>Esc</small></button><button type="submit" id="accept-allocations">Accept <small>Ctrl+A</small></button></div></form>`;
   dialog.querySelector('.bill-dialog-heading>div:last-child strong').textContent=`${formatRupees(amount)} ${side}`;
   dialog.querySelector('.bill-dialog-scope').textContent=`Agst Ref · saved bills · no advance or on-account ${kind}s`;
   const rowCommands=document.createElement('div');rowCommands.className='allocation-row-commands';
@@ -24,7 +25,7 @@ export function editReceiptAllocations({customer,amount,bills,allocations,escape
   function error(message){dialog.querySelector('#allocation-error').textContent=message;}
   function updateTotal(){dialog.querySelector('#allocation-total').textContent=`${formatRupees(total())} ${side} / ${formatRupees(amount)} ${side}`;}
   function render(){
-    list.innerHTML=rows.map((row,i)=>`<div class="receipt-bill-columns bill-entry-row" data-allocation-row="${i}"><label class="sr-only" for="allocation-method-${i}">Type of reference ${i+1}</label><select id="allocation-method-${i}" data-step="method"><option>Agst Ref</option></select><button type="button" class="allocation-reference" id="allocation-ref-${i}" aria-label="Choose bill ${i+1}" data-step="reference">${escapeHtml(bills.find(b=>sameBill(b,row))?.reference ?? '')}</button><label class="sr-only" for="allocation-amount-${i}">Allocation ${i+1} amount in rupees</label><input id="allocation-amount-${i}" data-step="amount" inputmode="decimal" maxlength="20" value="${escapeHtml(row.amount)}"><input data-step="side" value="Cr" readonly aria-label="Credit ${i+1}"></div>`).join('');
+    list.innerHTML=rows.map((row,i)=>`<div class="receipt-bill-columns bill-entry-row" data-allocation-row="${i}"><label class="sr-only" for="allocation-method-${i}">Type of reference ${i+1}</label><select id="allocation-method-${i}" data-step="method"><option>Agst Ref</option></select><button type="button" class="allocation-reference" id="allocation-ref-${i}" aria-label="Choose bill ${i+1}" data-step="reference">${escapeHtml(bills.find(b=>sameBill(b,row))?.reference ?? '')}</button><label class="sr-only" for="allocation-amount-${i}">Allocation ${i+1} amount</label><input id="allocation-amount-${i}" data-step="amount" inputmode="decimal" maxlength="20" value="${escapeHtml(row.amount)}"><input data-step="side" value="Cr" readonly aria-label="Credit ${i+1}"></div>`).join('');
     list.querySelectorAll('[data-allocation-row]').forEach((element,i)=>{
       const direction=element.querySelector('[data-step=side]');direction.value=side;direction.setAttribute('aria-label',`${payment?'Debit':'Credit'} ${i+1}`);
       element.querySelector('button').addEventListener('click',()=>openPicker(i));

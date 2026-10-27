@@ -27,6 +27,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Download a complete company backup and restore it as a separate new company.
 - Choose the initial financial-year and books-beginning dates when creating a company.
 - Alter saved start dates before financial records exist, using shared review confirmations.
+- Configure a company's currency symbol and formal name before financial records exist.
 - Change the working date from Gateway with F2; new vouchers use that date.
 - Change the current period from Gateway with Alt+F2, including later years without changing company master dates.
 - Ledger creation and alteration with supported account groups and opening balances.
@@ -54,9 +55,11 @@ F3 changes among loaded companies, Alt+F3 lists all company books, and Ctrl+F3 s
 
 Company alteration opens a selector of loaded companies. Editing another company uses its own saved profile and dates while preserving the active books, working date and period. Save and cancel return to that target in the selector. If saving succeeds but refreshing fails, Refresh retries the read without saving again. Start dates are editable only while financial tables are empty. Two shared review confirmations preserve the edited date and focus when No is chosen. Companies with financial records keep read-only dates; no entries or opening balances are rewritten. Already loaded tabs retain their working context, while a fresh tab opening the company starts at its revised Books date. API requests without a selected period retain the existing initial-window and default-company compatibility behavior.
 
-Company Data (Alt+Y) downloads an original Bookr JSON backup covering all saved dates. Restore requires a new company name and preserves saved identities, revisions, postings and bill allocations. It never merges into an existing company. Backups support up to 25 MB and 200,000 rows; a checksum detects corruption and does not authenticate a file. Legacy vouchers dated before Books cannot currently be restored into a new company because their date-edit policy differs.
+Currency labels belong to each company and follow its entry screens, reports and backups. Label changes require empty financial tables; ordinary contact edits can retain unchanged labels on posted books. Amounts keep Bookr's existing integer-paise storage, 100 units per displayed whole amount, two decimal places and en-IN grouping. Labels do not convert amounts. Fixed cash denominations are available only for the default rupee/INR labels. Unsaved monetary drafts retain their original labels and reject a save if another tab changes them; reopen the entry against the refreshed company before continuing.
 
-Configurable currency, company security, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
+Company Data (Alt+Y) downloads an original Bookr version 2 JSON backup covering all saved dates and currency labels. Strict version 1 imports retain their original checksum verification before receiving legacy rupee/INR defaults. Restore requires a new company name and preserves saved identities, revisions, postings and bill allocations. It never merges into an existing company. Backups support up to 25 MB and 200,000 rows; a checksum detects corruption and does not authenticate a file. Legacy vouchers dated before Books cannot currently be restored into a new company because their date-edit policy differs.
+
+Exchange conversion, configurable precision and numeric locale, changing posted-book currency, company security, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
 
 ## Tests
 

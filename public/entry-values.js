@@ -24,7 +24,7 @@ export function parseRupees(value) {
   const match = String(value).trim().match(/^(\d+)(?:\.(\d{1,2}))?$/);
   if (!match) throw new Error('Enter a positive amount using digits and up to two decimal places.');
   const paise = BigInt(match[1])*100n+BigInt((match[2] || '').padEnd(2,'0'));
-  if (paise <= 0n || paise > 100000000000n) throw new Error('Enter an amount above zero and within this demo’s limit of ₹1,00,00,00,000.');
+  if (paise <= 0n || paise > 100000000000n) throw new Error('Enter an amount above zero and within the supported limit of 1,00,00,00,000.');
   return Number(paise);
 }
 export const formatRupees = paise => rupees.format(paise/100);

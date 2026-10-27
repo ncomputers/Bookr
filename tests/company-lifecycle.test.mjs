@@ -10,7 +10,7 @@ function memory(seed={}){const values=new Map(Object.entries(seed)),writes=[];le
 function fixture(seed={},overrides={}){
  const storage=memory(seed),calls=[],reloads=[],profiles=[{id:B,name:'Zulu Fictional',...calendar},{id:'default',name:'Middle Fictional',...calendar},{id:A,name:'Alpha Fictional',...calendar}],caps={company_backup:true,current_period:true},summaries=new Map(profiles.map(profile=>[profile.id,{profile,calendar:{...calendar},last_voucher_date:null}]));
  const api=async(path,options)=>{calls.push({path,options});if(overrides.api)return overrides.api(path,{profiles,caps,summaries});if(path==='/api/companies')return {companies:structuredClone(profiles)};if(path==='/api/capabilities')return {capabilities:{...caps}};const match=path.match(/^\/api\/companies\/([^/]+)\/summary$/);assert.ok(match,'The coordinator must never request full state or write company/accounting data.');const result=summaries.get(match[1]);assert.ok(result);return structuredClone(result);};
- return {storage,calls,reloads,profiles,caps,summaries,lifecycle:createCompanyLifecycle({storage,api,reload:()=>reloads.push('reload')})};
+ return {storage,calls,reloads,profiles,caps,summaries,lifecycle:createCompanyLifecycle({storage,api,reload:()=>reloads.push('reload'),beforeSelect:overrides.beforeSelect})};
 }
 
 test('Explicit catalog refresh after metadata save is GET-only with no session/context writes or reload',async()=>{
@@ -20,6 +20,9 @@ test('Explicit catalog refresh after metadata save is GET-only with no session/c
  const catalog=await f.lifecycle.refreshCatalog();assert.equal(catalog.find(row=>row.id===A).name,'Renamed Fictional Company');
  assert.deepEqual(f.calls.slice(calls),[{path:'/api/companies',options:undefined}]);
  assert.deepEqual(f.storage.snapshot(),before);assert.equal(f.storage.writes.length,0);assert.equal(f.reloads.length,0);assert.equal(f.lifecycle.read().activeId,B);
+});
+test('Rejected currency preflight preserves the previous company and every working-context byte before selection',async()=>{
+ const checked=[],f=fixture({[SESSION]:encoded([A,B],B),[LEGACY]:B,[key(A)]:context('2025-08-15',3),[key(B)]:context('2026-08-15',7,later)},{beforeSelect:async id=>{checked.push(id);throw Error('Company currency labels require a current server.');}});await f.lifecycle.initialize();const before=f.storage.snapshot();await assert.rejects(f.lifecycle.select(A),/currency labels/);assert.deepEqual(checked,[A]);assert.deepEqual(f.storage.snapshot(),before);assert.equal(f.storage.writes.length,0);assert.equal(f.reloads.length,0);assert.equal(f.lifecycle.read().activeId,B);
 });
 
 test('Lifecycle initialize reads only global catalog/capabilities and preserves explicit none without a state request or storage repair',async()=>{const f=fixture({[SESSION]:encoded([],null),[LEGACY]:'null'}),before=f.storage.snapshot();assert.deepEqual(await f.lifecycle.initialize(),{loadedIds:[],activeId:null});assert.deepEqual(f.calls.map(row=>row.path),['/api/companies','/api/capabilities']);assert.deepEqual(await f.lifecycle.loadedSummaries(),[]);assert.deepEqual(f.storage.snapshot(),before);assert.equal(f.storage.writes.length,0);const copy=f.lifecycle.capabilities();copy.company_backup=false;assert.equal(f.lifecycle.capabilities().company_backup,true);});

@@ -7,6 +7,8 @@ import { BookError } from './lib/accounting.mjs';
 import {CompanyStore} from './lib/companies.mjs';
 import {currentPeriodHeader,normalizeCurrentPeriod} from './lib/company-period.mjs';
 import {exportCompanyBundle,restoreCompanyBundle} from './lib/company-backup.mjs';
+import {CurrencyError,normalizeCurrencyPatch} from './public/company-currency.js';
+import {requireCurrencyAwareness} from './lib/company-currency-protocol.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4315);
@@ -23,7 +25,7 @@ const previewLabel=String(process.env.BOOKR_PREVIEW_LABEL || '').trim().slice(0,
 await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
-const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true});
+const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true});
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
 const body = async (req,limit=16384) => {
   if(Number(req.headers['content-length'])>limit){req.resume();throw new BookError('Request is too large.',413);}
@@ -58,33 +60,36 @@ const handler = async (req, res) => {
       if(calendarPolicyMatch){
         if(req.method!=='GET')throw new BookError('Method not supported.',405);
         if(url.search)throw new BookError('Company date eligibility does not accept query overrides.');
-        return send(res,200,companies.calendarEditability(calendarPolicyMatch[1]));
+        requireCurrencyAwareness(req.headers,companies.profile(calendarPolicyMatch[1]));return send(res,200,companies.calendarEditability(calendarPolicyMatch[1]));
       }
       const summaryMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/summary$/);
       if(summaryMatch){
         if(req.method!=='GET')throw new BookError('Method not supported.',405);
         if(url.search)throw new BookError('Company summary does not accept query overrides.');
-        return send(res,200,companies.summary(summaryMatch[1]));
+        requireCurrencyAwareness(req.headers,companies.profile(summaryMatch[1]));return send(res,200,companies.summary(summaryMatch[1]));
       }
       const requestPeriod=currentPeriodHeader(req.headers['x-bookr-period']);
       const backupMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/backup$/);
       if(req.method==='GET'&&backupMatch){
         if(url.search)throw new BookError('Company backup does not accept query overrides.');
-        return send(res,200,exportCompanyBundle(companies,backupMatch[1]));
+        requireCurrencyAwareness(req.headers,companies.profile(backupMatch[1]));return send(res,200,exportCompanyBundle(companies,backupMatch[1]));
       }
       if(req.method==='POST'&&url.pathname==='/api/companies/restore'){
         if(url.search)throw new BookError('Company restore does not accept query overrides.');
         const input=await body(req,25*1024*1024+4096);
         if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==2||!Object.hasOwn(input,'name')||!Object.hasOwn(input,'bundle'))throw new BookError('Restore requires only a new company name and a portable bundle.');
+        if(input.bundle?.version===2)requireCurrencyAwareness(req.headers,input.bundle.company);
         return send(res,201,restoreCompanyBundle(companies,input.bundle,{name:input.name}));
       }
       if(req.method==='GET' && url.pathname==='/api/companies')return send(res,200,{companies:companies.list(),default_company_id:'default'});
-      if(req.method==='POST' && url.pathname==='/api/companies')return send(res,201,companies.create(await body(req)));
+      if(req.method==='POST' && url.pathname==='/api/companies'){const input=await body(req);requireCurrencyAwareness(req.headers,normalizeCurrencyPatch(Object.fromEntries(['currency_symbol','currency_name'].filter(key=>Object.hasOwn(input??{},key)).map(key=>[key,input[key]]))));return send(res,201,companies.create(input));}
       const companyMatch=url.pathname.match(/^\/api\/companies\/([^/]+)$/);
-      if(req.method==='GET' && companyMatch)return send(res,200,companies.profile(companyMatch[1]));
-      if(req.method==='PUT' && companyMatch)return send(res,200,companies.update(companyMatch[1],await body(req)));
-      const companyId=req.headers['x-bookr-company'];
-      const book=companies.book(companyId===undefined?'default':companyId);
+      if(req.method==='GET' && companyMatch){const profile=companies.profile(companyMatch[1]);requireCurrencyAwareness(req.headers,profile);return send(res,200,profile);}
+      if(req.method==='PUT' && companyMatch){const input=await body(req),previous=companies.profile(companyMatch[1]);requireCurrencyAwareness(req.headers,previous);requireCurrencyAwareness(req.headers,normalizeCurrencyPatch(Object.fromEntries(['currency_symbol','currency_name'].filter(key=>Object.hasOwn(input??{},key)).map(key=>[key,input[key]])),previous));return send(res,200,companies.update(companyMatch[1],input));}
+      const companyId=req.headers['x-bookr-company']??'default';
+      requireCurrencyAwareness(req.headers,companies.profile(companyId));
+      const book=companies.book(companyId);
+      const write=async(action,{voucher=false}={})=>{const input=await body(req),monetary=voucher||Boolean(input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')));return companies.writeBook(companyId,req.headers,input,action,{monetary});};
       if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities,...(previewLabel?{preview:{label:previewLabel}}:{})});
       if(req.method==='GET' && url.pathname==='/api/outstanding'){
         const allowed=['direction','as_of','ledger'];
@@ -109,24 +114,24 @@ const handler = async (req, res) => {
       }
       const ledgerMatch=url.pathname.match(/^\/api\/ledgers\/(\d+)$/);
       if(req.method==='GET' && ledgerMatch)return send(res,200,book.masterLedger(ledgerMatch[1]));
-      if(req.method==='PUT' && ledgerMatch)return send(res,200,book.saveLedger(await body(req),Number(ledgerMatch[1])));
-      if(req.method==='POST' && url.pathname==='/api/ledgers')return send(res,201,book.saveLedger(await body(req)));
+      if(req.method==='PUT' && ledgerMatch)return send(res,200,await write((fresh,input)=>fresh.saveLedger(input,Number(ledgerMatch[1]))));
+      if(req.method==='POST' && url.pathname==='/api/ledgers')return send(res,201,await write((fresh,input)=>fresh.saveLedger(input)));
       const customerMatch = url.pathname.match(/^\/api\/customers\/(\d+)$/);
       if (req.method === 'GET' && customerMatch) return send(res,200,book.customer(customerMatch[1]));
-      if (req.method === 'PUT' && customerMatch) return send(res,200,book.saveCustomer(await body(req),Number(customerMatch[1])));
+      if (req.method === 'PUT' && customerMatch) return send(res,200,await write((fresh,input)=>fresh.saveCustomer(input,Number(customerMatch[1]))));
       const supplierMatch=url.pathname.match(/^\/api\/suppliers\/(\d+)$/);
       if(req.method==='GET' && supplierMatch)return send(res,200,book.supplier(supplierMatch[1]));
-      if(req.method==='PUT' && supplierMatch)return send(res,200,book.saveSupplier(await body(req),Number(supplierMatch[1])));
-      if(req.method==='POST' && url.pathname==='/api/suppliers')return send(res,201,book.saveSupplier(await body(req)));
+      if(req.method==='PUT' && supplierMatch)return send(res,200,await write((fresh,input)=>fresh.saveSupplier(input,Number(supplierMatch[1]))));
+      if(req.method==='POST' && url.pathname==='/api/suppliers')return send(res,201,await write((fresh,input)=>fresh.saveSupplier(input)));
       const bankMatch=url.pathname.match(/^\/api\/banks\/(\d+)$/);
       if(req.method==='GET' && bankMatch)return send(res,200,book.bank(bankMatch[1]));
-      if(req.method==='PUT' && bankMatch)return send(res,200,book.saveBank(await body(req),Number(bankMatch[1])));
-      if(req.method==='POST' && url.pathname==='/api/banks')return send(res,201,book.saveBank(await body(req)));
+      if(req.method==='PUT' && bankMatch)return send(res,200,await write((fresh,input)=>fresh.saveBank(input,Number(bankMatch[1]))));
+      if(req.method==='POST' && url.pathname==='/api/banks')return send(res,201,await write((fresh,input)=>fresh.saveBank(input)));
       const voucherMatch = url.pathname.match(/^\/api\/vouchers\/(\d+)$/);
       if (req.method === 'GET' && voucherMatch) return send(res,200,book.voucher(voucherMatch[1]));
-      if (req.method === 'POST' && url.pathname === '/api/customers') return send(res,201,book.createCustomer(await body(req)));
-      if (req.method === 'POST' && url.pathname === '/api/vouchers') return send(res,201,book.saveVoucher(await body(req),null,{currentPeriod:requestPeriod}));
-      if (req.method === 'PUT' && voucherMatch) return send(res,200,book.saveVoucher(await body(req),Number(voucherMatch[1]),{currentPeriod:requestPeriod}));
+      if (req.method === 'POST' && url.pathname === '/api/customers') return send(res,201,await write((fresh,input)=>fresh.createCustomer(input)));
+      if (req.method === 'POST' && url.pathname === '/api/vouchers') return send(res,201,await write((fresh,input)=>fresh.saveVoucher(input,null,{currentPeriod:requestPeriod}),{voucher:true}));
+      if (req.method === 'PUT' && voucherMatch) return send(res,200,await write((fresh,input)=>fresh.saveVoucher(input,Number(voucherMatch[1]),{currentPeriod:requestPeriod}),{voucher:true}));
       throw new BookError('Route not found.',404);
     }
     if (req.method !== 'GET') throw new BookError('Method not supported.',405);
@@ -135,7 +140,7 @@ const handler = async (req, res) => {
     if (!path.startsWith(publicRoot + sep)) throw new BookError('Not found.',404);
     const content = await readFile(path).catch(() => { throw new BookError('Not found.',404); });
     res.writeHead(200, { 'Content-Type':types[extname(path)] || 'application/octet-stream', 'Cache-Control':'no-cache' }); res.end(content);
-  } catch (error) { send(res,error instanceof BookError ? error.status : 500,{ error:error instanceof BookError ? error.message : 'Unable to complete this request.' }); }
+  } catch (error) { const known=error instanceof BookError||error instanceof CurrencyError;send(res,known?error.status:500,{error:known?error.message:'Unable to complete this request.'}); }
 };
 const servers = addresses.map(address => {
   const server = http.createServer(handler);

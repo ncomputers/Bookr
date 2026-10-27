@@ -1,13 +1,14 @@
+import {companyCurrency} from './company-currency.js';
 import { entryDate,formatRupees } from './entry-values.js';
 import {termText,parseTerm,termPreview} from './bill-terms.js';
 
 // This layer supports the observed single New Ref for the whole sales amount.
-export function editBillReference({customer,reference,amount,date,terms=null,escapeHtml,setCaption,onDone,onCancel,side='Dr',description='sale'}) {
+export function editBillReference({currency={},customer,reference,amount,date,terms=null,escapeHtml,setCaption,onDone,onCancel,side='Dr',description='sale'}) {
   const dialog = document.createElement('dialog');
   dialog.id = 'bill-details-dialog'; dialog.className = 'native-entry-dialog billwise-dialog bill-terms-dialog';
   dialog.setAttribute('aria-labelledby','bill-heading');
   dialog.innerHTML = `<form novalidate autocomplete="off">
-    <div class="bill-dialog-heading"><div id="bill-heading">Bill-wise Details for : &nbsp;<strong>${escapeHtml(customer.name)}</strong></div><div>Up to: &nbsp;₹ <strong>${formatRupees(amount)} ${side}</strong></div></div>
+    <div class="bill-dialog-heading"><div id="bill-heading">Bill-wise Details for : &nbsp;<strong>${escapeHtml(customer.name)}</strong></div><div>Up to: &nbsp;${escapeHtml(companyCurrency(currency).currency_symbol)} <strong>${formatRupees(amount)} ${side}</strong></div></div>
     <div class="bill-columns bill-column-headings"><span>Type of Ref</span><span>Name</span><span class="bill-due-column">Due Date, or<br>Credit Days<br>(wef: ${entryDate(date)})</span><span class="bill-amount-column">Amount</span><span>Dr/<br>Cr</span></div>
     <div class="bill-columns bill-entry-row"><label class="sr-only" for="bill-method">Type of reference</label><select id="bill-method"><option>New Ref</option></select><label class="sr-only" for="bill-reference">Bill reference name</label><input id="bill-reference" maxlength="120" value="${escapeHtml(reference)}" spellcheck="false" aria-describedby="bill-reference-error"><div class="bill-due-column bill-term-editor"><label class="sr-only" for="bill-credit-term">Due date or credit days</label><input id="bill-credit-term" value="${escapeHtml(termText(terms))}" maxlength="30" aria-describedby="bill-due-date bill-reference-error" placeholder="Not specified"><output id="bill-due-date" aria-live="polite"></output></div><label class="sr-only" for="bill-amount">Bill amount</label><input id="bill-amount" value="${formatRupees(amount)}" readonly><label class="sr-only" for="bill-side">Debit or credit</label><input id="bill-side" value="${side}" readonly></div>
     <div id="bill-reference-error" class="details-error" role="alert"></div>

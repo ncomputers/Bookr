@@ -7,13 +7,16 @@ import {confirmSequence} from './confirmation-sequence.js';
 import {createTextListPicker} from './text-list-picker.js';
 import {indiaStateSuggestions} from './india-states.js';
 import {nextCompanyAddressField} from './text-choice-model.js';
+import {companyCurrency} from './company-currency.js';
 
-export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect,getLoadedIds,onShut,onEdited}){
+export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,getCapabilities=()=>getBook()?.capabilities??{},renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect,getLoadedIds,onShut,onEdited}){
   let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,pendingSelection=null,publishedEdit=null,menuOrigin='gateway',commitYear=null,readCalendar=null,statePicker=null,approveCalendar=null;
   const views=['company-menu','companies','company-create','company-alter'];
   const contacts=[['telephone','Telephone'],['mobile','Mobile'],['fax','Fax'],['email','E-mail'],['website','Website']];
   const value=id=>main.querySelector('#'+id).value;
-  const values=()=>Object.fromEntries(companyMetadataFields.map(key=>[key,value('company-'+key.replaceAll('_','-'))]));
+  const currencyIds={currency_symbol:'company-base-currency-symbol',currency_name:'company-currency-formal-name'};
+  const currencyEnabled=()=>getCapabilities().company_currency_labels===true;
+  const values=()=>({...Object.fromEntries(companyMetadataFields.map(key=>[key,value('company-'+key.replaceAll('_','-'))])),...(currencyEnabled()?Object.fromEntries(Object.entries(currencyIds).map(([key,id])=>[key,value(id)])):{})});
   const draft=()=>({...values(),financial_year_from:value('company-financial-year'),books_from:value('company-books-from')});
   const dirty=()=>!pendingSelection && !publishedEdit && ['company-create','company-alter'].includes(getView()) && JSON.stringify(draft())!==initial;
   function command(id,label,action){const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.onclick=action;document.querySelector('.command-strip').insertBefore(button,hint);}
@@ -76,6 +79,8 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     setScreen(profile?'Company Alteration':'Company Creation',profile?'company-alter':'company-create','Enter: next field · Address: blank line to finish · Ctrl+A: save · Esc: back');
     const field=(key,label,value='',limit=120)=>`<div class="company-field company-field-${key}"><label for="company-${key.replaceAll('_','-')}">${label}</label><span>:</span>${key==='mobile'?'<div class="company-mobile"><span id="company-mobile-prefix" aria-label="Country calling code"></span>':''}<input id="company-${key.replaceAll('_','-')}" maxlength="${limit}" value="${escapeHtml(value)}">${key==='mobile'?'</div>':''}</div>`;
     main.innerHTML=`<form id="company-form" novalidate autocomplete="off"><div class="company-create-columns"><section>${field('name','Company Name',profile?.name ?? '')}${field('mailing_name','Mailing Name',profile?.mailing_name ?? '')}<div class="company-field company-address"><label for="company-address">Address</label><span>:</span><textarea id="company-address" maxlength="1000" rows="4">${escapeHtml(profile?.address ?? '')}</textarea></div>${field('state','State',profile?.state ?? 'Not Applicable')}${field('country','Country',profile?.country ?? 'India')}${field('pincode','Pincode',profile?.pincode ?? '',20)}${contacts.map(([key,label])=>field(key,label,profile?.[key]??'')).join('')}</section><section class="company-year"><div class="company-field"><label for="company-financial-year">Financial year beginning from</label><span>:</span><input id="company-financial-year" value="${entryDate(dates.financial_year_from)}" readonly tabindex="-1"></div><div class="company-field"><label for="company-books-from">Books beginning from</label><span>:</span><input id="company-books-from" value="${entryDate(dates.books_from)}" readonly tabindex="-1"></div></section></div><section class="company-currency" aria-label="Base currency"><div class="company-field"><span>Base Currency symbol</span><span>:</span><strong id="company-base-currency-symbol">₹</strong></div><div class="company-field"><span>Formal name</span><span>:</span><strong id="company-currency-formal-name">INR</strong></div></section><p id="company-error" class="company-error" role="alert"></p></form>`;
+    const currency=companyCurrency(profile??{});
+    for(const[key,id]of Object.entries(currencyIds)){const node=main.querySelector('#'+id),input=document.createElement('input');input.id=id;input.value=currency[key];input.maxLength=key==='currency_symbol'?12:120;input.readOnly=!currencyEnabled()||Boolean(profile)&&!calendarEditable;input.setAttribute('aria-label',key==='currency_symbol'?'Base currency symbol':'Currency formal name');if(input.readOnly)input.tabIndex=-1;node.replaceWith(input);}
     const name=main.querySelector('#company-name'),mail=main.querySelector('#company-mailing-name');let previous='';
     const year=main.querySelector('#company-financial-year'),books=main.querySelector('#company-books-from');
     for(const field of [year,books]){field.readOnly=Boolean(profile)&&!calendarEditable;field.tabIndex=field.readOnly?-1:0;}
@@ -114,7 +119,7 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
   function syncFormProfile(profile){
     let heading=document.querySelector('.screen-company');
     if(!heading){heading=document.createElement('span');heading.className='screen-company';document.querySelector('.screen-title h1').after(heading);}
-    applyCompanyProfile({form:main.querySelector('#company-form'),heading,profile});
+    applyCompanyProfile({form:main.querySelector('#company-form'),heading,profile:{...profile,...companyCurrency(profile)},currencyControls:Object.entries(currencyIds).map(([key,id])=>({key,control:main.querySelector('#'+id)}))});
   }
   async function save(){
     if(busy || switching || !['company-create','company-alter'].includes(getView()) || document.querySelector('dialog'))return;

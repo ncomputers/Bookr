@@ -1,0 +1,96 @@
+{
+  "application": "Bookr",
+  "feature": "Basic company currency labels with fixed existing amount representation",
+  "status": "implemented-reviewed-and-verified",
+  "complete": true,
+  "baseline": "088327f9362c2787b64a5dc22f6fa7c367507846",
+  "basis": {
+    "referenceBehavior": "A fictional empty company's manually entered symbol £ and formal name GBP persisted after save/reopen. UK/England, its initial financial/book dates and zero vouchers remained. Earlier country selection retained rupee/INR/mobile+91 and requested manual review.",
+    "softwareConvention": "Bookr retains integer-paise storage/API values,100 units per displayed whole amount, exactly two decimal places and en-IN numeric grouping. These are existing original Bookr conventions, not recovered universal currency or GBP rules.",
+    "limits": "No reference precision, conversion, exchange rate, locale, denomination, country-prefix or posted-company currency alteration behavior is established. This is not a complete foreign-currency feature."
+  },
+  "fields": {
+    "currency_symbol": {
+      "type": "string",
+      "default": "₹",
+      "maximumUtf16Length": 12
+    },
+    "currency_name": {
+      "type": "string",
+      "default": "INR",
+      "maximumUtf16Length": 120
+    },
+    "validation": "Original software limits: reject raw control characters U+0000..001F and007F before trimming outer whitespace; require nonempty single-line text and reject values beyond the stated limits. Preserve case/Unicode; do not infer an ISO code or locale. These bounds are not claimed native limits.",
+    "patch": "An omitted field preserves the target's existing effective value; new/legacy profiles default missing pairs to ₹/INR. Incoming edits may change either field independently. A raw stored profile with only one field, invalid type or noncanonical label must fail closed rather than mix an unknown setting with INR.",
+    "unknownSettings": "Recognize only these two additional flat metadata fields. Preserve existing reserved raw-id/revision rejection and unknown setting write/export rejection. Precision/rate/conversion fields remain unsupported."
+  },
+  "mutation": {
+    "target": "Use fresh target profile and revision in URL-bound PUT independently of the active API company header. Retain ordinary409 conflict handling and exact catalog/accounting preservation on failure.",
+    "emptyScope": "Only an actual normalized symbol/name change requires empty financial books. Reuse the Calendar feature's central empty-financial-book guard after its publication/rebase; do not duplicate table/schema checks. Do not derive emptiness from active browser state or voucher count alone. Protect its check/publication against concurrent writes using the shared guard's locking contract.",
+    "unchangedLabels": "Ordinary name/contact/country edits may echo unchanged normalized labels on posted companies and remain supported. No currency change means no new empty-book restriction.",
+    "preservation": "No conversion or reinterpretation of saved amounts; no voucher/ledger/bill/allocation/sequences/revision changes beyond the one company-profile revision on an accepted edit. Country, mobile prefix and dates never automatically rewrite labels, and label edits never rewrite those fields.",
+    "session": "Inactive targetC owns form/calendar/currency. ActiveB, its rails, loaded IDs, working date and period remain unchanged. Save/cancel return to target selector without selecting/reloadingC.",
+    "publishedRecovery": "The canonical returned labels bind with the saved UUID/revision before follow-up GET/open requests. Published fields stay disabled on refresh failure; retry reads/opening only, never duplicatePUT/POST."
+  },
+  "display": {
+    "descriptor": "Explicit immutable per-company/profile descriptor, never a mutable module-level current currency. companyCurrency(profile) returns the two flat canonical label fields; legacy missing pair defaults, malformed partial pair rejects.",
+    "numericHelpers": "parseRupees/inputRupees/formatRupees/formatBalance retain numeric behavior and remain stateless. Replace the parser's hardcoded rupee limit text with a neutral amount-limit message. A pure formatCompanyAmount(amount,profile) can prefix the explicit symbol for existing labelled messages.",
+    "binding": "Keep company-base-currency-symbol/company-currency-formal-name IDs compatible. Replace strong text nodes with explicit inputs only in supported UI; preserve canonical saved binding, readonly/disabled state, formatted date controls and dirty tracking. Use value/textContent or existing escaping, never unescaped configured text in HTML.",
+    "navigation": "Enter from symbol advances to formal name, then existing acceptance confirmation; existing Tab/ShiftTab, Ctrl+A and safe Escape/discard conventions apply. Do not introduce extra precision controls.",
+    "labels": "Replace fixed symbol/name literals in company form, rails, bill captions, financial/monthly captions and saved-voucher notices using their explicit book/profile context. Accessible amount labels that currently say in rupees must become neutral or use the explicit profile name. Retain current numeric grouping/DrCr signs. Initial/no-company rails stay neutral until a company profile is known.",
+    "oldServer": "Global capability company_currency_labels enables editing. Without it, keep currency controls readonly/default-safe and make no unsupported field writes. Currency-labelled unsupported responses must not silently render as INR.",
+    "oldClient": "Original web compatibility protocol approved for this limited feature: require X-Bookr-Currency-Labels:1 for nondefault scoped reads/writes. Missing awareness rejects400, without financial writes. Default legacyINR clients remain compatible. This is neither authentication nor a reference-app behavior. GET refresh needs awareness only; an old numeric draft context does not prevent retrieving fresh labels. Revision-bound company metadata PUT evaluates the URL target independently of the active-company header and does not use monetary draft context.",
+    "stateBinding": "Validate the requested active company profile against its accounting-state labels before publishing a Book or changing selection/context storage. Supported servers must return both explicit matching labels, even for defaultINR. Known nondefault labels require both current global and state currency support; legacy wholly missing/defaultINR remains compatible. Inspect only the requested active profile, never infer labels from inactive loaded companies. Missing/partial/disagreeing declarations show an original update/refresh error and never fall back to another company or label."
+  },
+  "numericDraftProtocol": {
+    "header": "New clients send X-Bookr-Currency-Context with encodeURIComponent(JSON.stringify({currency_symbol,currency_name})) on numeric voucher/opening writes. JSON contains exactly the two canonical saved labels; URI encoding keeps the header ASCII because raw rupee text is not a valid HTTP ByteString. This protocol describes labels only and is not authentication.",
+    "scope": "All voucher POST/PUT requests, and master POST/PUT requests explicitly containing opening_balance or opening_bills, use the originating numeric draft context. Metadata-only company PUT is governed by its target revision instead. Portable restore is governed by its version/checksum/profile validation rather than an active monetary draft header.",
+    "legacy": "An absent context remains supported only when fresh current labels are the exact default rupee/INR pair. When a context is supplied it must match both fresh labels even for default companies. Nondefault numeric writes require awareness plus a matching context. Missing/stale/malformed context rejects409 without catalog or accounting changes; missing nondefault awareness rejects400.",
+    "race": "Read and validate the complete body first, then re-read authoritative target labels and recheck awareness/context immediately before the monetary mutation. A Book obtained before await body is not proof of current labels. Retain the shared Calendar/currency locking contract against concurrent profile/financial writes, with no asynchronous gap between the final checks and the synchronous mutation.",
+    "draft": "Capture label context when a numeric entry draft opens; retain it across a rejected save and do not replace it silently from a background refresh. On a409 currency-context error, keep the editable unsaved numeric values and require leaving/reopening against the fresh profile before another interpretation is possible. No automatic resubmission or amount conversion.",
+    "prospectiveProof": "Delayed owned HTTP bodies cover legacy voucher awareness, aware stale voucher context and aware stale ledger-opening context; an independent second request changes only an empty target's labels while the first body is incomplete. A two-tab browser draft must reject the stale first-tab voucher twice without posting, while an aware GET can still refresh the new labels.",
+    "awarenessValidation": "Only a genuinely absent X-Bookr-Currency-Labels header is legacy. Any present value other than exact1, including0,2 or an empty value, rejects400 on scoped reads/writes even for defaultINR. Global capabilities and company discovery remain available for recovery. Numeric legacy fallback requires absence plus the fresh exact default pair."
+  },
+  "denominations": {
+    "supported": "Existing fixed Indian banknotes remain available only for the exact default ₹/INR label pair. A pure supportsCompanyDenominations(profile) controls the UI and server restriction.",
+    "nondefault": "Do not display fixed Indian notes under £/GBP or invent foreign notes. Disable/hide the denominations action with an original explanatory limitation; reject an explicitly supplied denominations payload for a nondefault company before posting. Preserve all stored existing denomination rows and numeric values.",
+    "capability": "company_currency_labels describes this limited engineering feature; it does not claim general currency/foreign-cash support."
+  },
+  "portable": {
+    "writer": "Export explicit portable VERSION2 with both label fields, the existing exact accounting tables/sequences, canonical SHA256 checksum and no conversion.",
+    "legacyReader": "Keep strict VERSION1 company-field validation. Verify the original V1 checksum before inserting legacy ₹/INR defaults into an internal copy. Never add fields to/mutate the source bundle before verification. V1 bundles containing currency fields still reject as unknown.",
+    "v2Reader": "Require exact knownV2 fields including both labels; reject partial/unknown fields, unsupported versions and malformed/corrupt checksums atomically. Preserve exact records and labels on restore-as-new UUID without editing source books.",
+    "financialMeaning": "Backup/restore preserves original Bookr integer records and declared labels; it does not infer or perform exchange conversion. Drafts cover configured-empty£/GBP and posted-defaultINR round trips, not native foreign transaction parity.",
+    "ui": "Update file preflight to accept only advertised V1/V2 support and retain published restore OpenCompany retry. Existing old-serverV1 restore stays usable; V2 against an old server is rejected beforePOST. New capability company_backup_v2 advertises the versioned format."
+  },
+  "prospectivePureApi": [
+    "DEFAULT_COMPANY_CURRENCY",
+    "companyCurrency(profile)",
+    "normalizeCurrencyPatch(patch,previous)",
+    "formatCompanyAmount(amount,profile)",
+    "supportsCompanyDenominations(profile)",
+    "encodeCompanyCurrencyContext(profile)",
+    "confirmCompanyCurrency(profile,state,capabilities)"
+  ],
+  "accountingEffect": "None from label configuration. All existing amounts remain integer paise and unchanged; an unrelated posted INR company retains100000sale/40000receipt/60000outstanding.",
+  "verification": {
+    "state": "Independent review approved the implementation and narrow existing-test compatibility updates. All472unit/HTTP checks and56registered browser commands pass serially without skipped cases. Exact promoted-source verification passes47focused checks and five currency browser scenarios, including six mixed-server subchecks. Six API-bound read-only preview screenshots pass at desktop/390/320 widths; all saved preview records and the separate60000pending fixture remain unchanged.",
+    "order": "Observed behavior and original protocol Spec, genuine featureRED with harness failures separately classified, minimal original implementation, focusedGREEN, independent review, frozen complete serial units then browsers, root actual verification/read-only audit and separate commit.",
+    "cases": [
+      "Legacy/default and explicit canonical£/GBP",
+      "Bounded string validation and safe text rendering",
+      "Empty mutation versus posted unchanged labels",
+      "Stale409 and atomic empty guard",
+      "Two stores/caches/restart/tabs and inactiveC/activeB",
+      "Canonical published-result recovery",
+      "StrictV1 checksum-before-default migration andV2 roundtrip",
+      "Unknown/partial/corrupt fields and versions",
+      "Old-server readonly/old-client safety gate",
+      "Default-only denomination UI/backend restriction",
+      "Exact catalog/accounting/session preservation and60000pending",
+      "All fixed label messages/captions and320/390 geometry"
+    ],
+    "protected": "No4315, preview writes or native/reference actions. Owned prospective HTTP4776/browser4777 fixtures only when root grants the lane.",
+    "resourcePolicy": "The next complete unit registry runs with explicit --test-concurrency=2, followed serially by the browser chain. No cases are skipped and this does not require changing production or package scripts."
+  }
+}

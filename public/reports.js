@@ -55,7 +55,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     const report=await api('/api/monthly-summary?ledger='+context.id);
     monthlyContext=context;ledgerId=context.id;rows=report.rows;index=context.index;
     setScreen('Ledger Monthly Summary','monthly-summary','Company year: '+entryDate(report.period.from)+' to '+entryDate(report.period.to)+' · ↑ ↓ Enter: month vouchers · Esc: back');
-    main.innerHTML=monthlyMarkup(report,getBook().company,escapeHtml);
+    main.innerHTML=monthlyMarkup(report,getBook().company,escapeHtml,getBook());
     const dateKey=document.querySelector('.function-rail button');dateKey.innerHTML='<span><u>F2</u>: Period</span><span>‹</span>';
     main.querySelectorAll('[data-month-row]').forEach((button,i)=>{button.onclick=()=>openMonth(i);button.onfocus=()=>{index=i;highlight();};});
     button('monthly-vouchers','Enter: Vouchers',()=>openMonth(index));

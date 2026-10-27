@@ -10,7 +10,7 @@ import {CompanyStore} from '../lib/companies.mjs';
 import {exportCompanyBundle} from '../lib/company-backup.mjs';
 import {startOwnedTestServer,stopOwnedTestServer} from './owned-test-server.mjs';
 
-const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),port=4761,base='http://127.0.0.1:'+port,dates={financial_year_from:'2025-04-01',books_from:'2025-07-01',financial_year_to:'2026-03-31'},capabilities={general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true};
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),port=4761,base='http://127.0.0.1:'+port,dates={financial_year_from:'2025-04-01',books_from:'2025-07-01',financial_year_to:'2026-03-31'},capabilities={general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true};
 function rows(file){const db=new DatabaseSync(file,{readOnly:true});try{return Object.fromEntries(db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(({name})=>[name,db.prepare('SELECT * FROM "'+name.replaceAll('"','""')+'" ORDER BY rowid').all().map(row=>({...row}))]));}finally{db.close();}}
 async function fixture(action,{missing=false}={}){
  const temporary=await realpath(tmpdir()),directory=await mkdtemp(join(temporary,'bookr-summary-http-')),database=join(directory,'book.sqlite'),calls=join(directory,'book-calls.log'),bootstrap=join(directory,'tracked-server.mjs');let server,output='';const store=new CompanyStore({defaultFile:database});let profile,empty,bundle,sourceFile,emptyFile;

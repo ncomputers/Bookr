@@ -1,3 +1,4 @@
+import {formatCompanyAmount} from './company-currency.js';
 import {savedLedgerBalance} from './ledger-balance.js';
 import {initialEntryDate,workingDateContext} from './company-context.js';
 import {createEntryDateState} from './working-date.js';
@@ -129,8 +130,8 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
       <div class="voucher-party"><label for="sale-customer">Party A/c name</label><span>:</span><input id="sale-customer" role="combobox" aria-autocomplete="list" aria-controls="party-options" aria-expanded="false" spellcheck="false" data-customer-id="${voucher?.customer_id ?? ''}" value="${escapeHtml(voucher?.customer_name ?? '')}"></div><div id="party-options" class="party-options" role="listbox" aria-label="Customer and Cash ledger accounts" hidden></div>
       <div class="party-balance"><i>Current balance</i><span>:</span><i id="party-balance">—</i></div>
       <div class="voucher-lines-heading"><strong>Particulars</strong><span class="rate-heading">Rate &nbsp; per</span><strong>Amount</strong></div>
-      <div class="sale-line" ${voucher ? '' : 'hidden'}><label for="sale-account" class="sr-only">Sales ledger</label><select id="sale-account"><option value=""></option>${accounts.map(row => `<option value="${row.id}" ${row.id === voucher?.account_id ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><label for="sale-amount" class="sr-only">Sale amount in rupees</label><input id="sale-amount" inputmode="decimal" maxlength="20" value="${voucher ? inputRupees(voucher.amount) : ''}" aria-describedby="sale-amount-help"></div>
-      <div class="voucher-space"><span id="sale-date-help" class="sr-only">Date: 1-Apr-2026 or 2026-04-01.</span><span id="sale-amount-help" class="sr-only">Sale in rupees, no tax or inventory, up to two decimal places.</span>${!customers.length ? '<div class="voucher-scope"><strong>Create a customer or Cash ledger before entering a sale.</strong></div>' : ''}</div>
+      <div class="sale-line" ${voucher ? '' : 'hidden'}><label for="sale-account" class="sr-only">Sales ledger</label><select id="sale-account"><option value=""></option>${accounts.map(row => `<option value="${row.id}" ${row.id === voucher?.account_id ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><label for="sale-amount" class="sr-only">Sale amount</label><input id="sale-amount" inputmode="decimal" maxlength="20" value="${voucher ? inputRupees(voucher.amount) : ''}" aria-describedby="sale-amount-help"></div>
+      <div class="voucher-space"><span id="sale-date-help" class="sr-only">Date: 1-Apr-2026 or 2026-04-01.</span><span id="sale-amount-help" class="sr-only">Sale amount, no tax or inventory, up to two decimal places.</span>${!customers.length ? '<div class="voucher-scope"><strong>Create a customer or Cash ledger before entering a sale.</strong></div>' : ''}</div>
       <div id="sale-error" class="ledger-error" role="alert"></div>
       <div class="voucher-bottom"><div class="voucher-narration"><label for="sale-narration">Narration:</label><textarea id="sale-narration" rows="2" maxlength="1000">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="sale-total">0.00</span></div></div>
     </form>`;
@@ -187,7 +188,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     input ??= readSaleInput();
     if (!input) return;
     if(book().ledgers.find(row=>row.id===input.customer_id)?.kind==='cash'){main.querySelector('#sale-narration').focus();return;}
-    editBillReference({customer:book().ledgers.find(row => row.id === input.customer_id),reference:billReference,terms:billTerms,amount:input.amount,date:input.date,escapeHtml,
+    editBillReference({currency:getBook(),customer:book().ledgers.find(row => row.id === input.customer_id),reference:billReference,terms:billTerms,amount:input.amount,date:input.date,escapeHtml,
       setCaption:name => { document.querySelector('.screen-title h1').textContent = name || (editing ? 'Accounting Voucher Alteration' : 'Accounting Voucher Creation'); },
       onDone:(reference,terms) => { billReference = reference; billTerms=terms; reviewedBill = billSignature(input); main.querySelector('#sale-narration').focus(); },
       onCancel:() => main.querySelector('#sale-amount').focus()});
@@ -209,7 +210,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
       await refreshBook().catch(() => {});
       currentDate=saved.date;if(!editing)entryDates.rememberNew(saved.date);
       if (editing) { if(typeof origin==='function') await origin(); else await renderDayBook(); hint.textContent = `Saved changes to Sales No. ${saved.number}.`; }
-      else renderSale(null,origin,`Saved Sales No. ${saved.number} · ₹${formatRupees(saved.amount)} · next voucher ready`);
+      else renderSale(null,origin,`Saved Sales No. ${saved.number} · ${formatCompanyAmount(saved.amount,getBook())} · next voucher ready`);
     } catch (failure) {
       inputs.forEach(field => { field.disabled = false; }); accept.disabled = false;
       error(failure.message);

@@ -19,6 +19,7 @@ import {editReportDate,editReportPeriod} from './report-period.js';
 import {createCompanyDataWorkspace} from './company-data.js';
 import {createCompanyLifecycle} from './company-lifecycle.js';
 import {createActivityTracker} from './workspace-activity.js';
+import {companyCurrency,encodeCompanyCurrencyContext,confirmCompanyCurrency} from './company-currency.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -41,13 +42,13 @@ let ledgerKind='customer';
 let openingEditor=null;
 let ledgerGroupPicker=null;
 let workingDateStore=null;
-let activeCompanyId=null,loadedSummaries=[],serverCapabilities={};
+let activeCompanyId=null,loadedSummaries=[],serverCapabilities={},numericDraftCurrency=null;
 const homeLink=document.querySelector('#home');
 const activity=createActivityTracker(count=>{
   homeLink.setAttribute('aria-disabled',String(count>0));
   homeLink.setAttribute('aria-busy',String(count>0));
 });
-const lifecycle=createCompanyLifecycle({storage:sessionStorage,api,reload:()=>location.reload()});
+const lifecycle=createCompanyLifecycle({storage:sessionStorage,api,reload:()=>location.reload(),beforeSelect:confirmSelectionCurrency});
 const ledgerFields=()=>[...main.querySelectorAll('#ledger-form input,#ledger-form select,#ledger-form textarea')].filter(field=>!field.disabled && field.getClientRects().length>0);
 function openVoucher(voucher,from='gateway',type=voucher?.type ?? 'sale'){
   if(type==='purchase')purchases.renderPurchase(voucher,from);
@@ -61,7 +62,7 @@ function openVoucher(voucher,from='gateway',type=voucher?.type ?? 'sale'){
 const sales = createSalesWorkspace({main,hint,api,setScreen,getBook:() => book,refreshBook,escapeHtml,askDialog,renderGateway,getView:() => view,
   openReceipt:(voucher,from) => voucher ? receipts.renderReceipt(voucher,from) : receipts.openNew(from),
   openOtherVoucher:openVoucher,
-  openLedgerFromSale:callbacks => {ledgerKind='customer';renderLedger(null,'Create a customer, then return to the sales voucher.',callbacks);}});
+  openLedgerFromSale:callbacks => {const originalCurrency=numericDraftCurrency,restore=callback=>value=>{callback?.(value);numericDraftCurrency=originalCurrency;};ledgerKind='customer';renderLedger(null,'Create a customer, then return to the sales voucher.',{...callbacks,onSaved:restore(callbacks.onSaved),onCancel:restore(callbacks.onCancel)});}});
 const receipts = createReceiptWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,getView:()=>view,
   openJournal:(voucher,from)=>openFresh(()=>journal.render(voucher,from)),
   openContra:(voucher,from)=>openFresh(()=>contra.render(voucher,from)),
@@ -79,7 +80,7 @@ const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshB
   openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);}});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const chart=createChartWorkspace({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,renderGateway,escapeHtml,openLedger:(ledger,returnTo)=>openFresh(async()=>renderLedger(await api('/api/ledgers/'+ledger.id),'',returnTo)),createLedger:(kind,returnTo)=>openFresh(()=>{ledgerKind=kind;renderLedger(null,'',returnTo);})});
-const companyUI=createCompanyWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:()=>activeCompanyId,onSelect:id=>lifecycle.select(id),getLoadedIds:()=>lifecycle.read().loadedIds,onShut:id=>lifecycle.shut(id),onEdited:async()=>{await lifecycle.refreshCatalog();await refreshBook();}});
+const companyUI=createCompanyWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,getCapabilities:()=>serverCapabilities,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:()=>activeCompanyId,onSelect:id=>lifecycle.select(id),getLoadedIds:()=>lifecycle.read().loadedIds,onShut:id=>lifecycle.shut(id),onEdited:async()=>{await lifecycle.refreshCatalog();await refreshBook();}});
 const companyDataUI=createCompanyDataWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,getCapabilities:()=>serverCapabilities,refreshBook,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:()=>activeCompanyId,onSelect:id=>lifecycle.select(id)});
 const busy = () => saving || sales.isSaving() || receipts.isSaving() || payments.isSaving() || purchases.isSaving() || contra.isSaving() || journal.isSaving() || generalJournal.isSaving() || reports.isSaving() || financial.isSaving() || chart.isSaving() || companyUI.isSaving() || companyDataUI.isSaving();
 
@@ -97,12 +98,20 @@ async function refreshBook() {
       throw new Error('This preview returned unsupported or incomplete General Journal entries. Open the latest Bookr server before continuing.');
     }
   }
+  const summaries=await lifecycle.loadedSummaries(),profile=summaries.find(row=>row.profile.id===activeCompanyId)?.profile;
+  confirmCompanyCurrency(profile,next,serverCapabilities);
+  confirmCompanyCurrency(profile,next,next.capabilities??{});
   const calendar=companyCalendar(next);
   workingDateStore??=createWorkingDateContext({companyId:activeCompanyId,booksFrom:calendar.books_from,period:{from:calendar.financial_year_from,to:calendar.financial_year_to},storage:sessionStorage});
   next.working_context=workingDateStore.current();
   next.current_period=workingDateStore.period();
-  loadedSummaries=await lifecycle.loadedSummaries();
+  loadedSummaries=summaries;
   book=next;document.querySelector('.application-name strong').textContent=book.preview?.label || 'DEMO';return book;
+}
+async function confirmSelectionCurrency(id){
+ const summary=await api('/api/companies/'+id+'/summary'),state=await api('/api/state',{headers:{'X-Bookr-Company':id}});
+ confirmCompanyCurrency(summary.profile,state,serverCapabilities);
+ confirmCompanyCurrency(summary.profile,state,state.capabilities??{});
 }
 async function openFresh(action) {
   if (busy()) return;
@@ -117,7 +126,9 @@ async function openFresh(action) {
 async function api(path, options = {}) {
   return activity.run(async()=>{
   const period=workingDateStore?.period();
-  const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json',...(activeCompanyId!==null?{'X-Bookr-Company':activeCompanyId}:{}),...(period?{'X-Bookr-Period':period.from+'/'+period.to}:{}), ...options.headers } });
+  let input;try{input=JSON.parse(options.body);}catch{}
+  const monetary=['POST','PUT'].includes(options.method)&&(/^\/api\/vouchers(?:\/\d+)?$/.test(path)||/^\/api\/(?:ledgers|customers|suppliers|banks)(?:\/\d+)?$/.test(path)&&input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')));
+  const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json','X-Bookr-Currency-Labels':'1',...(monetary?{'X-Bookr-Currency-Context':encodeCompanyCurrencyContext(numericDraftCurrency??book??{})}:{}),...(activeCompanyId!==null?{'X-Bookr-Company':activeCompanyId}:{}),...(period?{'X-Bookr-Period':period.from+'/'+period.to}:{}), ...options.headers } });
   const value = await response.json();
   if (!response.ok) throw new Error(value.error || 'Unable to complete this request.');
   return value;
@@ -128,6 +139,7 @@ function setScreen(name, screen, message) {
   ledgerGroupPicker?.destroy();ledgerGroupPicker=null;
   generalJournal.dispose();
   view = screen;
+  if(['ledger','sale','purchase','receipt','payment','contra','journal','journal-general'].includes(screen))numericDraftCurrency=companyCurrency(book??{});
   main.dataset.screen=screen;
   delete main.dataset.mode;
   main.className = screen === 'gateway' ? '' : 'entry-workspace';
@@ -154,7 +166,7 @@ function setScreen(name, screen, message) {
     accept.type = 'button'; accept.id = 'accept-ledger'; accept.innerHTML = '<u>A</u>: Accept <span>Ctrl+A</span>';
     accept.addEventListener('click', saveLedger); quit.after(accept);
   }
-  document.querySelector('.rail-preview').innerHTML = 'Bookr<br><span>INR · Fictional accounts</span>';
+  document.querySelector('.rail-preview').innerHTML = 'Bookr<br><span>'+escapeHtml(book?companyCurrency(book).currency_name+' · Fictional accounts':'Select a company')+'</span>';
 }
 function selectMenu(index, focus = false) {
   selected = (index + menu.length) % menu.length;

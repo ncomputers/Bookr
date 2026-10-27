@@ -1,3 +1,4 @@
+import {formatCompanyAmount} from './company-currency.js';
 import {entryDate,parseEntryDate,formatRupees,formatBalance,inputRupees,parseRupees} from './entry-values.js';
 import {editReceiptAllocations} from './receipt-allocations.js';
 import {editBankAllocation} from './bank-allocation.js';
@@ -51,7 +52,7 @@ export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshB
     const number=voucher?.number ?? Math.max(0,...getBook().vouchers.filter(v=>v.type===type).map(v=>v.number))+1;
     const rank=ledger=>ledger.kind==='cash'?(ledger.id===1?0:1):2;
     const accounts=getBook().ledgers.filter(l=>['cash','bank'].includes(l.kind)).sort((a,b)=>rank(a)-rank(b));
-    main.innerHTML=`<form id="receipt-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">${label}</strong><span>No. <b id="receipt-number">${number}</b></span><div class="voucher-date"><label for="receipt-date" class="sr-only">Voucher date</label><input id="receipt-date" value="${entryDate(voucher?.date ?? currentDate)}"><span id="receipt-weekday"></span></div></div><div class="voucher-party receipt-account"><label for="receipt-account">Account</label><span>:</span><select id="receipt-account">${accounts.map(l=>`<option value="${l.id}" ${voucher?.account_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select></div><div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div><div class="receipt-line"><label class="sr-only" for="receipt-customer">${payable?'Supplier':'Customer'} ledger</label><input id="receipt-customer" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="receipt-customer-options" value="${escapeHtml(voucher?.customer_name ?? '')}" spellcheck="false"><label class="sr-only" for="receipt-amount">${label} amount in rupees</label><input id="receipt-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(voucher.amount):''}"></div><div id="receipt-customer-options" class="party-options" role="listbox" aria-label="Customer ledger accounts" hidden></div><div class="receipt-current-balance"><i>Cur Bal: &nbsp;<span id="receipt-balance"></span></i></div><div id="receipt-allocation-summary"></div><div class="voucher-space"></div><div id="receipt-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="receipt-narration">Narration:</label><textarea id="receipt-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="receipt-total"></span></div></div></form>`;
+    main.innerHTML=`<form id="receipt-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">${label}</strong><span>No. <b id="receipt-number">${number}</b></span><div class="voucher-date"><label for="receipt-date" class="sr-only">Voucher date</label><input id="receipt-date" value="${entryDate(voucher?.date ?? currentDate)}"><span id="receipt-weekday"></span></div></div><div class="voucher-party receipt-account"><label for="receipt-account">Account</label><span>:</span><select id="receipt-account">${accounts.map(l=>`<option value="${l.id}" ${voucher?.account_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select></div><div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div><div class="receipt-line"><label class="sr-only" for="receipt-customer">${payable?'Supplier':'Customer'} ledger</label><input id="receipt-customer" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="receipt-customer-options" value="${escapeHtml(voucher?.customer_name ?? '')}" spellcheck="false"><label class="sr-only" for="receipt-amount">${label} amount</label><input id="receipt-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(voucher.amount):''}"></div><div id="receipt-customer-options" class="party-options" role="listbox" aria-label="Customer ledger accounts" hidden></div><div class="receipt-current-balance"><i>Cur Bal: &nbsp;<span id="receipt-balance"></span></i></div><div id="receipt-allocation-summary"></div><div class="voucher-space"></div><div id="receipt-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="receipt-narration">Narration:</label><textarea id="receipt-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="receipt-total"></span></div></div></form>`;
     main.querySelector('.receipt-account').insertAdjacentHTML('afterend','<div class="receipt-account-balance"><i>Current balance : &nbsp;<span id="receipt-cash-balance"></span></i></div>');
     if(doubleEntry()){
       const form=main.querySelector('#receipt-form');form.dataset.voucherType=type;
@@ -112,7 +113,7 @@ export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshB
   }
   function showBank(input=null){
     if(saving || loadingBills || document.querySelector('dialog'))return;input ??=read();if(!input || account()?.kind!=='bank')return;
-    editBankAllocation({account:account(),type,amount:input.amount,date:input.date,bank:bankData,escapeHtml,
+    editBankAllocation({currency:getBook(),account:account(),type,amount:input.amount,date:input.date,bank:bankData,escapeHtml,
       onDone:next=>{bankData=next;bankReviewed=bankSignature(input);update();main.querySelector('#receipt-narration').focus();},onCancel:()=>main.querySelector('#receipt-amount').focus()});
   }
   async function showAllocations(input=null){
@@ -125,7 +126,7 @@ export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshB
       fields.forEach(f=>f.disabled=false);
       if(!context.bills.some(b=>b.available>0)){error(`No saved bills with an available balance for this ${partyKind}.`,'receipt-customer');return;}
       const key=payable?'payables':'outstanding';getBook()[key]=getBook()[key].filter(b=>b.customer_id!==context.customer.id).concat(context.bills);
-      editReceiptAllocations({payment:payable,customer:context.customer,amount:input.amount,bills:context.bills,allocations,escapeHtml,onDone:rows=>{allocations=rows;reviewed=signature(input);update();document.querySelector(doubleEntry()?'#receipt-account':account()?.kind==='bank'?'#receipt-bank-details':'#receipt-narration').focus();},onCancel:()=>main.querySelector('#receipt-amount').focus()});
+      editReceiptAllocations({currency:getBook(),payment:payable,customer:context.customer,amount:input.amount,bills:context.bills,allocations,escapeHtml,onDone:rows=>{allocations=rows;reviewed=signature(input);update();document.querySelector(doubleEntry()?'#receipt-account':account()?.kind==='bank'?'#receipt-bank-details':'#receipt-narration').focus();},onCancel:()=>main.querySelector('#receipt-amount').focus()});
     }catch(failure){error(failure.message);}
     finally{fields.forEach(f=>f.disabled=false);loadingBills=false;main.removeAttribute('aria-busy');}
   }
@@ -140,7 +141,7 @@ export function createReceiptWorkspace({main,hint,api,setScreen,getBook,refreshB
       getBook().vouchers=getBook().vouchers.filter(v=>v.id!==saved.id).concat(saved);
       await refreshBook().catch(()=>{});currentDate=saved.date;if(!editing)entryDates.rememberNew(saved.date);
       if(editing){await returnTo();hint.textContent=`Saved changes to ${label} No. ${saved.number}.`;}
-      else renderReceipt(null,origin,`Saved ${label} No. ${saved.number} · ₹${formatRupees(saved.amount)} · next voucher ready`);
+      else renderReceipt(null,origin,`Saved ${label} No. ${saved.number} · ${formatCompanyAmount(saved.amount,getBook())} · next voucher ready`);
     }catch(failure){fields.forEach(f=>f.disabled=false);accept.disabled=false;error(failure.message);}finally{saving=false;}
   }
   async function openNew(from='gateway'){if(saving || loadingBills)return;saving=true;try{await refreshBook();renderReceipt(null,from);}catch(failure){hint.textContent=failure.message;}finally{saving=false;}}
