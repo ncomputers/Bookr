@@ -1,0 +1,15 @@
+{
+  "feature": "Explicit address suggestion creation",
+  "status": "Implemented; final Company batch verification complete within the supported scope",
+  "observed": "Fictional runtime frames37 and43 show separate blank one-name dialogs for New State and New Country. No reference entity save, persistence, validation or scope was observed.",
+  "originalBookr": "Installation-wide address suggestion catalog, independent of financial companies. Explicit creation alone persists a genuine country or a state associated with a country. Typed queries and unknown saved metadata never become masters.",
+  "storage": "Original JSON version1 at <defaultDB>.locations.json stores custom entries only. Missing file reads use builtins without writing. Mutations reread, validate, and atomically replace the file; malformed existing data fails closed without repair. Single-process scope.",
+  "validation": "Trimmed nonempty single-line names, at most120 characters; control characters rejected. Case-insensitive duplicate409 including builtins. UK and United Kingdom lookup alias only; company metadata is not rewritten.",
+  "ui": "New Country and New State commands are outside actual options. Name dialog supports Create/Ctrl+A, Esc/Cancel, inline errors and retained input. Successful creation selects only the company draft; normal company Save is separate. Retry after success uses reads only, never another POST.",
+  "selection": "Original Bookr master-enabled servers expose State suggestions for every country, initially Not Applicable where no observed regional catalog exists. No-match Enter/Tab stays in the field; whole-form save still preserves raw custom metadata without creating a master. Older servers retain plain free-text navigation outside the static India/UK catalogs. This is not a claim of native global catalog parity.",
+  "compatibility": "Capability company_geography_masters enables global catalog requests/actions. Old servers retain static observed pickers. New country never changes phone, currency or tax.",
+  "backup": "Portable company backups retain their mailing text but do not include the app-wide address catalog. No company schema or backup-version change.",
+  "effect": "No company revision, activation, calendar or financial writes from address-master creation.",
+  "verification": "9 store/HTTP checks and 3 owned-browser scenarios pass, including delayed catalog focus, explicit create/save/reopen, duplicates, cancel, GET-only published retry, older-server fallback and unchanged financial rows/600 outstanding. Full tests deferred to final combined Company batch.",
+  "finalCheckpoint": "Final Company checkpoint: 527/527 unit tests, all61browser scripts passed cumulatively after a focused tab-focus correction and daemon resume; GET-only preview check passed. Initial full-command timeout is preserved and is not described as a clean original command pass. See docs/company-layer.json."
+}

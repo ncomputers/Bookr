@@ -48,7 +48,7 @@ export function createCompanyDataWorkspace({main,hint,api,setScreen,getBook,getC
     try{
       if(file.size>limit)throw new Error('Choose a Bookr backup file no larger than 25 MB.');
       let parsed;try{parsed=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer()));}catch{throw new Error('Choose a valid UTF-8 Bookr backup file.');}
-      if(!parsed||parsed.format!=='bookr.company'||!(parsed.version===1||parsed.version===2&&getCapabilities().company_backup_v2===true)||typeof parsed.company?.name!=='string'||!parsed.company.name.trim()||parsed.company.name.length>120)throw new Error('Choose a supported Bookr backup file.');
+      if(!parsed||parsed.format!=='bookr.company'||!(parsed.version===1||parsed.version===2&&getCapabilities().company_backup_v2===true||parsed.version===3&&getCapabilities().company_backup_v3===true)||typeof parsed.company?.name!=='string'||!parsed.company.name.trim()||parsed.company.name.length>120)throw new Error('Choose a supported Bookr backup file.');
       bundle=parsed;main.querySelector('#restore-source-company').textContent=parsed.company.name;
     }catch(failure){error(failure.message);}finally{setBusy(false);}
     main.querySelector(bundle?'#restore-company-name':'#restore-company-file').focus();

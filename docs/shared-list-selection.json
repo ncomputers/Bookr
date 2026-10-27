@@ -1,0 +1,28 @@
+{
+  "application": "Bookr",
+  "feature": "Genuine shared selection lists",
+  "status": "Implemented; final Company batch verification complete within the supported scope",
+  "baseline": "0975187284a8ab703ae38f3b0640144f4efb6bb9",
+  "authority": "Explicit user request: remove synthetic entered/opening/query list rows, reuse selection behavior and run full unit then browser chains serially",
+  "scope": [
+    "Existing State and mobile-code text pickers",
+    "Existing Groups and General Journal ledger select pickers",
+    "Reusable pure catalog filtering, clamped movement and Escape decisions for future item controls"
+  ],
+  "entries": "Only actual caller catalog entries are options. Never synthesize unknown saved values, queries, actions or entered-text rows.",
+  "filter": "Trimmed case-insensitive substring over actual labels/values. Do not retain an unmatched pinned fallback.",
+  "empty": "Display No matches with zero option rows and no active descendant. Enter and Tab retain input/focus and perform no selection or advance.",
+  "titles": "Company State: List of States; generic calling-code catalog: List of Items; existing descriptive List of Groups and List of Ledger Accounts remain.",
+  "keyboard": {
+    "arrows": "Plain Up/Down clamp at first/last actual row and change highlight only. Preserve modified free-text editing.",
+    "accept": "Enter or forward Tab accepts the genuine highlighted option and follows the existing field focus flow.",
+    "escape": "First Escape clears a nonempty search/input and shows real unfiltered options. Next Escape closes/back; preserve existing Company blank-draft exit confirmation and select-picker focus restoration.",
+    "backwardTab": "Shift+Tab closes suggestions and retains normal backward focus."
+  },
+  "preservation": "Existing/unknown metadata remains in its input and backend. Whole-form save may retain raw unknown/legacy text and independent valid Phone4; no geographic validation, migration or hidden coercion. No synthetic option is needed to preserve raw metadata.",
+  "reuse": "Both DOM picker adapters use shared pure filtering, clamped movement and Escape decisions; display formatting remains with each adapter.",
+  "accountingEffect": "None. Preserve exact money rows,60000outstanding,dates,currency,contacts and tab/company context.",
+  "verification": "Genuine23-case model RED16pass7fail; genuine3-scenario browser RED after separately retained fixture correction. Current28focused units and shared3browser, State15groups, Phone5scenarios, Groups9groups and Journal8checks pass serially. Three API-bound desktop390320 captures manually reviewed. Full npm test then npm run test:browser once at Company-batch end per latest user instruction; not run or claimed here.",
+  "limitations": "No new Country flow, item master, geographic validation or native full-catalog/pixel-equality claims.",
+  "finalCheckpoint": "Final Company checkpoint: 527/527 unit tests, all61browser scripts passed cumulatively after a focused tab-focus correction and daemon resume; GET-only preview check passed. Initial full-command timeout is preserved and is not described as a clean original command pass. See docs/company-layer.json."
+}

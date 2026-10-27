@@ -1,0 +1,93 @@
+{
+    "application":  "Bookr",
+    "feature":  "Independent company mobile calling code",
+    "baseline":  "ca454797236b2642edae4b8f0db905769aa9b454",
+    "status":  "implemented; development-focused verification",
+    "complete":  true,
+    "study":  {
+                  "behaviorStudy":  "fictional-mobile-calling-code-persistence-20261027",
+                  "evidenceRetention":  "Original fictional runtime receipts and screenshots are retained outside the public repository.",
+                  "observed":  [
+                                   "The numeric calling-code edit was separate from the visible plus decoration and the raw Mobile number field.",
+                                   "Typing44 in place of91 showed a matching United Kingdom choice; Enter committed it and focused the separate blank Mobile field.",
+                                   "Saving and reopening retained44 while UK/England, pound/GBP labels, initial dates and zero vouchers remained unchanged.",
+                                   "Restoring91 and saving/reopening returned the profile to its observed baseline.",
+                                   "An untouched unsaved creation draft observed only after restoring91 showed India, Not Applicable State, code91 and rupee/INR. It was discarded without saving."
+                               ],
+                  "unknown":  [
+                                  "Internal storage representation and the complete calling-code catalog were not inspected.",
+                                  "Invalid-code, plus-character input, full-catalog search and Escape behavior were not studied.",
+                                  "Creation defaults while the previously edited company had44 were not observed;91 is not claimed as a universal native creation rule."
+                              ]
+              },
+    "field":  {
+                  "name":  "mobile_calling_code",
+                  "type":  "string",
+                  "meaning":  "Canonical ASCII digits; an empty string means unrecorded. This is original Bookr metadata representation.",
+                  "maximumDigits":  8,
+                  "apiValidation":  "Require a string. Reject raw control characters, plus signs, letters, interior whitespace and values beyond eight digits. Trim outer whitespace, then allow zero through eight ASCII digits. Preserve leading zeros. These are original software limits, not native or ITU validation rules.",
+                  "storedValidation":  "A present stored field must already equal its validated canonical string. Reject invalid types, padding, controls or unsupported characters without repairing the stored profile.",
+                  "legacyRead":  "A missing stored field is exposed as an empty string without rewriting the catalog or guessing from country or raw mobile.",
+                  "creation":  "New UI creation drafts explicitly start at91. Direct API creation with the field omitted remains unrecorded. Existing/legacy alteration always uses the saved effective value, including empty.",
+                  "patch":  "An omitted field preserves the target\u0027s existing effective code. Do not split, concatenate, infer or rewrite the raw mobile string. A code-only update preserves an omitted or exactly unchanged echoed mobile value byte-for-byte, including readable legacy padding. Only an explicitly different mobile input retains the existing normalization. Unsupported raw types may fail closed; strict portable validation is not relaxed to repair noncanonical legacy mobile text."
+              },
+    "scope":  {
+                  "target":  "Fresh URL-bound company UUID and revision, independent of the active-company header. Existing409 conflict handling remains.",
+                  "financial":  "Company metadata only. Editable before or after financial entries; do not use financial emptiness, monetary draft context, contact-specific headers or Book cache fields for this setting.",
+                  "preserve":  "Changing only the code leaves country, State, currency, all dates, raw mobile and every accounting table/amount unchanged; only the company profile revision advances.",
+                  "independence":  "No country-to-code mapping. Changing country cannot reset the code, and changing code cannot change country or raw mobile.",
+                  "guards":  "Preserve reserved raw-id/revision checks, unknown-setting write/export guards and all existing currency awareness/context behavior."
+              },
+    "ui":  {
+               "input":  "company-mobile-calling-code",
+               "rawMobileInput":  "company-mobile",
+               "decoration":  "The plus sign is display decoration outside the digit input; it is never stored as part of the code.",
+               "observedSuggestions":  "Only91 India and44 United Kingdom have observed support here. Other bounded digit strings remain editable software values; do not claim a complete international catalog or silently substitute a highlighted suggestion on save.",
+               "enter":  "Enter accepts the highlighted choice and advances to the separate Mobile input. Subsequent entry retains existing Bookr conventions.",
+               "acceptAll":  "Ctrl+A preserves a valid entered code such as4 even if the suggestion44 is highlighted. Enabling this behavior for the code picker must not change the existing State picker defaults.",
+               "unverifiedKeys":  "Tab, Shift+Tab and Escape retain documented original web entry/discard behavior; they are not claimed native calling-code parity.",
+               "savedBinding":  "Canonical returned code binds to the actual saved target UUID/revision before follow-up reads. Record successful publication before validating/binding its response. If that successful response omits or corrupts a promised code, retain the published marker and disabled unsaved-value display until a scoped target GET confirms canonical saved details; retry GET only, never duplicate PUT.",
+               "declaredSupport":  "When company_mobile_calling_code is true, a freshly requested profile must own a canonical code field, even if its effective value is empty. Missing or malformed promised fields reject opening the form; they must not be silently treated as legacy. Missing fields on genuinely older servers remain unrecorded and readonly.",
+               "oldServer":  "Without company_mobile_calling_code, show the effective code readonly and omit the new field from metadata writes. Do not fabricate91 on a legacy saved profile. Existing contacts remain usable.",
+               "geometry":  "Preserve the raw Mobile field and existing IDs where useful; the code input, plus decoration, picker and keyboard commands must fit320/390 widths."
+           },
+    "capabilities":  {
+                         "company_mobile_calling_code":  "Independent code metadata and UI entry are supported.",
+                         "company_backup_v3":  "Version3 portable files include the code. Version1 and version2 readers remain supported. Existing company_backup_v2 remains true."
+                     },
+    "pureApi":  {
+                    "module":  "public/company-mobile-code.js",
+                    "exports":  [
+                                    "NEW_COMPANY_MOBILE_CALLING_CODE",
+                                    "normalizeMobileCallingCode(value)",
+                                    "companyMobileCallingCode(profile)",
+                                    "MobileCodeError"
+                                ],
+                    "constant":  "NEW_COMPANY_MOBILE_CALLING_CODE is91 for explicit UI draft creation only; it is not an API or stored-legacy default.",
+                    "profileResult":  "companyMobileCallingCode returns the canonical string, or empty when the field is absent; it never mutates input or consults country/mobile."
+                },
+    "portable":  {
+                     "writer":  "Write explicit version3 with canonical mobile_calling_code, existing currency labels, exact accounting records/sequences and checksum.",
+                     "version1":  "Validate the exact original version1 fields and original checksum before cloning and inserting legacy rupee/INR labels and empty code. Never mutate the source bundle before verification.",
+                     "version2":  "Validate the exact original version2 fields and original checksum before cloning and inserting empty code. Preserve its currency labels exactly; a code field in version2 remains an unknown-field error.",
+                     "version3":  "Require the exact version3 fields including canonical code. Reject missing/invalid/unknown fields, corrupt checksums and unsupported versions atomically.",
+                     "restore":  "Restore as a new UUID without touching source books or changing any accounting record or numeric unit.",
+                     "awareness":  "Retain existing currency awareness for every supported label-bearing format, including both version2 and version3. Do not leave the guard restricted to version2.",
+                     "oldServer":  "Version3 upload is rejected before POST when its capability is absent. Existing version1/version2 paths and published OpenCompany recovery remain."
+                 },
+    "accountingEffect":  "None. Existing integer-paise amounts, two-decimal/en-IN display convention, balanced entries and60000outstanding fixture remain unchanged.",
+    "verification":  {
+                         "order":  "Observed flow and concise Spec, meaningful RED, parallel reusable implementation, focused scenario/accounting GREEN, screen check, read-only preview and coherent commit. Full regressions are batched at integration checkpoints or run by CI.",
+                         "fixtures":  "Owned fictional temporary stores/servers only:4778 HTTP and4779 browser. No protected service, preview writes or native actions.",
+                         "resourcePolicy":  "One coordinated local test lane; relevant unit checks precede owned browser scenarios. No per-field local full suite is claimed.",
+                         "cases":  [
+                                       "Canonical digit-string validation and legacy unrecorded reads",
+                                       "Posted/unposted code-only edits without financial effects",
+                                       "Old-client omitted-code preservation and raw-mobile independence",
+                                       "Stale revisions, invalid stored fields and unknown-setting guards",
+                                       "Strict version1/version2 migration and version3 exact roundtrip/source isolation",
+                                       "Currency-aware version3 restore and old-server file preflight",
+                                       "Inactive target, canonical saved binding, picker keys and320/390 geometry"
+                                   ]
+                     }
+}

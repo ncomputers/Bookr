@@ -8,6 +8,13 @@ Agents (Codex, Claude, etc.) must follow these rules for every change.
 This is an active development prototype, not a production-release exercise.
 Deliver complete working workflows quickly, then improve them in useful steps.
 
+For the remaining Company layer, implement the remaining fields and features as
+one development batch, not one field per commit. While coding, run only the
+current feature's relevant test files. Run the full `npm test` and then
+`npm run test:browser` serially once at the very end of the completed batch,
+before its commit. Do not start a full run after each component. Fix failures
+with targeted checks and repeat broader checks only when the fix requires it.
+
 - Group related fields, screens and behavior into one coherent workflow. Do not
   make every small field a separate release with a complete regression cycle.
 - Study the actual reference workflow first, then reproduce its observed entry,

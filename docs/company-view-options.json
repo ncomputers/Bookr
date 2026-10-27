@@ -1,0 +1,43 @@
+{
+  "application": "Bookr",
+  "feature": "Company display options and honest feature status",
+  "status": "Implemented; final Company batch verification complete within the supported scope",
+  "study": {
+    "facts": "../rea-tools/company-settings-batch-observation-20261028.json",
+    "sha256": "1af6a426685416d52c567954f762d9c43396dab3f2649c91d8c27f99b4004530",
+    "framesViewed": [
+      5,
+      12,
+      15,
+      18,
+      25
+    ],
+    "observed": "Company F12 shows contact visibility Yes and additional currency presentation No; applying presentation exposes currency fields without saving the company. Features More/All expand displayed sections. Shown native Inventory Yes, spacing Yes and security flags do not establish implemented Bookr engines or arithmetic.",
+    "limits": "No native feature effect, security configuration, precision change, amount-in-words or currency arithmetic was studied. No native visual or shortcut equivalence claim."
+  },
+  "originalBrowserContract": {
+    "scope": "F12 on a Company form edits local display preferences for that target in this browser. Existing saved company UUID and creation view have separate keys. These are not company data or backup flags.",
+    "defaults": {
+      "show_contacts": true,
+      "show_currency_details": false
+    },
+    "contacts": "Hide/show Telephone, independent calling code plus raw Mobile, Fax, Email and Website without clearing, disabling or rewriting their values. Hidden fields are skipped by ordinary visible-field Enter/Shift+Tab navigation.",
+    "currency": "Expose read-only descriptions of actual Bookr formatting: two decimals, en-IN grouping, prefix symbol without space, current profile/draft symbol/name. No precision, words, suffix, spacing or millions switches.",
+    "dialog": "Use shared field dialog: Enter next, Ctrl+A apply preferences, Escape/Back cancel with draft/focus restored. F12 never invokes company POST/PUT. Preserve nested Country query and accepted metadata through opening, cancellation and application.",
+    "features": "F11 and a Company-menu command open grouped Available in Bookr and Unavailable status. Accounts and bill tracking already exist. Inventory, tax, payroll, cost centres, interest, remote access and security are unavailable; no writable flags or fake passwords. More/All change presentation only. Escape/Close works by keyboard.",
+    "security": "Access control, encryption and edit log remain read-only unavailable until their layer. No input can imply backend protection.",
+    "lifecycle": "Reuse form controls and saved-profile binding; dispose added listeners and dialogs on leave. Preserve company form draft and current loaded company context. Create still saves/opens normally without a mandatory feature interstitial."
+  },
+  "accountingEffect": "None. Exact saved profiles/revisions, raw mobile/calling code, dates, currency, accounting tables and 60000-paise outstanding remain unchanged by F12 or Features.",
+  "validation": "Prospective RED and focused GREEN before integration; final serial unit/browser checkpoint and GET-only preview inspection completed. Recovery details are recorded in docs/company-layer.json.",
+  "focusedResult": {
+    "units": "6/6 pass; RED failed one missing-module file with6blocked cases, not6executed failures.",
+    "browser": "4/4 scenarios pass on first implementation attempt. F12 configuration causes no company writes; only separate ordinary creation posts once.",
+    "proof": "evidence/web/company-view/20261028051220834/green.json",
+    "proofSha256": "276356d3a48b4807d625dcdb91f1e8635fd36e8fc636e17539eee7a873aa28f4",
+    "screens": "Three API-bound captures manually viewed individually: desktop display-options dialog,390/320 actual fixed currency description with hidden contacts and draft US$/Fictional Dollars. No native pixel-equality claim.",
+    "preservation": "Pending Country query, unsaved form, exact padded Mobile/code, saved profiles/revisions, dates/currency, accounting tables,loaded session and60000paise outstanding retained.",
+    "remaining": "None within this feature scope; supported-scope limits and later-module dependencies remain in docs/company-layer.json."
+  },
+  "finalCheckpoint": "Final Company checkpoint: 527/527 unit tests, all61browser scripts passed cumulatively after a focused tab-focus correction and daemon resume; GET-only preview check passed. Initial full-command timeout is preserved and is not described as a clean original command pass. See docs/company-layer.json."
+}

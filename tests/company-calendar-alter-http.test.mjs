@@ -33,11 +33,11 @@ test('HTTP advertises date alteration and reads only the explicit target policy 
  await f.json(policyPath(f.target.id)+'?editable=true',{status:400});await f.json(policyPath(f.target.id),{method:'POST',data:{},status:405});await f.json(policyPath('invalid'),{status:400});await f.json(policyPath('f'.repeat(32)),{status:404});assert.deepEqual(f.snapshot(),before);
 }));
 
-test('HTTP alters empty named and default dates, retains600 and round-trips version2 through restart',async()=>fixture(async f=>{
+test('HTTP alters empty named and default dates, retains600 and round-trips version3 through restart',async()=>fixture(async f=>{
  const before=f.snapshot(),saved=await put(f,f.target,changedCalendar);assert.deepEqual(calendarOf(saved),changedCalendar);assert.equal(saved.revision,2);assert.equal((await f.json(policyPath(saved.id))).revision,2);
  assert.deepEqual((await f.json('/api/state',{id:saved.id})).calendar,changedCalendar);assert.deepEqual((await f.json('/api/companies/'+saved.id+'/summary')).calendar,changedCalendar);assert.deepEqual(f.snapshot().books,before.books);
  const currentDefault=await f.json('/api/companies/default'),newDefault=await put(f,currentDefault,{financial_year_from:'2025-04-01'});assert.deepEqual(calendarOf(newDefault),{financial_year_from:'2025-04-01',books_from:'2025-04-01',financial_year_to:'2026-03-31'});assert.deepEqual(f.snapshot().books,before.books);
- const bundle=await f.json('/api/companies/'+saved.id+'/backup');assert.equal(bundle.version,2);assert.deepEqual(calendarOf(bundle.company),changedCalendar);
+ const bundle=await f.json('/api/companies/'+saved.id+'/backup');assert.equal(bundle.version,3);assert.deepEqual(calendarOf(bundle.company),changedCalendar);
  const restored=await f.json('/api/companies/restore',{method:'POST',status:201,data:{name:'Fictional Calendar HTTP Restored',bundle}});assert.notEqual(restored.id,saved.id);assert.deepEqual(calendarOf(restored),changedCalendar);
  const persisted=await f.json('/api/companies/'+saved.id);await f.restart();assert.deepEqual(await f.json('/api/companies/'+saved.id),persisted);assert.deepEqual((await f.json('/api/state',{id:saved.id})).calendar,changedCalendar);assert.equal((await f.json('/api/outstanding',{id:f.comparison.id})).totals.pending,60000);assert.deepEqual(f.snapshot().books,before.books);
 }));

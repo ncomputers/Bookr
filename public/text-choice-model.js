@@ -1,16 +1,14 @@
-// Pure suggestions and observed input actions for an existing optional text
-// field. Geographic validation and company confirmation belong to callers.
-export function buildTextChoices({values,alwaysVisible=[],opening='',query=null,entered=query??opening}){
- const catalog=[...new Set(values)],pinned=new Set(alwaysVisible),all=catalog.map(value=>({value,typed:false}));
- if(opening&&!catalog.includes(opening)){
-  const first=all.findIndex(row=>!pinned.has(row.value));
-  all.splice(first<0?all.length:first,0,{value:opening,typed:false});
- }
- const needle=(query??'').trim().toLocaleLowerCase(),matches=needle?all.filter(row=>row.value.toLocaleLowerCase().includes(needle)):all;
- const rows=needle?[...all.filter(row=>pinned.has(row.value)),...matches.filter(row=>!pinned.has(row.value))]:all;
- if(needle&&!matches.length)rows.push({value:entered,typed:true});
- const substantive=rows.findIndex(row=>!pinned.has(row.value)&&catalog.includes(row.value)&&matches.some(match=>match.value===row.value));
- const preferred=query===null?rows.findIndex(row=>row.value===opening):needle?(substantive>=0?substantive:rows.findIndex(row=>row.typed||!pinned.has(row.value)&&matches.some(match=>match.value===row.value))):-1;
+// Catalog projection never adds typed or saved text to the available options.
+// Raw draft preservation and metadata validation remain separate from selection.
+export function filterCatalogRows(rows,query,label=row=>row.value??row.name??row){
+ const needle=(query??'').trim().toLocaleLowerCase();
+ return rows.filter(row=>!needle||String(label(row)).toLocaleLowerCase().includes(needle));
+}
+
+export function buildTextChoices({values,opening='',query=null}){
+ const catalog=[...new Set(values)].map(value=>({value,typed:false}));
+ const rows=filterCatalogRows(catalog,query,row=>row.value);
+ const preferred=query===null?rows.findIndex(row=>row.value===opening):-1;
  return {rows,index:rows.length?Math.max(0,preferred):-1};
 }
 
@@ -19,7 +17,8 @@ export function moveHighlight({index,delta,count}){
 }
 
 export function chooseDraftValue({entered,open,row,wholeForm=false}){
- return open&&row&&!(wholeForm&&!entered.trim())?row.value:entered;
+ if(wholeForm)return entered;
+ return open&&row?row.value:entered;
 }
 
 export function nextCompanyAddressField({state,country}){

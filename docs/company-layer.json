@@ -1,7 +1,8 @@
 {
   "application": "Bookr",
-  "complete": false,
-  "priority": "Finish company management before expanding other accounting layers.",
+  "complete": true,
+  "currentScope": "Local company creation, alteration, selection, dates, address/contact entry, base-currency labels, portable backup and supported setup controls. Completion of this layer does not implement the accounting or security engines listed as later-module dependencies.",
+  "priority": "Supported local Company management is complete. Continue with the Masters layer; retain the explicit limits and later-module dependencies below.",
   "implemented": [
     "Create separate company books and load, change or shut companies within each browser tab",
     "Alter identity, mailing and five contact fields with revision checks",
@@ -21,15 +22,26 @@
     "Reopen with a bounded last-entry date model while retaining each company period",
     "Retry opening a successfully saved company or restore without publishing it twice",
     "Home shows pending requests and retains existing draft confirmation when work finishes",
-    "India State suggestions share keyboard selection and discard behavior, preserve free text and save/reopen without changing accounting rows",
+    "India State and UK Region suggestions share keyboard selection, nested genuine Country choices, cancellation and save/reopen while preserving free text and every accounting row",
     "Reject reserved identity and revision fields in stored metadata before exposing company identities or publishing edits, without dropping unknown settings",
     "Alter saved financial-year and Books dates before financial records exist, with two shared confirmations, atomic eligibility checks, cache refresh and unchanged loaded working context",
-    "Configure company currency symbol and formal name on empty financial books, retain labels across entry/reports and strict portable backups, and reject stale monetary draft labels without changing amounts"
+    "Configure company currency symbol and formal name on empty financial books, retain labels across entry/reports and strict portable backups, and reject stale monetary draft labels without changing amounts",
+    "Edit an independent mobile calling code on posted or empty companies, preserve raw mobile text and country, and retain strict legacy backups alongside version3 exports",
+    "Create genuine country and country-associated state suggestions in a separate installation-wide catalog; cancel, retry and restart without posting entries or implicitly saving the company",
+    "Use Company F12 browser-local display preferences without clearing hidden contact fields or changing company data; describe the actual fixed currency format",
+    "Use F11 or Company Features to inspect supported and unavailable capabilities with More/All presentation controls, without storing nonfunctional feature flags"
   ],
-  "remaining": [
+  "remaining": [],
+  "verification": {
+    "unitTests": "npm test: 527 passed, zero failures or skips.",
+    "browserCoverage": "All 61 browser scripts passed across the final checkpoint and focused recovery. The first full command stopped at script45 after44 passes; its second-tab timeout did not reproduce alone. Explicit tab focus was added to two browser-test helpers, preserving assertions and timeouts. Script45 passed focused verification, scripts46-47 passed, and scripts48-61 passed after resuming a daemon interruption. No entire-chain rerun or product changes followed the unit pass.",
+    "accounting": "Balanced saved/reopened postings and the 60000-paise outstanding example pass; Company setup preserves financial records.",
+    "preview": "Fictional port4780 refreshed after fresh preservation. GET-only entry, F12, F11, genuine no-match list and keyboard discard checks passed with unchanged saved data and four inspected API-bound screenshots. Protected4315 untouched. No native pixel-equivalence claim."
+  },
+  "supportedScopeLimits": [
     {
       "area": "Company calendar",
-      "status": "Creation, working date, period and empty-book saved-date alteration work; changing dates after financial records exist is unsupported"
+      "status": "Creation, working date, period and empty-book saved-date alteration work; changing dates after financial records exist is rejected"
     },
     {
       "area": "Historical opening bills",
@@ -37,7 +49,7 @@
     },
     {
       "area": "State and country selection",
-      "status": "India State suggestions work with Enter/Tab, bounded arrows and clear-then-exit Escape; country suggestions remain"
+      "status": "India States, four UK Regions, 31 compact Country suggestions plus Not Applicable and explicitly created masters work with independent query, Back/Escape and raw metadata preservation. Catalog scope and creation validation are original Bookr choices; native geographic-master persistence and expanded global discovery remain unverified."
     },
     {
       "area": "Base currency",
@@ -46,10 +58,20 @@
     {
       "area": "Company backup and restore",
       "status": "Portable whole-company download and restore-as-new work; merging and before-Books legacy voucher-policy transfer are unsupported"
+    }
+  ],
+  "deferredModuleDependencies": [
+    {
+      "area": "Additional accounting and inventory features",
+      "status": "Unimplemented: cost centres and advanced masters belong to layer 2, tax to layer 4 and stock, batches and inventory integration to layer 5. Availability display does not enable these engines."
     },
     {
-      "area": "Company features and access controls",
-      "status": "Not implemented"
+      "area": "Company access controls",
+      "status": "Unimplemented: users, permissions, audit and encryption belong to layer 8. No passwords or security flags are stored as substitutes for these functions."
+    },
+    {
+      "area": "Other services",
+      "status": "Unimplemented: payroll, remote access and hosted report services. These are not required to operate local supported company books."
     }
   ],
   "evidencePolicy": "Observed behavior, original web conventions and unverified rules are distinguished. Planned features are not counted as completed."

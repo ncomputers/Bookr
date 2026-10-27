@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {NEW_COMPANY_MOBILE_CALLING_CODE,normalizeMobileCallingCode,companyMobileCallingCode,MobileCodeError} from '../public/company-mobile-code.js';
+
+test('UI creation has an explicit91 constant while a missing saved field remains unrecorded',()=>{assert.equal(NEW_COMPANY_MOBILE_CALLING_CODE,'91');const profile=Object.freeze({country:'India',mobile:'+91 Fictional'});assert.equal(companyMobileCallingCode(profile),'');assert.equal(Object.hasOwn(profile,'mobile_calling_code'),false);});
+test('API normalization preserves leading zeros and bounded free digits without a country catalog guess',()=>{for(const [value,expected]of [[' 0044 ','0044'],['',''],['  ',''],['4','4'],['00000000','00000000']])assert.equal(normalizeMobileCallingCode(value),expected);});
+test('Calling-code software validation rejects types, plus signs, controls and unsupported digit lengths',()=>{for(const value of [undefined,null,44,{},[],true,'+44','44 UK','4 4','1e3','123456789','44\n','\t44','４４'])assert.throws(()=>normalizeMobileCallingCode(value),error=>error instanceof MobileCodeError&&error.status===400);});
+test('Stored codes must already be canonical and never silently repair padding or wrong types',()=>{for(const value of [' 44 ','+44',44,null,'44\n'])assert.throws(()=>companyMobileCallingCode({mobile_calling_code:value}),MobileCodeError);for(const value of ['', '0044'])assert.equal(companyMobileCallingCode({mobile_calling_code:value}),value);});
+test('Reading an independent code never parses mobile or maps country and leaves frozen input untouched',()=>{const profile=Object.freeze({mobile_calling_code:'44',country:'India',mobile:'  raw +91 (retain)  '});assert.equal(companyMobileCallingCode(profile),'44');assert.equal(profile.mobile,'  raw +91 (retain)  ');assert.equal(companyMobileCallingCode({...profile,country:'United Kingdom'}),'44');});
+test('A malformed profile cannot masquerade as legacy missing metadata',()=>{for(const profile of [null,undefined,[],44])assert.throws(()=>companyMobileCallingCode(profile),MobileCodeError);});

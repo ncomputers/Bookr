@@ -1,13 +1,15 @@
 // Keyboard-first list attached to an existing select. The select remains the
 // committed form value; filtering/highlighting never silently changes it.
-export function createListPicker({host,select,id,title,onAccepted,onAcceptAll,searchLabel='Search',acceptControl=null,itemLabel='group',extraValues=[]}){
+import {filterCatalogRows,moveHighlight,escapeTextChoice} from './text-choice-model.js';
+
+export function createListPicker({host,select,id,title='List of Items',onAccepted,onAcceptAll,searchLabel='Search',acceptControl=null,itemLabel='group',extraValues=[]}){
   const panel=document.createElement('aside');panel.id=id+'-picker';panel.className='list-picker';panel.hidden=true;
   panel.setAttribute('aria-label',title);
   const heading=document.createElement('h2');heading.textContent=title;heading.id=id+'-heading';
   const search=document.createElement('input');search.id=id+'-search';search.type='text';search.autocomplete='off';search.spellcheck=false;search.setAttribute('aria-label',searchLabel);search.setAttribute('role','combobox');search.setAttribute('aria-autocomplete','list');
   const options=document.createElement('div');options.id=id+'-options';options.className='list-picker-options';options.setAttribute('role','listbox');options.setAttribute('aria-labelledby',heading.id);
   const error=document.createElement('p');error.id=id+'-error';error.className='list-picker-error';error.setAttribute('role','alert');
-  const footer=document.createElement('p');footer.className='list-picker-footer';footer.textContent='Enter: select · Esc: back';
+  const footer=document.createElement('p');footer.className='list-picker-footer';footer.textContent='Enter / Tab: select · Esc: clear / back';
   panel.append(heading,search,options,error,footer);host.append(panel);
   const extra=new Set(extraValues.map(String));let expanded=extra.has(select.value);
   const more=extra.size?document.createElement('button'):null;
@@ -18,21 +20,21 @@ export function createListPicker({host,select,id,title,onAccepted,onAcceptAll,se
   const all=()=>[...select.options].filter(option=>!option.disabled).map(option=>({value:option.value,name:option.textContent})).sort((a,b)=>a.name.localeCompare(b.name));
   const isOpen=()=>!panel.hidden;
   function highlight(next){
+    index=moveHighlight({index:next,delta:0,count:rows.length});
     if(!rows.length){for(const field of [select,search])field.removeAttribute('aria-activedescendant');return;}
-    index=(next+rows.length)%rows.length;
     for(const [i,button] of [...options.querySelectorAll('[role="option"]')].entries()){
       button.classList.toggle('selected',i===index);button.setAttribute('aria-selected',String(i===index));
       if(i===index){for(const field of [select,search])field.setAttribute('aria-activedescendant',button.id);button.scrollIntoView({block:'nearest'});}
     }
   }
   function filter(current=false){
-    const query=search.value.trim().toLocaleLowerCase();rows=all().filter(row=>(expanded || query || !extra.has(row.value)) && row.name.toLocaleLowerCase().includes(query));options.replaceChildren();error.textContent='';
+    const query=search.value.trim();rows=filterCatalogRows(all().filter(row=>expanded || query || !extra.has(row.value)),query,row=>row.name);options.replaceChildren();error.textContent='';
     if(more){more.textContent=expanded?'Show Less':'Show More';more.setAttribute('aria-expanded',String(expanded));}
     for(const [i,row] of rows.entries()){
       const button=document.createElement('button');button.type='button';button.id=id+'-option-'+row.value;button.dataset.value=row.value;button.textContent=row.name;button.setAttribute('role','option');button.tabIndex=-1;
       button.addEventListener('pointerdown',event=>event.preventDefault());button.onclick=()=>{index=i;accept();};options.append(button);
     }
-    if(!rows.length){const empty=document.createElement('p');empty.className='list-picker-empty';empty.textContent='No matching '+itemLabel+'s';options.append(empty);}
+    if(!rows.length){const empty=document.createElement('p');empty.className='list-picker-empty';empty.textContent='No matches';options.append(empty);}
     index=current?Math.max(0,rows.findIndex(row=>row.value===select.value)):0;highlight(index);
   }
   function show(){
@@ -68,11 +70,16 @@ export function createListPicker({host,select,id,title,onAccepted,onAcceptAll,se
       if(event.target===search){if(!rows.length)error.textContent='Select a matching '+itemLabel+'.';return true;}
       event.preventDefault();if(accept())onAcceptAll?.();return true;
     }
-    if(event.key==='Escape' && isOpen()){event.preventDefault();event.stopPropagation();close(true);return true;}
+    if(event.key==='Escape' && isOpen()){
+      event.preventDefault();event.stopPropagation();
+      if(escapeTextChoice({open:true,entered:search.value})==='clear'){search.value='';search.removeAttribute('aria-invalid');filter();search.focus();}
+      else close(true);return true;
+    }
     if(event.key==='Tab' && isOpen()){
       if(event.shiftKey){close();return false;}
       event.preventDefault();event.stopPropagation();accept();return true;
     }
+    if(event.target===search && event.shiftKey && ['ArrowDown','ArrowUp','Home','End'].includes(event.key))return false;
     if(['Enter','ArrowDown','ArrowUp','Home','End'].includes(event.key)){
       event.preventDefault();event.stopPropagation();show();
       if(event.key==='Enter')accept();else highlight(event.key==='Home'?0:event.key==='End'?rows.length-1:index+(event.key==='ArrowDown'?1:-1));return true;

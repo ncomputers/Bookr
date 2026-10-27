@@ -9,6 +9,8 @@ import {currentPeriodHeader,normalizeCurrentPeriod} from './lib/company-period.m
 import {exportCompanyBundle,restoreCompanyBundle} from './lib/company-backup.mjs';
 import {CurrencyError,normalizeCurrencyPatch} from './public/company-currency.js';
 import {requireCurrencyAwareness} from './lib/company-currency-protocol.mjs';
+import {MobileCodeError} from './public/company-mobile-code.js';
+import {GeographyStore,GeographyError} from './lib/company-geography.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4315);
@@ -24,8 +26,9 @@ const dbPath = resolve(process.env.BOOKR_DB || resolve(root, 'storage/book.sqlit
 const previewLabel=String(process.env.BOOKR_PREVIEW_LABEL || '').trim().slice(0,24);
 await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
+const geography=new GeographyStore(dbPath+'.locations.json');
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
-const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true});
+const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true,company_mobile_calling_code:true,company_backup_v3:true,company_geography_masters:true});
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
 const body = async (req,limit=16384) => {
   if(Number(req.headers['content-length'])>limit){req.resume();throw new BookError('Request is too large.',413);}
@@ -56,6 +59,12 @@ const handler = async (req, res) => {
         if(url.search)throw new BookError('Capabilities do not accept query overrides.');
         return send(res,200,{capabilities});
       }
+      if(['/api/geography','/api/geography/countries','/api/geography/states'].includes(url.pathname)){
+        if(url.search)throw new BookError('Address suggestions do not accept query overrides.');
+        if(url.pathname==='/api/geography'){if(req.method!=='GET')throw new BookError('Method not supported.',405);return send(res,200,geography.list());}
+        if(req.method!=='POST')throw new BookError('Method not supported.',405);
+        const input=await body(req);return send(res,201,url.pathname.endsWith('/countries')?geography.createCountry(input):geography.createState(input));
+      }
       const calendarPolicyMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/calendar-editability$/);
       if(calendarPolicyMatch){
         if(req.method!=='GET')throw new BookError('Method not supported.',405);
@@ -78,7 +87,7 @@ const handler = async (req, res) => {
         if(url.search)throw new BookError('Company restore does not accept query overrides.');
         const input=await body(req,25*1024*1024+4096);
         if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==2||!Object.hasOwn(input,'name')||!Object.hasOwn(input,'bundle'))throw new BookError('Restore requires only a new company name and a portable bundle.');
-        if(input.bundle?.version===2)requireCurrencyAwareness(req.headers,input.bundle.company);
+        if(input.bundle?.version>=2)requireCurrencyAwareness(req.headers,input.bundle.company);
         return send(res,201,restoreCompanyBundle(companies,input.bundle,{name:input.name}));
       }
       if(req.method==='GET' && url.pathname==='/api/companies')return send(res,200,{companies:companies.list(),default_company_id:'default'});
@@ -140,7 +149,7 @@ const handler = async (req, res) => {
     if (!path.startsWith(publicRoot + sep)) throw new BookError('Not found.',404);
     const content = await readFile(path).catch(() => { throw new BookError('Not found.',404); });
     res.writeHead(200, { 'Content-Type':types[extname(path)] || 'application/octet-stream', 'Cache-Control':'no-cache' }); res.end(content);
-  } catch (error) { const known=error instanceof BookError||error instanceof CurrencyError;send(res,known?error.status:500,{error:known?error.message:'Unable to complete this request.'}); }
+  } catch (error) { const known=error instanceof BookError||error instanceof CurrencyError||error instanceof MobileCodeError||error instanceof GeographyError;send(res,known?error.status:500,{error:known?error.message:'Unable to complete this request.'}); }
 };
 const servers = addresses.map(address => {
   const server = http.createServer(handler);

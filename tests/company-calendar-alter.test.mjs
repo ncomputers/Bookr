@@ -96,8 +96,8 @@ test('A missing cold target file fails without creating a replacement or changin
  assert.equal(typeof f.store.calendarEditability,'function','Implement the policy read before using it.');assert.throws(()=>f.store.calendarEditability(f.target.id),error=>error.status===404);assert.throws(()=>calendarUpdate(f.store,f.target),error=>error.status===404);assert.deepEqual(rowsFrom(f.store.catalog),catalog);assert.equal(f.store.books.has(f.target.id),false);assert.equal(existsSync(file),false);
 }));
 
-test('Changed dates round-trip through portable version2 without rewriting master or financial records',()=>fixture(f=>{
- const before=f.snapshot(),saved=calendarUpdate(f.store,f.target),bundle=exportCompanyBundle(f.store,f.target.id);assert.equal(bundle.version,2);assert.deepEqual(calendarOf(bundle.company),changedCalendar);
+test('Changed dates round-trip through portable version3 without rewriting master or financial records',()=>fixture(f=>{
+ const before=f.snapshot(),saved=calendarUpdate(f.store,f.target),bundle=exportCompanyBundle(f.store,f.target.id);assert.equal(bundle.version,3);assert.deepEqual(calendarOf(bundle.company),changedCalendar);
  const restored=restoreCompanyBundle(f.store,bundle,{name:'Fictional Calendar Alter Restored'});assert.notEqual(restored.id,saved.id);assert.deepEqual(calendarOf(restored),changedCalendar);assert.deepEqual(rowsFrom(f.store.book(restored.id).db),before.books[f.target.id]);assert.deepEqual(f.store.profile(saved.id),saved);assert.equal(f.store.book(f.comparison.id).outstandingReport().totals.pending,60000);
 }));
 

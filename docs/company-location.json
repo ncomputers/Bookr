@@ -1,0 +1,72 @@
+{
+  "application": "Bookr",
+  "status": "Implemented; final Company batch verification complete within the supported scope",
+  "prerequisite": "Part of the remaining Company batch. Stage rebased from actual working source with integrated Phone and genuine shared-list behavior; preserve that current upstream on integration.",
+  "basis": {
+    "facts": "bookr-company-country-region-observation-20261027.json",
+    "sha256": "2d15aa36d8b29391ecd749a4a34af4a8606f01365923abb84dab7753894b54d7",
+    "review": "Root and an independent reviewer viewed original fictional Region, compact Country, search, Escape, acceptance and preserved-profile frames.",
+    "catalog": "Use only the31 observed compact countries plus Not Applicable, the four observed UK regions plus Not Applicable, and Bookr's existing India State suggestions. These are suggestions, never exclusive geographic validation."
+  },
+  "storage": {
+    "fields": "Reuse existing company state and country strings. No geographic-master database, tax defaults, country-code mapping, money conversion or accounting-schema change.",
+    "aliases": "Recognize UK and United Kingdom for the limited Region suggestions as an explicit original compatibility convention; never silently rename saved country text.",
+    "unknownValues": "Preserve custom and existing text; ordinary metadata validation remains. Broader cross-country discovery is unsupported rather than inferred.",
+    "preservation": "Target UUID/revision owns the form independently of active books. Preserve the independent calling code, raw mobile, currency, dates and every accounting row."
+  },
+  "region": {
+    "label": "India retains State; UK and the explicit compatibility alias use Region. On master-enabled servers other countries use genuine catalog suggestions, initially Not Applicable plus explicitly created entries; no-match Enter/Tab stays and whole-form save preserves raw metadata. Older servers retain plain free-text navigation outside the static India/UK catalogs. This expansion is an original Bookr app catalog choice, not native global parity.",
+    "knownChoice": "Observed England Enter closes the Region picker and advances to Pincode.",
+    "existingEscape": "Retain the observed clear-then-Company-exit State/Region behavior; No preserves the blank draft.",
+    "catalogLimit": "Native search for land displayed a broad mixed region/country list. Do not claim that four UK suggestions reproduce that discovery or restrict valid saved text."
+  },
+  "nestedCountry": {
+    "entry": "A reusable Region/State picker action opens Country suggestions. Keep Country-search text separate from accepted metadata, even if the visible Region input is reused for the search.",
+    "opening": "Observed Change Country clears the visible Region draft and begins a blank Country query while retaining the accepted country.",
+    "nonemptyEscape": "Clear the Country query and retain the Country picker.",
+    "emptyEscapeAndBack": "Return to Region, retain the accepted country and leave the Region draft blank. Do not request Company exit or restore the old Region draft.",
+    "knownAcceptance": "Observed exact UK acceptance retains Country UK and returns to a blank Region picker with Not Applicable highlighted.",
+    "otherAcceptance": "Other genuine compact selections use an explicit original Bookr reset-to-blank Region convention. No synthetic unknown option, geographic master creation or broad global discovery is implemented.",
+    "saveBoundary": "Pending Country search must never be serialized as State or Country. An original Bookr guard may require explicit choice or Back before whole-form save.",
+    "directField": "Existing direct Country free-text access remains an original Bookr web convention and must be distinguished from the observed nested reference flow."
+  },
+  "reuse": {
+    "picker": "Extend the shared text picker with caller-defined empty-Escape/back handling and typed captions; reuse the value/label facilities introduced for calling codes.",
+    "lifecycle": "Dispose picker listeners/observers on every screen change; preserve pending mode/query across a shared discard No without treating the search as metadata.",
+    "policySync": "Country choice must update the region label/catalog and focus through one synchronization path. Handle explicit choice/change and whole-form submission consistently; the existing input-only listener is insufficient."
+  },
+  "unverified": [
+    "Expanded Country catalog completeness and Show More persistence",
+    "Broad mixed region/country discovery and geographic master creation",
+    "Country Tab and action-row arrow traversal; document any original web conventions",
+    "Posted PageDown caused an unexplained Quit dialog in the transport study; never implement this as a normal reference shortcut",
+    "Automatic phone, currency, tax or company-feature rules"
+  ],
+  "requiredTdd": [
+    "This prospective Spec and pure/model plus owned-browser RED precede feature code.",
+    "Nested query never becomes metadata; nonempty/empty Escape, Back and known selection have distinct effects.",
+    "Discard No retains mode/query; full discard/reopen retains saved company.",
+    "Unknown text and UK compatibility alias preserve original stored strings.",
+    "Inactive target versus active books, canonical save/retry and readonly preview preservation.",
+    "Calling code, exact raw mobile, currency, dates, all accounting rows and60000outstanding remain exact.",
+    "Focused pure/model then owned-browser verification with API-bound desktop/390/320 captures; full regressions batched at checkpoints under latest user instruction."
+  ],
+  "originalInteractionDecisions": {
+    "queryControl": "A separate nested Country query input never occupies the serialized State or Country fields.",
+    "pendingSave": "Ctrl+A or Accept while nested Country is open requires explicit selection or Back and performs no write.",
+    "otherCountrySelection": "Explicit genuine compact Country selection blanks Region and returns its available suggestions; this bounded original behavior extends observed current-UK acceptance. Unknown Country text remains available only through the direct field, never a synthetic picker choice.",
+    "keyboardActions": "Change Country and Back are command buttons outside the genuine option list. Alt+Down focuses list actions, then Enter activates; Shift+Tab from nested search returns Region. These original web conventions keep ordinary option arrows clamped and do not claim native action traversal parity.",
+    "directCountry": "Direct Country free text remains available and updates Region label/catalog without rewriting country, calling code, raw mobile, currency or dates.",
+    "address": "Reuse existing multiline Address entry and Pincode focus flow; no new mailing database fields."
+  },
+  "verificationResult": {
+    "pureUnits": "8/8 pass; initial and expanded-before-code RED each failed one missing-module file, with 8 cases blocked, not 8 executed failures.",
+    "browser": "5/5 current feature scenarios pass; 5 fictional company metadata/create writes, no voucher writes, blocked requests or page errors.",
+    "proof": "evidence/web/company-location/20261028044745649/green.json",
+    "screens": "Three API-bound desktop390320 captures; final screenshot bytes compared to individually viewed images. Desktop includes Region England, Country UK, independent44/raw Mobile and GBP. Compact captures bind visible Country query/title/genuine UK row and saved API state, rather than occluded fields.",
+    "preservation": "All original fixture financial tables,60000paise outstanding, currency, dates, exact padded raw Mobile, independent code and unrelated company/session context retained.",
+    "regressions": "Current-feature RED reproduced stale pending-save message after resolved Country choice and plain free-text Enter interception outside known regional catalogs; both minimal fixes pass.",
+    "fullCheckpoint": "Final Company checkpoint: 527/527 unit tests, all61browser scripts passed cumulatively after a focused tab-focus correction and daemon resume; GET-only preview check passed. Initial full-command timeout is preserved and is not described as a clean original command pass. See docs/company-layer.json."
+  },
+  "finalCheckpoint": "Final Company checkpoint: 527/527 unit tests, all61browser scripts passed cumulatively after a focused tab-focus correction and daemon resume; GET-only preview check passed. Initial full-command timeout is preserved and is not described as a clean original command pass. See docs/company-layer.json."
+}

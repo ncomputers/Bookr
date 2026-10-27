@@ -2,7 +2,9 @@
 
 Bookr is an open-source, standalone accounting web application built with original application code. It uses Node.js, SQLite and a keyboard-oriented browser interface.
 
-The application is a working prototype. Development currently focuses on completing the company layer before expanding the remaining accounting modules.
+The application is a working prototype. Its supported local Company-management
+workflow is complete; development proceeds to groups and ledger masters.
+The limits and unfinished modules listed below remain explicit.
 
 ## Run locally
 
@@ -20,7 +22,11 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 ## Current features
 
 - Create companies and edit any loaded company's mailing and contact details.
-- Choose India State suggestions with the keyboard while preserving existing free-text values.
+- Edit a separate mobile calling code without changing the number or country.
+- Choose India States, UK Regions and a bounded list of countries with the keyboard while preserving existing free-text values.
+- Create reusable country and state suggestions without posting accounting entries.
+- Use F12 in Company entry to hide contact fields or show the fixed currency format on this browser.
+- Use F11 or the Company menu to see available and unfinished Bookr features.
 - Load, change and shut companies independently in each browser tab.
 - Revision checks, separate company books and missing-database protection.
 - Reject conflicting stored company IDs or revisions without rewriting saved settings or books.
@@ -40,10 +46,29 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 In company addresses, Enter starts another line; Enter on an empty final line
 moves to State. Shift+Enter inserts a newline without leaving the address.
 
-For India companies, typing in State filters suggestions. Enter or Tab accepts
+For India companies, typing in State filters genuine catalog entries. Unmatched searches show No matches; Enter or Tab stays in the field until a genuine row is available. Enter or Tab accepts
 the highlighted choice. Escape clears a search; another Escape requests exit.
 Choosing No keeps the blank draft. Shift+Arrow keys retain normal text selection.
-Other countries keep free-text State entry.
+UK and United Kingdom use Region with the observed four UK suggestions. With
+address-master support, other countries initially offer Not Applicable and any
+explicitly created states. Unmatched Enter or Tab stays in the search. Existing
+unknown metadata remains in its field and whole-form saving can preserve it
+without adding a list option. Older servers retain plain State entry for
+countries without a regional catalog. Group and Ledger
+pickers share genuine filtering, clamped arrows and clear-then-close Escape.
+
+The State or Region list's Change Country command opens a separate country
+search with 31 observed country suggestions plus Not Applicable. Alt+Down
+focuses list commands; Enter activates them. A Country-search Escape clears its
+query; another Escape or Back returns to a blank State/Region without changing
+the accepted country. Choose a country or go back before saving. Direct Country
+text entry remains available. Phone codes, currency and dates never follow
+country automatically. Create country and Create state actions open a shared
+one-name dialog. Creating an address suggestion updates the draft; save the
+company separately to retain that mailing choice. Suggestions belong to this
+installation and remain available after restart. This catalog scope and its
+validation are original Bookr choices. Expanded global discovery remains
+unverified.
 
 Amounts use integer paise. A credit sale of ₹1,000 followed by a ₹400 receipt leaves ₹600 outstanding.
 
@@ -57,7 +82,18 @@ Company alteration opens a selector of loaded companies. Editing another company
 
 Currency labels belong to each company and follow its entry screens, reports and backups. Label changes require empty financial tables; ordinary contact edits can retain unchanged labels on posted books. Amounts keep Bookr's existing integer-paise storage, 100 units per displayed whole amount, two decimal places and en-IN grouping. Labels do not convert amounts. Fixed cash denominations are available only for the default rupee/INR labels. Unsaved monetary drafts retain their original labels and reject a save if another tab changes them; reopen the entry against the refreshed company before continuing.
 
-Company Data (Alt+Y) downloads an original Bookr version 2 JSON backup covering all saved dates and currency labels. Strict version 1 imports retain their original checksum verification before receiving legacy rupee/INR defaults. Restore requires a new company name and preserves saved identities, revisions, postings and bill allocations. It never merges into an existing company. Backups support up to 25 MB and 200,000 rows; a checksum detects corruption and does not authenticate a file. Legacy vouchers dated before Books cannot currently be restored into a new company because their date-edit policy differs.
+The mobile calling code is separate contact metadata. Existing companies without a recorded code remain blank; their number text is preserved. New creation drafts explicitly start with 91. Code entry offers the observed India/UK suggestions and accepts bounded digit strings without claiming a complete dialing catalog or international-number validation. Changing country never replaces a recorded code.
+
+Address suggestions are stored separately from company books. Company backups
+retain the saved mailing text but do not include this installation-wide catalog.
+
+Company F12 display options belong to this browser and the selected company.
+Hiding contacts preserves their values and skips them during keyboard entry.
+The optional currency description shows Bookr's actual fixed format; it does
+not change precision or amounts. F11 shows feature availability with optional
+additional detail. It does not enable tax, inventory, payroll or security.
+
+Company Data (Alt+Y) downloads an original Bookr version 3 JSON backup covering all saved dates, currency labels and the mobile calling code. Strict version 1 and 2 imports verify their original checksum before adding missing defaults to an internal copy; older files receive an unrecorded calling code. Restore requires a new company name and preserves saved identities, revisions, postings and bill allocations. It never merges into an existing company. Backups support up to 25 MB and 200,000 rows; a checksum detects corruption and does not authenticate a file. Legacy vouchers dated before Books cannot currently be restored into a new company because their date-edit policy differs.
 
 Exchange conversion, configurable precision and numeric locale, changing posted-book currency, company security, wider account groups, tax, inventory and other advanced modules remain unfinished. Opening-bill dates currently use Bookr's earlier-than-books convention; full reference behaviour for historical bill reports is still under investigation.
 
@@ -82,6 +118,12 @@ Browser tests use disposable fictional books. On Windows they use Microsoft Edge
 ## Development
 
 Work proceeds one layer at a time: company management, groups and ledgers, vouchers, then reports. Each change is backed by observed behavior, focused tests and relevant screen checks. Planned features are not counted as completed features.
+
+Build related Company fields and workflows together in one development batch.
+During coding, run the current feature's relevant test files. Run `npm test`
+and then `npm run test:browser` serially at the final batch checkpoint before
+committing. Later tax, inventory and security engines remain separate from
+supported local company management.
 
 ## License
 

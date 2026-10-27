@@ -57,7 +57,7 @@
     "capability": "company_currency_labels describes this limited engineering feature; it does not claim general currency/foreign-cash support."
   },
   "portable": {
-    "writer": "Export explicit portable VERSION2 with both label fields, the existing exact accounting tables/sequences, canonical SHA256 checksum and no conversion.",
+    "writer": "The currency feature introduced portable VERSION2 with both labels. Current VERSION3 also preserves the independent mobile calling code. Accounting tables/sequences, canonical SHA256 checksum and numeric amounts remain unchanged; strict VERSION2 reads remain supported.",
     "legacyReader": "Keep strict VERSION1 company-field validation. Verify the original V1 checksum before inserting legacy ₹/INR defaults into an internal copy. Never add fields to/mutate the source bundle before verification. V1 bundles containing currency fields still reject as unknown.",
     "v2Reader": "Require exact knownV2 fields including both labels; reject partial/unknown fields, unsupported versions and malformed/corrupt checksums atomically. Preserve exact records and labels on restore-as-new UUID without editing source books.",
     "financialMeaning": "Backup/restore preserves original Bookr integer records and declared labels; it does not infer or perform exchange conversion. Drafts cover configured-empty£/GBP and posted-defaultINR round trips, not native foreign transaction parity.",
