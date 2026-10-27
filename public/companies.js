@@ -2,13 +2,14 @@ import {entryDate,parseEntryDate} from './entry-values.js';
 import {handleMultilineEntry} from './multiline-entry.js';
 import {initialFinancialYearTo} from './calendar-values.js';
 import {companyList,companyName} from './company-list.js';
+import {applyCompanyProfile,companyMetadataFields} from './company-profile-binding.js';
 
 export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect,getLoadedIds,onShut,onEdited}){
   let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,pendingSelection=null,publishedEdit=null,menuOrigin='gateway',commitYear=null,readCalendar=null;
   const views=['company-menu','companies','company-create','company-alter'];
   const contacts=[['telephone','Telephone'],['mobile','Mobile'],['fax','Fax'],['email','E-mail'],['website','Website']];
   const value=id=>main.querySelector('#'+id).value;
-  const values=()=>Object.fromEntries(['name','mailing_name','address','state','country','pincode',...contacts.map(([key])=>key)].map(key=>[key,value('company-'+key.replaceAll('_','-'))]));
+  const values=()=>Object.fromEntries(companyMetadataFields.map(key=>[key,value('company-'+key.replaceAll('_','-'))]));
   const draft=()=>({...values(),financial_year_from:value('company-financial-year'),books_from:value('company-books-from')});
   const dirty=()=>!pendingSelection && !publishedEdit && ['company-create','company-alter'].includes(getView()) && JSON.stringify(draft())!==initial;
   function command(id,label,action){const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.onclick=action;document.querySelector('.command-strip').insertBefore(button,hint);}
@@ -92,13 +93,12 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
   }
   function syncEditedProfile(profile){
     editingProfile=profile;dates=profile;
-    for(const key of ['name','mailing_name','address','state','country','pincode',...contacts.map(([key])=>key)]){
-      const field=main.querySelector('#company-'+key.replaceAll('_','-'));
-      field.value=profile[key];
-    }
-    const form=main.querySelector('#company-form');form.dataset.companyId=profile.id;form.dataset.companyRevision=String(profile.revision);
-    const heading=document.querySelector('.screen-company');if(heading)heading.textContent=profile.name;
-    main.querySelector('#company-country').dispatchEvent(new Event('input'));
+    syncFormProfile(profile);
+  }
+  function syncFormProfile(profile){
+    let heading=document.querySelector('.screen-company');
+    if(!heading){heading=document.createElement('span');heading.className='screen-company';document.querySelector('.screen-title h1').after(heading);}
+    applyCompanyProfile({form:main.querySelector('#company-form'),heading,profile});
   }
   async function save(){
     if(busy || switching || !['company-create','company-alter'].includes(getView()) || document.querySelector('dialog'))return;
@@ -116,7 +116,7 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     try{const profile=await api(editingProfile?'/api/companies/'+editingProfile.id:'/api/companies',{method:editingProfile?'PUT':'POST',body:JSON.stringify({...input,...(editingProfile?{revision:editingProfile.revision}:{})})});
       initial=JSON.stringify(draft());
       if(editingProfile){syncEditedProfile(profile);initial=JSON.stringify(draft());publishedEdit=profile;await finishEdit();}
-      else{pendingSelection=profile;try{await onSelect(profile.id);switching=true;}catch(failure){throw new Error('Company saved as '+profile.name+'. Select it from Company to open its books. '+failure.message);}}}
+      else{pendingSelection=profile;syncFormProfile(profile);initial=JSON.stringify(draft());try{await onSelect(profile.id);switching=true;}catch(failure){throw new Error('Company saved as '+profile.name+'. Select it from Company to open its books. '+failure.message);}}}
     catch(failure){error.textContent=failure.message;if(!pendingSelection)fields.forEach(field=>field.disabled=false);const accept=document.querySelector('#accept-company');accept.disabled=false;if(pendingSelection)accept.textContent='Open Company  Ctrl+A';accept.focus();}
     finally{busy=false;}
   }

@@ -1,0 +1,37 @@
+{
+  "application": "Bookr",
+  "feature": "Canonical saved company profile during opening recovery",
+  "status": "implemented-and-verified",
+  "complete": true,
+  "basis": "Original Bookr publication recovery and metadata contracts. This is a consistency correction to existing saved-result behavior, not an inferred reference configuration rule.",
+  "study": {
+    "existingBehavior": "The metadata endpoint trims saved strings. Creation can succeed before selecting/opening the new company fails. Existing recovery retains the saved UUID, disables fields and retries opening without another POST.",
+    "reproducedGap": "Creation retained raw draft strings and an unbound target heading while showing a successfully saved, disabled result. Unlike alteration, it did not bind the canonical response to the form.",
+    "boundary": "Headless original Bookr fixtures only; no native or reference-source actions. Pending State Escape and new accounting/configuration rules are excluded."
+  },
+  "fields": ["name", "mailing_name", "address", "state", "country", "pincode", "telephone", "mobile", "fax", "email", "website"],
+  "behavior": {
+    "publication": "After a successful create or alter response, display returned saved metadata, target heading, UUID and revision before follow-up reads or activation.",
+    "reuse": "One original form-binding component is shared by creation and alteration. It must not change controller mode or select a company.",
+    "controls": "Preserve existing DOM nodes, disabled states, immutable date controls and focus. Refresh the existing country calling-code display through its normal input notification.",
+    "dates": "Do not copy ISO date properties into formatted date inputs. Keep the existing validated creation/alteration calendar behavior.",
+    "recovery": "Keep published fields disabled, show Open Company, and retry the saved UUID. Never repeat the POST or treat a saved result as a dirty draft.",
+    "keys": {"Ctrl+A or action button": "Existing retry opening behavior", "Escape or Back": "Leave the saved result without unsaved confirmation; explicit later selection opens the same UUID"},
+    "restore": "Retain existing restore behavior; no new file-format, tax, security or currency rules."
+  },
+  "accountingEffect": "None. Existing company rows, vouchers, postings, bill allocations and 60000-paise outstanding remain unchanged.",
+  "verificationResult": {
+    "unitAndHttp": {"passed": 374, "failed": 0, "skipped": 0},
+    "browserCommands": {"passed": 52, "execution": "One complete chain after the unit suite"},
+    "promotedSource": "Six new binding unit tests, four creation/restore recovery cases and eleven alteration groups passed serially on the actual source",
+    "previewAudit": "Four API-bound read-only screenshots, zero attempted writes or page errors; saved data, source and browser session retained",
+    "screenshots": "Saved-result fields, target heading, formatted dates and retry control reviewed; no native pixel-equality claim",
+    "pending": "State suggestions and unverified company-configuration behavior remain outside this fix"
+  },
+  "verification": {
+    "redFirst": "Add meaningful unit checks for canonical metadata binding, disabled/date-control preservation, identity and text safety before the shared binder exists; reproduce raw creation fields in the existing publication browser before changing product code.",
+    "browser": "Whitespace metadata, actual saved profile, failed selection, disabled canonical form, one POST, GET-only retry, safe Back, exact session rollback and financial preservation; retain alter and restore regression checks.",
+    "order": "Focused RED then code/GREEN; full unit/HTTP suite then complete browser chain serially; read-only preview audit; one-feature commit and study archive.",
+    "protectedPorts": "Never access 4315. Preview 4780 is read-only and must not be reset or reseeded."
+  }
+}
