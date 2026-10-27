@@ -22,12 +22,13 @@
     "Retry opening a successfully saved company or restore without publishing it twice",
     "Home shows pending requests and retains existing draft confirmation when work finishes",
     "India State suggestions share keyboard selection and discard behavior, preserve free text and save/reopen without changing accounting rows",
-    "Reject reserved identity and revision fields in stored metadata before exposing company identities or publishing edits, without dropping unknown settings"
+    "Reject reserved identity and revision fields in stored metadata before exposing company identities or publishing edits, without dropping unknown settings",
+    "Alter saved financial-year and Books dates before financial records exist, with two shared confirmations, atomic eligibility checks, cache refresh and unchanged loaded working context"
   ],
   "remaining": [
     {
       "area": "Company calendar",
-      "status": "Creation, working-date and current-period controls work; saved master-date alteration remains"
+      "status": "Creation, working date, period and empty-book saved-date alteration work; changing dates after financial records exist is unsupported"
     },
     {
       "area": "Historical opening bills",

@@ -35,11 +35,12 @@ test('Malformed calendar fields, unknown keys and a supplied mismatching derived
  }
 }));
 
-test('Identity and contact patches preserve a custom calendar while date alteration remains immutable in this creation-only increment',()=>fixture(({store})=>{
+test('Identity and contact patches preserve a custom calendar while an empty book supports validated date alteration',()=>fixture(({store})=>{
  const created=store.create({name:'Fictional Calendar Immutable Dates',financial_year_from:'2025-04-01',books_from:'2025-07-01',mobile:'0000000000'}),book=store.book(created.id),money=tables(book.db);
  const updated=store.update(created.id,{revision:created.revision,name:'Fictional Calendar Contact Updated',email:'calendar@example.invalid'});assert.deepEqual(dates(updated),dates(created));assert.equal(updated.revision,2);assert.equal(updated.mobile,'0000000000');
  const same=store.update(created.id,{revision:updated.revision,...dates(updated),address:'Same-date compatible full profile update'});assert.deepEqual(dates(same),dates(created));
- for(const patch of [{financial_year_from:'2024-04-01'},{books_from:'2025-08-01'},{financial_year_to:'2027-03-31'}]){const before=tables(store.catalog);assert.throws(()=>store.update(created.id,{revision:same.revision,...patch}),error=>error instanceof BookError&&error.status===400);assert.deepEqual(tables(store.catalog),before);assert.deepEqual(tables(book.db),money);}
+ const changed=store.update(created.id,{revision:same.revision,books_from:'2025-08-01'});assert.deepEqual(dates(changed),{...dates(created),books_from:'2025-08-01'});assert.deepEqual(tables(book.db),money);
+ for(const patch of [{financial_year_from:'2024-04-01',books_from:'2025-07-01'},{books_from:'2025-03-31'},{financial_year_to:'2027-03-31'}]){const before=tables(store.catalog);assert.throws(()=>store.update(created.id,{revision:changed.revision,...patch}),error=>error instanceof BookError&&error.status===400);assert.deepEqual(tables(store.catalog),before);assert.deepEqual(tables(book.db),money);}
  const before=tables(store.catalog);assert.throws(()=>store.update(created.id,{revision:created.revision,address:'Stale calendar profile'}),error=>error instanceof BookError&&error.status===409);assert.deepEqual(tables(store.catalog),before);
 }));
 

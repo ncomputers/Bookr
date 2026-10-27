@@ -1,0 +1,143 @@
+{
+  "application": "Bookr",
+  "feature": "Alter company dates before financial entry",
+  "layer": "company",
+  "status": "implemented-and-verified-for-empty-financial-books",
+  "complete": true,
+  "baseline": "72874ea316117e1b5ab97871ff29b363a06988c1",
+  "integration": "Shared company edit workspace and confirmation dialogs, with a read-only target eligibility endpoint and a definitive revision/writer-locked mutation guard.",
+  "study": {
+    "scope": "Observed behavior of one new isolated fictional company containing no financial entries or opening balances",
+    "sessions": [
+      "7108125fde874755b9f1b20e01976932",
+      "1033fe7ea0864666a8c8ce02d7146b9b"
+    ],
+    "observed": [
+      "Changing the saved financial-year beginning resets the Books draft to the new beginning.",
+      "Financial-year and Books-only changes each request two sequential confirmations before accepting the edited field.",
+      "No at either confirmation keeps the edited draft, returns focus to that field and does not advance or save. Discarding the form and reopening returns the last saved dates.",
+      "Both the financial-year change to 1-Apr-2025 and a Books-only change to 1-Jul-2025 persisted through save and reopen; the financial-year change was also verified across a real process restart.",
+      "Moving Books earlier within that year to 1-May-2025 was accepted and saved.",
+      "Books drafts before that year (31-Mar-2025) or after its end (1-Apr-2026) refused field advancement and form acceptance.",
+      "The already loaded working period and date were retained during date changes. A native process restart loaded the revised initial dates."
+    ],
+    "boundary": "Warnings in an empty fixture do not establish deletion or migration behavior for existing financial records. No such behavior is implemented or inferred.",
+    "originalCode": true,
+    "referenceCodeCopied": false
+  },
+  "supportedScope": {
+    "companies": "Empty default and named companies. Preserve the default company's existing legacy posting-window policy.",
+    "financialEmpty": "No rows in vouchers, postings, bills, receipt_allocations, ledger_openings, opening_bills, opening_bill_allocations, bill_terms, opening_bill_terms or journal_entry_order. A zero net balance does not mean empty.",
+    "masters": "Existing master ledgers, their IDs/revisions and bank mailing metadata may remain; none are rewritten by the date operation.",
+    "restrictionOrigin": "This empty-financial-record limit is an original Bookr capability boundary. It does not claim the reference app imposes the same restriction.",
+    "postedCompanies": "Changed dates are rejected without mutation. Ordinary metadata edits with omitted or unchanged dates remain supported."
+  },
+  "fields": {
+    "financial_year_from": "Existing ISO date, edited through the existing formatted date input",
+    "books_from": "Existing ISO date, edited through the existing formatted date input",
+    "financial_year_to": "Derived twelve-month end; no independently editable field",
+    "revision": "Existing positive catalog revision required for the mutation"
+  },
+  "api": {
+    "capability": "company_calendar_alteration: true in the existing capabilities responses",
+    "eligibility": {
+      "method": "GET",
+      "path": "/api/companies/:id/calendar-editability",
+      "response": {
+        "company_id": "Exact requested target ID",
+        "revision": "Target profile revision",
+        "editable": "Boolean from a read-only target-file check"
+      },
+      "rules": "Reject unsupported methods, query overrides, malformed/unknown IDs, missing files and incomplete unsupported book schemas. Do not construct a Book, seed tables, migrate files, activate the target or write catalog/book rows.",
+      "authority": "A true flag is advisory for rendering only. The PUT must repeat all validation and empty-record checks while excluding a target writer. A stale flag cannot authorize a mutation."
+    },
+    "mutation": {
+      "method": "PUT",
+      "path": "/api/companies/:id",
+      "request": "Existing metadata/date properties plus the current revision; no new date-only write endpoint",
+      "partialFY": "A changed financial_year_from with omitted books_from resets Books to that new beginning.",
+      "explicitBooks": "An explicit valid books_from overrides that reset.",
+      "omission": "An unchanged or omitted financial-year beginning with omitted books_from preserves the saved Books value.",
+      "end": "Always derive the end from the resulting financial-year beginning. A supplied end must match; do not preserve a stale old end during FY reset.",
+      "publication": "Exactly one catalog revision increment and one committed metadata publication. Retry follow-up reads without repeating PUT."
+    }
+  },
+  "validation": [
+    "Use existing valid ISO-date and formatted-entry parsing, deriving the twelve-month end consistently.",
+    "Books must be within the resulting initial financial-year interval, including its existing inclusive boundaries.",
+    "Require the existing target identity, revision, supported stored-settings and unique-name checks.",
+    "Apply the financial-empty restriction only when the resulting date tuple changes; unchanged-date metadata updates keep existing behavior.",
+    "Never create a replacement for a missing company database or initialize an incomplete file as part of policy checking or metadata publication."
+  ],
+  "keyboard": {
+    "Enter on changed FY": "Reset Books, validate, then request the two original shared confirmations. No at either keeps both drafts and returns FY focus.",
+    "Enter on changed Books": "Validate and request the two confirmations. No at either keeps the Books draft and field focus.",
+    "Ctrl+A or Accept": "Validate and request any still-unaccepted date confirmations before saving. It cannot bypass them. Exactly one PUT follows final explicit acceptance.",
+    "confirmationMemory": "Acceptance belongs to the exact current date tuple. Editing it again invalidates acceptance.",
+    "Escape": "Keep existing editable-field clearing and company discard behavior. Escape in a confirmation is No.",
+    "nextField": "After explicit field acceptance continue the existing supported form navigation; configurable currency remains outside this increment. Whole-form acceptance remains a separate existing action."
+  },
+  "ui": {
+    "componentReuse": "Use the existing shared confirmation component with original Bookr wording and existing date-entry helpers. When opening the second confirmation, preserve the actual edited field as cancellation focus rather than the removed first dialog button.",
+    "suggestedOriginalWording": [
+      "Review these company start dates?",
+      "Apply the reviewed start dates?"
+    ],
+    "noDeletionClaim": "Do not copy a warning that data will be lost; this supported operation never deletes financial rows.",
+    "olderBackend": "Saved date inputs remain read-only if the new capability is absent. Static UI updates can coexist with an older running server.",
+    "policyBinding": "Enable date editing only if the policy's company_id and revision match the exact form profile and editable is true. Wrong-target, stale-revision, failed or unavailable eligibility reads cannot enable editing.",
+    "savedResult": "Keep canonical formatted dates, saved target ID/revision, disabled fields and the existing GET-only Refresh recovery after a successful PUT. Do not assign ISO dates through the metadata-only profile binder.",
+    "failure": "Rejected mutation keeps the unsaved draft and existing error path, with no navigation to another company."
+  },
+  "storageAndCache": {
+    "durableChanges": "Only target catalog metadata/name/revision. No accounting/master/bank/sequence rows or schema are changed.",
+    "guard": "Keep catalog revision serialization and hold target writer exclusion across empty validation and publication. Do not touch a caller-owned transaction or present nested file transactions as all-or-nothing financial rewrites.",
+    "cachePublication": "After durable success, update the same cached Book object's calendar, opening date and posting-window configuration in place; retain its db connection. Pre-publication failure retains the old object/configuration.",
+    "pendingRequests": "A request that captured the Book before awaiting its body must use the committed new dates when it resumes. Closing/evicting that object is unsafe.",
+    "otherStores": "A later secondStore.book(id) lookup refreshes that store's cached object from the latest validated profile. No automatic cross-process update of arbitrary retained references is promised."
+  },
+  "workingContext": {
+    "loaded": "Keep working-date and current-period tab bytes for already loaded companies, including an inactive target's retained context. The active company and other contexts do not change.",
+    "reload": "Tab reload retains Bookr's existing documented web-context convention.",
+    "fresh": "A fresh browser with cleared tab state uses the newly saved company calendar through the existing fresh-load model.",
+    "distinction": "Browser-tab retention is an original web convention, not a claim that a browser reload equals a native process restart."
+  },
+  "backup": "The same three stored date fields already belong to portable version1. Export committed dates with unchanged financial records and restore as a separate new UUID with exact master rows/sequences. Retain existing version1 compatibility and unsupported legacy-policy guards.",
+  "accountingEffect": "None for the supported empty target. No vouchers, postings, bills, allocations, opening balances or master revisions are created/deleted/rewritten. The unrelated fictional 100000-paise sale less40000-paise receipt remains balanced with60000 paise outstanding.",
+  "verification": {
+    "status": "Genuine prospective REDs, focused GREEN, full serial suites, actual-source checks and read-only preview audit passed",
+    "unitDrafts": "company-calendar-alter.test.mjs: empty named/default publication, partial API rules, in-place/second-store cache, captured request, cold no-Book behavior, validation/revision/name guards, late rollback, writer exclusion, caller transaction ownership, missing files, backup and every financial-table guard",
+    "httpDrafts": "company-calendar-alter-http.test.mjs: capability/policy, default and named persistence, malformed/stale requests, stale eligibility, incomplete/missing-file refusal and delayed-body request behavior",
+    "browserDraft": "company-calendar-alter-browser.mjs: keyboard confirmations, two No branches, Ctrl+A no bypass, older/mismatched policy guards, saved-result retry, active/inactive context preservation, fresh/tab reload behavior, stale policy and API-bound desktop320390 screenshots",
+    "order": "Root grants the global lane, capture genuine prospective unit/HTTP RED against accepted code, implement minimally, run units then browsers serially, perform read-only preview audit, one feature commit, truthful README/checklist update and completed-log archive",
+    "fixtures": "Owned OS temporary fictional books only. HTTP4774 and browser4775 via the existing owned-server helper. Never protected4315; preview4780 is read-only and never reset/reseed.",
+    "focused": {
+      "newUnitAndHttp": 29,
+      "selectedUnitAndHttp": 42,
+      "browserGroups": 8,
+      "captures": 6,
+      "companyOnlyPuts": 4,
+      "legacyBrowserGroups": 20,
+      "financialRecordsPreserved": true,
+      "outstandingPaise": 60000
+    },
+    "additionalRedFixes": [
+      "Validate the previous stored calendar before recomputing a candidate; ordinary metadata edits must not silently repair a corrupt year-end.",
+      "Commit a valid edited FY reset on blur before accepting a later explicit Books entry; Ctrl+A must preserve that explicit date."
+    ],
+    "expectedFull": {
+      "unitAndHttp": 435,
+      "browserCommands": 55,
+      "execution": "Unit then browser serially"
+    }
+  },
+  "verificationResult": {
+    "unitAndHttp": {"passed": 435, "failed": 0, "skipped": 0},
+    "browserCommands": {"passed": 55, "execution": "Complete chain after units on frozen source"},
+    "actualSource": "Twenty-nine new unit/HTTP cases and eight browser groups passed after exact-source promotion",
+    "screenshots": "Six fixture images and five API-bound read-only preview images reviewed, including both cancellation behavior and the second confirmation",
+    "preview": "Updated backend, capability and eligibility endpoint verified on the same preserved preview books; no save requests or page errors",
+    "accounting": "Exact unrelated financial records and 60000-paise outstanding retained",
+    "boundary": "Only books with no financial rows may change master dates. Posted-company migration, deletion or opening-balance reinterpretation is unsupported."
+  }
+}

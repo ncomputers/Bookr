@@ -26,6 +26,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Reject conflicting stored company IDs or revisions without rewriting saved settings or books.
 - Download a complete company backup and restore it as a separate new company.
 - Choose the initial financial-year and books-beginning dates when creating a company.
+- Alter saved start dates before financial records exist, using shared review confirmations.
 - Change the working date from Gateway with F2; new vouchers use that date.
 - Change the current period from Gateway with Alt+F2, including later years without changing company master dates.
 - Ledger creation and alteration with supported account groups and opening balances.
@@ -51,7 +52,7 @@ Gateway Alt+F2 changes the current period and moves an out-of-range working date
 
 F3 changes among loaded companies, Alt+F3 lists all company books, and Ctrl+F3 shuts a loaded company. Company list dates show the initial financial year. Shutting leaves saved books intact. Shutting the last company leaves an empty workspace through reload, where Company Creation and Restore remain available. A fresh load starts at the later of Books and last-entry date, clipped to the retained period; this is Bookr's bounded reopen model. Changing among already loaded companies keeps their working dates. If a company saves successfully but opening it fails, the disabled form shows its saved metadata and target identity while retaining formatted dates. Open Company retries that saved result without saving it again.
 
-Company alteration opens a selector of loaded companies. Editing another company uses its own saved profile and dates while preserving the active books, working date and period. Save and cancel return to that target in the selector. If saving succeeds but refreshing fails, Refresh retries the read without saving again. Saved company master dates remain read-only. API requests without a selected period retain the existing initial-window and default-company compatibility behavior.
+Company alteration opens a selector of loaded companies. Editing another company uses its own saved profile and dates while preserving the active books, working date and period. Save and cancel return to that target in the selector. If saving succeeds but refreshing fails, Refresh retries the read without saving again. Start dates are editable only while financial tables are empty. Two shared review confirmations preserve the edited date and focus when No is chosen. Companies with financial records keep read-only dates; no entries or opening balances are rewritten. Already loaded tabs retain their working context, while a fresh tab opening the company starts at its revised Books date. API requests without a selected period retain the existing initial-window and default-company compatibility behavior.
 
 Company Data (Alt+Y) downloads an original Bookr JSON backup covering all saved dates. Restore requires a new company name and preserves saved identities, revisions, postings and bill allocations. It never merges into an existing company. Backups support up to 25 MB and 200,000 rows; a checksum detects corruption and does not authenticate a file. Legacy vouchers dated before Books cannot currently be restored into a new company because their date-edit policy differs.
 

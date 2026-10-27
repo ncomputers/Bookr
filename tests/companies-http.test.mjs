@@ -7,7 +7,7 @@ import {resolve,join,relative,isAbsolute} from 'node:path';
 import {Book} from '../lib/accounting.mjs';
 import {request as httpRequest} from 'node:http';
 
-const accountingState=state=>{const {capabilities,...accounting}=state;assert.deepEqual(capabilities,{general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true});return accounting;};
+const accountingState=state=>{const {capabilities,...accounting}=state;assert.deepEqual(capabilities,{general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true});return accounting;};
 const root=resolve('.'),base='http://127.0.0.1:4384';
 async function withServer(action){
  const tempRoot=await realpath(tmpdir()),directory=await mkdtemp(join(tempRoot,'bookr-companies-http-')),file=join(directory,'book.sqlite');let server,output='';

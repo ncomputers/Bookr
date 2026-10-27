@@ -23,7 +23,7 @@ const previewLabel=String(process.env.BOOKR_PREVIEW_LABEL || '').trim().slice(0,
 await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
-const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true});
+const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true});
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
 const body = async (req,limit=16384) => {
   if(Number(req.headers['content-length'])>limit){req.resume();throw new BookError('Request is too large.',413);}
@@ -53,6 +53,12 @@ const handler = async (req, res) => {
         if(req.method!=='GET')throw new BookError('Method not supported.',405);
         if(url.search)throw new BookError('Capabilities do not accept query overrides.');
         return send(res,200,{capabilities});
+      }
+      const calendarPolicyMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/calendar-editability$/);
+      if(calendarPolicyMatch){
+        if(req.method!=='GET')throw new BookError('Method not supported.',405);
+        if(url.search)throw new BookError('Company date eligibility does not accept query overrides.');
+        return send(res,200,companies.calendarEditability(calendarPolicyMatch[1]));
       }
       const summaryMatch=url.pathname.match(/^\/api\/companies\/([^/]+)\/summary$/);
       if(summaryMatch){
