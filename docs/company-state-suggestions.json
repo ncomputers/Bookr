@@ -1,0 +1,135 @@
+{
+  "application": "Bookr",
+  "feature": "Company state suggestions",
+  "layer": "company",
+  "status": "implemented-and-verified",
+  "complete": true,
+  "chronology": "A private browser prototype predates the updated project instructions. The specification and additional unit-tested model work are recorded now; prior test history is preserved without relabelling it.",
+  "study": {
+    "scope": "Isolated fictional company behavior only",
+    "observed": [
+      "The India list contains Not Applicable and 36 state or territory names in a stable order",
+      "A Raj query offers Rajasthan; arrows change the highlighted choice",
+      "Enter and Tab accept Rajasthan and advance to Pincode",
+      "Enter and Tab accepting Not Applicable advance to Country",
+      "Escape clears a nonempty search; the next Escape closes suggestions and requests company exit without restoring the opening State",
+      "Cancelling that exit retains a blank State and reopens suggestions; an accepted nondefault draft State is not restored",
+      "Down at the last state keeps that state highlighted"
+    ],
+    "pending": [],
+    "escapeEvidence": {
+      "sessionId": "7108125fde874755b9f1b20e01976932",
+      "frames": [
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "scope": "Isolated unsaved creation; default and explicitly accepted nondefault draft State. The saved-company case is an original Bookr compatibility regression, not a separate native observation.",
+      "hashes": [
+        {
+          "sha256": "6e1c4dcc57bfad369e1228c649eae997fa268b75fc4acb1fae0d72f78b6daf02",
+          "frame": 6
+        },
+        {
+          "sha256": "5f3a5e5383217576cb66c9017324af5b8a053fc1a02ee5b32460c34f32a0097b",
+          "frame": 7
+        },
+        {
+          "sha256": "493ab79dc44025ab32a385be4ee23666d23009f137269fa66a649cd283dd880a",
+          "frame": 8
+        },
+        {
+          "sha256": "4a5d22b40ae0f8c7be2b89f21978ac043286875f3ea02178fa1b9c0393f24ed7",
+          "frame": 11
+        },
+        {
+          "sha256": "c34f73f5659da3f4b74106f4cbc19eaf7f074c82d7ba775f5bf7e2ba17a66b66",
+          "frame": 12
+        },
+        {
+          "sha256": "e2e3b34df02eb0ddcf60863eb98a4c01a3f69d3926186c7fbda016a1669ba1c7",
+          "frame": 13
+        },
+        {
+          "sha256": "5f3a5e5383217576cb66c9017324af5b8a053fc1a02ee5b32460c34f32a0097b",
+          "frame": 14
+        },
+        {
+          "sha256": "493ab79dc44025ab32a385be4ee23666d23009f137269fa66a649cd283dd880a",
+          "frame": 15
+        }
+      ]
+    },
+    "referenceCodeCopied": false
+  },
+  "fields": {
+    "state": {
+      "type": "optional text",
+      "maximumLength": 120,
+      "storage": "existing company state property"
+    },
+    "country": {
+      "effect": "Existing editable text; suggestions are enabled only for India"
+    }
+  },
+  "labels": {
+    "heading": "State suggestions",
+    "unmatchedChoice": "Use entered state"
+  },
+  "keyboard": {
+    "Enter or Tab": "Use the selected suggestion; a substantive state and country advance to Pincode, otherwise Country",
+    "ArrowUp or ArrowDown": "Move the highlight without changing the input; clamp at the list boundary",
+    "Escape with text": "Clear the search and keep the suggestions available",
+    "Escape without text": "Close suggestions and delegate the same key to existing company exit/dirty confirmation. Keep the blank draft; No or dialog Escape cancels exit without restoring the old value",
+    "Home, End and shifted text-selection keys": "Preserve normal editable-text behavior",
+    "Shift+Tab": "Close suggestions and preserve normal backward focus",
+    "Ctrl+A": "Commit the chosen value and invoke the existing company save once"
+  },
+  "compatibility": [
+    "Retain existing unknown saved state strings",
+    "Retain unmatched entered text through the existing free-text contract; this does not create a geographic master",
+    "Leaving the field without choosing a suggestion must not silently replace entered text",
+    "Optional blank text remains compatible with existing company storage",
+    "Non-India companies retain existing text entry"
+  ],
+  "validation": "No new geographic, postal, tax or country-validation rules",
+  "defaults": "Keep existing company defaults; do not infer country-dependent accounting defaults",
+  "accountingEffect": "None. Dates, currency, ledgers, vouchers, postings, bill allocations and outstanding balances remain unchanged.",
+  "implementation": "Original reusable input-backed suggestion component with a separately tested pure behavior model",
+  "pureModel": {
+    "scope": "Filtering, selection, bounded movement, accepted-value focus and observed Escape action projection.",
+    "buildTextChoices": "Return ordered copied rows and a preferred index from catalog, pinned values, opening text and optional query; preserve unknown opening text and offer unmatched entered text explicitly.",
+    "moveHighlight": "Clamp movement at the first and last row; no selection for an empty list.",
+    "chooseDraftValue": "Explicit acceptance uses the chosen row; whole-form acceptance preserves optional blank text; a closed list preserves raw text.",
+    "nextCompanyAddressField": "A substantive state and country advance to Pincode; otherwise Country.",
+    "escapeTextChoice": "A closed list delegates; an open list with text clears; an open empty list closes and delegates exit. Never return or restore the opening value.",
+    "boundary": "Observed creation cancellation is integrated with Bookr's existing original confirmation and saved-company compatibility; no new company configuration or accounting rule."
+  },
+  "verification": {
+    "unitFirst": "New model tests must fail before model implementation; this is new work rather than retroactive prototype history",
+    "browser": "Save/reopen, keyboard entry, cancellation, unknown text, company isolation, one save, and desktop/320/390 layout",
+    "commands": [
+      "npm test",
+      "npm run test:browser"
+    ],
+    "execution": "Unit then browser serially, owned disposable fictional databases only",
+    "previewAudit": "Read-only port 4780; no access or tests against protected port 4315",
+    "moneyRegression": "The fictional 1000 sale and 400 receipt retain 600 outstanding"
+  },
+  "verificationResult": {
+    "unitAndHttp": {"passed": 394, "failed": 0, "skipped": 0},
+    "browserCommands": {"passed": 53, "execution": "Complete chain after units on frozen source"},
+    "actualSource": "Twenty suggestion/Escape units and fifteen browser groups passed after exact-source promotion",
+    "screenshots": "Eight fixture screenshots and three read-only preview screenshots bind the intended view and saved API state; desktop and 320/390 layouts reviewed",
+    "previewAudit": "Existing preview process and all saved rows retained; no attempted writes or page errors",
+    "accounting": "Exact fictional financial records and 60000-paise outstanding retained",
+    "additionalRegression": "Shift+ArrowUp/Down text selection was reproduced against a plain input before the modifier guard was added"
+  },
+  "userDecision": "Continue headlessly. The isolated creation study resolved empty-search Escape. Company alteration uses the same original Bookr component and existing discard confirmation, covered by compatibility tests."
+}

@@ -3,9 +3,12 @@ import {handleMultilineEntry} from './multiline-entry.js';
 import {initialFinancialYearTo} from './calendar-values.js';
 import {companyList,companyName} from './company-list.js';
 import {applyCompanyProfile,companyMetadataFields} from './company-profile-binding.js';
+import {createTextListPicker} from './text-list-picker.js';
+import {indiaStateSuggestions} from './india-states.js';
+import {nextCompanyAddressField} from './text-choice-model.js';
 
 export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,renderGateway,escapeHtml,askDialog,isBusy,isDirty,activeId,onSelect,getLoadedIds,onShut,onEdited}){
-  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,pendingSelection=null,publishedEdit=null,menuOrigin='gateway',commitYear=null,readCalendar=null;
+  let busy=false,switching=false,rows=[],index=0,initial='',dates=null,editingProfile=null,pendingSelection=null,publishedEdit=null,menuOrigin='gateway',commitYear=null,readCalendar=null,statePicker=null;
   const views=['company-menu','companies','company-create','company-alter'];
   const contacts=[['telephone','Telephone'],['mobile','Mobile'],['fax','Fax'],['email','E-mail'],['website','Website']];
   const value=id=>main.querySelector('#'+id).value;
@@ -89,7 +92,9 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     const updatePrefix=()=>{prefix.textContent=country.value.trim().toLocaleLowerCase()==='india'?'+91':'';};country.addEventListener('input',updatePrefix);updatePrefix();
     name.addEventListener('input',()=>{if(!editingProfile && (!mail.value || mail.value===previous))mail.value=name.value;previous=name.value;name.removeAttribute('aria-invalid');main.querySelector('#company-error').textContent='';});
     if(profile)syncEditedProfile(profile);
-    main.querySelector('form').onsubmit=event=>{event.preventDefault();save();};command('accept-company','A: Accept  Ctrl+A',save);initial=JSON.stringify(draft());name.focus();name.select();
+    main.querySelector('form').onsubmit=event=>{event.preventDefault();save();};command('accept-company','A: Accept  Ctrl+A',save);
+    statePicker=createTextListPicker({host:main,input:main.querySelector('#company-state'),id:'company-state',title:'State suggestions',values:indiaStateSuggestions,alwaysVisible:['Not Applicable'],enabled:()=>country.value.trim().toLocaleLowerCase()==='india',acceptControl:document.querySelector('#accept-company'),onAccepted:()=>main.querySelector('#company-'+nextCompanyAddressField({state:value('company-state'),country:country.value})).focus(),onAcceptAll:save});
+    country.addEventListener('input',()=>statePicker?.sync());initial=JSON.stringify(draft());name.focus();name.select();
   }
   function syncEditedProfile(profile){
     editingProfile=profile;dates=profile;
@@ -109,6 +114,7 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
       catch(failure){main.querySelector('#company-error').textContent='Company saved as '+pendingSelection.name+'. Unable to open: '+failure.message;}
       finally{busy=false;if(!switching)accept.disabled=false;}return;
     }
+    if(statePicker&&!statePicker.commitForSave())return;
     const input=values(),error=main.querySelector('#company-error');error.textContent='';
     if(!input.name.trim()){error.textContent='Enter a company name.';main.querySelector('#company-name').setAttribute('aria-invalid','true');main.querySelector('#company-name').focus();return;}
     try{Object.assign(input,readCalendar());}catch(failure){error.textContent=failure.message;return;}
@@ -137,6 +143,7 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     if(event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase()==='k'){event.preventDefault();openMenu();return true;}
     if(!views.includes(getView()))return false;
     if(busy || switching){event.preventDefault();return true;}
+    if(statePicker?.onKey(event))return true;
     if(event.altKey && !event.ctrlKey && event.key.toLowerCase()==='c'){event.preventDefault();openCreate();return true;}
     if(event.ctrlKey && !event.altKey && event.key.toLowerCase()==='a' && ['company-create','company-alter'].includes(getView())){event.preventDefault();save();return true;}
     if(event.altKey || event.ctrlKey || event.metaKey)return false;
@@ -163,5 +170,5 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     }
     return false;
   }
-  return {openMenu,openSelector,openCreate,onKey,back,dirty,isSaving:()=>busy || switching};
+  return {openMenu,openSelector,openCreate,onKey,back,dirty,dispose(){statePicker?.destroy();statePicker=null;},isSaving:()=>busy || switching};
 }

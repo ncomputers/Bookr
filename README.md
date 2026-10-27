@@ -20,6 +20,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 ## Current features
 
 - Create companies and edit any loaded company's mailing and contact details.
+- Choose India State suggestions with the keyboard while preserving existing free-text values.
 - Load, change and shut companies independently in each browser tab.
 - Revision checks, separate company books and missing-database protection.
 - Download a complete company backup and restore it as a separate new company.
@@ -35,6 +36,11 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 
 In company addresses, Enter starts another line; Enter on an empty final line
 moves to State. Shift+Enter inserts a newline without leaving the address.
+
+For India companies, typing in State filters suggestions. Enter or Tab accepts
+the highlighted choice. Escape clears a search; another Escape requests exit.
+Choosing No keeps the blank draft. Shift+Arrow keys retain normal text selection.
+Other countries keep free-text State entry.
 
 Amounts use integer paise. A credit sale of ₹1,000 followed by a ₹400 receipt leaves ₹600 outstanding.
 

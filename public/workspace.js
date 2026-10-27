@@ -124,6 +124,7 @@ async function api(path, options = {}) {
   });
 }
 function setScreen(name, screen, message) {
+  companyUI.dispose();
   ledgerGroupPicker?.destroy();ledgerGroupPicker=null;
   generalJournal.dispose();
   view = screen;

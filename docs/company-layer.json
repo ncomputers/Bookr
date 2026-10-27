@@ -20,7 +20,8 @@
     "Keep explicit no-company state after the last company is shut, without reopening default books",
     "Reopen with a bounded last-entry date model while retaining each company period",
     "Retry opening a successfully saved company or restore without publishing it twice",
-    "Home shows pending requests and retains existing draft confirmation when work finishes"
+    "Home shows pending requests and retains existing draft confirmation when work finishes",
+    "India State suggestions share keyboard selection and discard behavior, preserve free text and save/reopen without changing accounting rows"
   ],
   "remaining": [
     {
@@ -33,7 +34,7 @@
     },
     {
       "area": "State and country selection",
-      "status": "Text fields work; reference-style region pickers remain"
+      "status": "India State suggestions work with Enter/Tab, bounded arrows and clear-then-exit Escape; country suggestions remain"
     },
     {
       "area": "Base currency",
