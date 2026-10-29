@@ -11,6 +11,7 @@ import {CurrencyError,normalizeCurrencyPatch} from './public/company-currency.js
 import {requireCurrencyAwareness} from './lib/company-currency-protocol.mjs';
 import {MobileCodeError} from './public/company-mobile-code.js';
 import {GeographyStore,GeographyError} from './lib/company-geography.mjs';
+import {GroupsStore} from './lib/groups.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4315);
@@ -27,6 +28,7 @@ const previewLabel=String(process.env.BOOKR_PREVIEW_LABEL || '').trim().slice(0,
 await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
 const geography=new GeographyStore(dbPath+'.locations.json');
+const groups=new GroupsStore(dbPath+'.groups.json');
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
 const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true,company_mobile_calling_code:true,company_backup_v3:true,company_geography_masters:true});
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
@@ -49,10 +51,10 @@ const handler = async (req, res) => {
   try {
     const url = new URL(req.url, `http://${host}`);
     if (url.pathname.startsWith('/api/')) {
-      if (!['GET','POST','PUT'].includes(req.method)) throw new BookError('Method not supported.',405);
+      if (!['GET','POST','PUT','DELETE'].includes(req.method)) throw new BookError('Method not supported.',405);
       if (req.method !== 'GET') {
         if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) throw new BookError('Origin not allowed.',403);
-        if (!String(req.headers['content-type']).startsWith('application/json')) throw new BookError('JSON content type required.',415);
+        if (['POST','PUT'].includes(req.method) && !String(req.headers['content-type']).startsWith('application/json')) throw new BookError('JSON content type required.',415);
       }
       if(url.pathname==='/api/capabilities'){
         if(req.method!=='GET')throw new BookError('Method not supported.',405);
@@ -98,7 +100,7 @@ const handler = async (req, res) => {
       const companyId=req.headers['x-bookr-company']??'default';
       requireCurrencyAwareness(req.headers,companies.profile(companyId));
       const book=companies.book(companyId);
-      const write=async(action,{voucher=false}={})=>{const input=await body(req),monetary=voucher||Boolean(input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')));return companies.writeBook(companyId,req.headers,input,action,{monetary});};
+      const write=async(action,{voucher=false}={})=>{const input=req.method==='DELETE'?{}:await body(req),monetary=voucher||Boolean(input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')));return companies.writeBook(companyId,req.headers,input,action,{monetary});};
       if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities,...(previewLabel?{preview:{label:previewLabel}}:{})});
       if(req.method==='GET' && url.pathname==='/api/outstanding'){
         const allowed=['direction','as_of','ledger'];
@@ -121,6 +123,12 @@ const handler = async (req, res) => {
         const period=hasFrom?normalizeCurrentPeriod({from:url.searchParams.get('from'),to:url.searchParams.get('to')}):requestPeriod;
         return send(res,200,book.monthlySummary(url.searchParams.get('ledger'),period));
       }
+      const groupMatch=url.pathname.match(/^\/api\/groups\/(\d+)$/);
+      if(req.method==='GET' && url.pathname==='/api/groups')return send(res,200,groups.list());
+      if(req.method==='GET' && groupMatch){const g=groups.get(groupMatch[1]);if(!g)throw new BookError('Group not found.',404);return send(res,200,g);}
+      if(req.method==='PUT' && groupMatch){const input=await body(req);return send(res,200,groups.updateGroup(groupMatch[1],input));}
+      if(req.method==='DELETE' && groupMatch)return send(res,200,groups.deleteGroup(groupMatch[1]));
+      if(req.method==='POST' && url.pathname==='/api/groups'){const input=await body(req);return send(res,201,groups.createGroup(input));}
       const ledgerMatch=url.pathname.match(/^\/api\/ledgers\/(\d+)$/);
       if(req.method==='GET' && ledgerMatch)return send(res,200,book.masterLedger(ledgerMatch[1]));
       if(req.method==='PUT' && ledgerMatch)return send(res,200,await write((fresh,input)=>fresh.saveLedger(input,Number(ledgerMatch[1]))));

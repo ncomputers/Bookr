@@ -1,4 +1,4 @@
-// Shared group names and presentation for the supported ledger kinds.
+// Shared group names and presentation for the supported ledger kinds and the 28 standard canonical groups.
 export const ledgerGroups=Object.freeze([
   {kind:'bank',name:'Bank Accounts',nature:'Assets',parent:'Current Assets'},
   {kind:'cash',name:'Cash-in-Hand',nature:'Assets',parent:'Current Assets'},
@@ -10,3 +10,80 @@ export const ledgerGroups=Object.freeze([
   {kind:'income',name:'Indirect Incomes',nature:'Income',parent:''},
   {kind:'sales',name:'Sales Accounts',nature:'Income',parent:''}
 ].map(Object.freeze));
+
+export const DISPLAY_LABELS = Object.freeze([
+  'Bank Accounts',
+  'Bank OCC A/c',
+  'Bank OD A/c',
+  'Branch / Divisions',
+  'Capital Account',
+  'Cash-in-Hand',
+  'Current Assets',
+  'Current Liabilities',
+  'Deposits (Asset)',
+  'Direct Expenses',
+  'Direct Incomes',
+  'Duties & Taxes',
+  'Expenses (Direct)',
+  'Expenses (Indirect)',
+  'Fixed Assets',
+  'Income (Direct)',
+  'Income (Indirect)',
+  'Indirect Expenses',
+  'Indirect Incomes',
+  'Investments',
+  'Loans & Advances (Asset)',
+  'Loans (Liability)',
+  'Misc. Expenses (ASSET)',
+  'Provisions',
+  'Purchase Accounts',
+  'Reserves & Surplus',
+  'Retained Earnings',
+  'Sales Accounts',
+  'Secured Loans',
+  'Stock-in-Hand',
+  'Sundry Creditors',
+  'Sundry Debtors',
+  'Suspense A/c',
+  'Unsecured Loans'
+]);
+
+export const STANDARD_CANONICAL_GROUPS = Object.freeze([
+  {name: 'Branch / Divisions', parent: null, nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Capital Account', parent: null, nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Current Assets', parent: null, nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Current Liabilities', parent: null, nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Direct Expenses', parent: null, nature: 'Expenses', affects_gross_profit: 1},
+  {name: 'Direct Incomes', parent: null, nature: 'Income', affects_gross_profit: 1},
+  {name: 'Fixed Assets', parent: null, nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Indirect Expenses', parent: null, nature: 'Expenses', affects_gross_profit: 0},
+  {name: 'Indirect Incomes', parent: null, nature: 'Income', affects_gross_profit: 0},
+  {name: 'Investments', parent: null, nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Loans (Liability)', parent: null, nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Misc. Expenses (ASSET)', parent: null, nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Purchase Accounts', parent: null, nature: 'Expenses', affects_gross_profit: 1},
+  {name: 'Sales Accounts', parent: null, nature: 'Income', affects_gross_profit: 1},
+  {name: 'Suspense A/c', parent: null, nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Bank Accounts', parent: 'Current Assets', nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Bank OD A/c', parent: 'Loans (Liability)', nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Cash-in-Hand', parent: 'Current Assets', nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Deposits (Asset)', parent: 'Current Assets', nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Duties & Taxes', parent: 'Current Liabilities', nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Loans & Advances (Asset)', parent: 'Current Assets', nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Provisions', parent: 'Current Liabilities', nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Reserves & Surplus', parent: 'Capital Account', nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Secured Loans', parent: 'Loans (Liability)', nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Stock-in-Hand', parent: 'Current Assets', nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Sundry Creditors', parent: 'Current Liabilities', nature: 'Liabilities', affects_gross_profit: 0},
+  {name: 'Sundry Debtors', parent: 'Current Assets', nature: 'Assets', affects_gross_profit: 0},
+  {name: 'Unsecured Loans', parent: 'Loans (Liability)', nature: 'Liabilities', affects_gross_profit: 0}
+].map(Object.freeze));
+
+export const LABEL_CANONICAL_MAP = Object.freeze({
+  'Bank OCC A/c': 'Bank OD A/c',
+  'Expenses (Direct)': 'Direct Expenses',
+  'Expenses (Indirect)': 'Indirect Expenses',
+  'Income (Direct)': 'Direct Incomes',
+  'Income (Indirect)': 'Indirect Incomes',
+  'Retained Earnings': 'Reserves & Surplus'
+});

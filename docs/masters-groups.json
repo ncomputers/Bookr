@@ -1,0 +1,57 @@
+{
+  "application": "Bookr",
+  "layer": "masters",
+  "feature": "Groups engine and standard catalog",
+  "status": "in-progress",
+  "complete": false,
+  "studyReference": {
+    "nativeRelease": "TallyPrime 4.0 Silver",
+    "observedCatalog": "tally-web/evidence/native-study/group-catalog-native-study-20261024.json",
+    "displayLabelCount": 34,
+    "canonicalGroupCount": 28
+  },
+  "canonicalGroups": [
+    {"name": "Branch / Divisions", "parent": null, "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Capital Account", "parent": null, "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Current Assets", "parent": null, "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Current Liabilities", "parent": null, "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Direct Expenses", "parent": null, "nature": "Expenses", "affectsGrossProfit": 1},
+    {"name": "Direct Incomes", "parent": null, "nature": "Income", "affectsGrossProfit": 1},
+    {"name": "Fixed Assets", "parent": null, "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Indirect Expenses", "parent": null, "nature": "Expenses", "affectsGrossProfit": 0},
+    {"name": "Indirect Incomes", "parent": null, "nature": "Income", "affectsGrossProfit": 0},
+    {"name": "Investments", "parent": null, "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Loans (Liability)", "parent": null, "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Misc. Expenses (ASSET)", "parent": null, "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Purchase Accounts", "parent": null, "nature": "Expenses", "affectsGrossProfit": 1},
+    {"name": "Sales Accounts", "parent": null, "nature": "Income", "affectsGrossProfit": 1},
+    {"name": "Suspense A/c", "parent": null, "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Bank Accounts", "parent": "Current Assets", "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Bank OD A/c", "parent": "Loans (Liability)", "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Cash-in-Hand", "parent": "Current Assets", "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Deposits (Asset)", "parent": "Current Assets", "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Duties & Taxes", "parent": "Current Liabilities", "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Loans & Advances (Asset)", "parent": "Current Assets", "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Provisions", "parent": "Current Liabilities", "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Reserves & Surplus", "parent": "Capital Account", "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Secured Loans", "parent": "Loans (Liability)", "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Stock-in-Hand", "parent": "Current Assets", "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Sundry Creditors", "parent": "Current Liabilities", "nature": "Liabilities", "affectsGrossProfit": 0},
+    {"name": "Sundry Debtors", "parent": "Current Assets", "nature": "Assets", "affectsGrossProfit": 0},
+    {"name": "Unsecured Loans", "parent": "Loans (Liability)", "nature": "Liabilities", "affectsGrossProfit": 0}
+  ],
+  "displayLabelAliases": [
+    {"label": "Bank OCC A/c", "canonical": "Bank OD A/c"},
+    {"label": "Expenses (Direct)", "canonical": "Direct Expenses"},
+    {"label": "Expenses (Indirect)", "canonical": "Indirect Expenses"},
+    {"label": "Income (Direct)", "canonical": "Direct Incomes"},
+    {"label": "Income (Indirect)", "canonical": "Indirect Incomes"},
+    {"label": "Retained Earnings", "canonical": "Reserves & Surplus"}
+  ],
+  "rules": {
+    "builtinImmutable": "Builtin groups cannot be renamed, deleted, or reassigned away from their nature.",
+    "cyclePrevention": "Setting a parent that is a descendant of the target group is rejected.",
+    "userGroupCreation": "User groups inherit nature from their parent group, or declare nature if under Primary.",
+    "backwardCompatibility": "Existing ledgers mapped to legacy kinds seamlessly resolve to standard group IDs."
+  }
+}
