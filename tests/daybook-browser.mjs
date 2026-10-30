@@ -38,7 +38,7 @@ try{
   await page.keyboard.press('Alt+F2');await page.locator('#report-period-dialog').waitFor();await page.locator('#period-from').fill('1-4-2026');await page.keyboard.press('Enter');await page.locator('#period-to').fill('3-4-2026');await page.keyboard.press('Control+a');await page.locator('#report-period-dialog').waitFor({state:'detached'});
   assert.equal(await page.locator('[data-sale-row]').count(),3);await type('Receipt');assert.equal(await page.locator('[data-sale-row]').count(),2);assert.match(await page.locator('#daybook-totals').innerText(),/1,225\.25/);
   await page.screenshot({path:join(output,'bookr-daybook-receipt-period.png'),fullPage:true});
-  await page.keyboard.press('F4');await page.locator('#voucher-type-search').fill('Credit Note');await page.keyboard.press('Enter');await page.locator('#voucher-type-error').filter({hasText:'Choose one of the supported'}).waitFor();await page.keyboard.press('Escape');await page.locator('#voucher-type-dialog').waitFor({state:'detached'});
+  await page.keyboard.press('F4');await page.locator('#voucher-type-search').fill('Sales Order');await page.keyboard.press('Enter');await page.locator('#voucher-type-error').filter({hasText:'Choose one of the supported'}).waitFor();await page.keyboard.press('Escape');await page.locator('#voucher-type-dialog').waitFor({state:'detached'});
   assert.equal(await page.locator('[data-sale-row]').count(),2);assert.deepEqual(await state(),before);
 
   // Reopen/edit/return keeps filters and refreshes their rows and totals.

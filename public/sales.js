@@ -9,8 +9,8 @@ import { editReportDate,editReportPeriod } from './report-period.js';
 import { editVoucherType } from './voucher-type.js';
 
 export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,renderGateway,getView,openLedgerFromSale,openReceipt,openOtherVoucher}) {
-  const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal'}[type]);
-  const partyDebit=type=>type==='sale' || type==='payment';
+  const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal',credit_note:'Credit Note',debit_note:'Debit Note'}[type]);
+  const partyDebit=type=>type==='sale' || type==='payment' || type==='debit_note';
   const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
   let editing= null, origin = 'gateway', initialValues = '', saving = false, currentDate = null;
   let reportRows = [], reportIndex = 0;
@@ -146,7 +146,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     rail.insertBefore(salesKey,rail.querySelector('.rail-space'));
     const receiptKey = document.createElement('button'); receiptKey.type='button'; receiptKey.dataset.salesRail=''; receiptKey.textContent='F6: Receipt';
     receiptKey.addEventListener('click',() => leaveFor(() => openReceipt(null,origin))); rail.insertBefore(receiptKey,salesKey);
-    for(const [key,type,label] of [['F4','contra','Contra'],['F5','payment','Payment'],['F7','journal','Journal'],['F9','purchase','Purchase']]){
+    for(const [key,type,label] of [['F4','contra','Contra'],['F5','payment','Payment'],['F7','journal','Journal'],['F9','purchase','Purchase'],['Alt+F5','debit_note','Debit Note'],['Alt+F6','credit_note','Credit Note']]){
       const entryKey=document.createElement('button');entryKey.type='button';entryKey.dataset.salesRail='';entryKey.textContent=`${key}: ${label}`;entryKey.onclick=()=>leaveFor(()=>openOtherVoucher(null,origin,type));rail.insertBefore(entryKey,type==='payment'?receiptKey:rail.querySelector('.rail-space'));
     }
     const dateKey = rail.querySelector('button'); dateKey.disabled = false; dateKey.onclick = () => main.querySelector('#sale-date')?.focus();
@@ -315,6 +315,10 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     if(getView()==='daybook' && event.key==='F2' && !event.ctrlKey && !event.metaKey){event.preventDefault();showDayBookDates(event.altKey);return true;}
     if(getView()==='daybook' && event.key==='F4' && !event.ctrlKey && !event.altKey && !event.metaKey){event.preventDefault();showDayBookType();return true;}
     if(getView()==='daybook' && ['F6','F8'].includes(event.key) && !event.ctrlKey && !event.altKey && !event.metaKey){event.preventDefault();hint.textContent=event.key==='F8'?'Columnar view is not available yet.':'Choose New Receipt to enter a receipt voucher.';return true;}
+    if (event.altKey && !event.ctrlKey && !event.metaKey) {
+      if (event.key === 'F5') { event.preventDefault(); leaveFor(() => openOtherVoucher(null, origin, 'debit_note')); return true; }
+      if (event.key === 'F6') { event.preventDefault(); leaveFor(() => openOtherVoucher(null, origin, 'credit_note')); return true; }
+    }
     if (event.altKey || event.ctrlKey || event.metaKey) return false;
     if(['F4','F5','F7','F9'].includes(event.key) && getView()==='sale'){event.preventDefault();leaveFor(()=>openOtherVoucher(null,origin,{F4:'contra',F5:'payment',F7:'journal',F9:'purchase'}[event.key]));return true;}
     if (event.key === 'F6') { event.preventDefault(); leaveFor(() => openReceipt(null,getView()==='daybook'?'daybook':origin)); return true; }

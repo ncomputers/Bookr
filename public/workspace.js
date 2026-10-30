@@ -8,6 +8,7 @@ import { createChartWorkspace } from './chart-of-accounts.js';
 import { createAccountingMasters } from './accounting-masters.js';
 import {createJournalWorkspace} from './journal.js';
 import {createGeneralJournalWorkspace} from './general-journal.js';
+import {createNotesWorkspace} from './notes.js';
 import {askDialog} from './confirmation-dialog.js';
 import {createOpeningBalanceEditor,supportsOpeningBalance,partyOpening} from './opening-balance.js';
 import {ledgerGroups} from './ledger-groups.js';
@@ -59,6 +60,8 @@ function openVoucher(voucher,from='gateway',type=voucher?.type ?? 'sale'){
   else if(type==='contra')contra.render(voucher,from);
   else if(type==='journal' && (voucher?.journal_mode==='general' || voucher?.details?.journal_mode==='general'))generalJournal.render(voucher,from);
   else if(type==='journal')journal.render(voucher,from);
+  else if(type==='credit_note')notes.renderCreditNote(voucher,from);
+  else if(type==='debit_note')notes.renderDebitNote(voucher,from);
   else sales.renderSale(voucher,from);
 }
 const sales = createSalesWorkspace({main,hint,api,setScreen,getBook:() => book,refreshBook,escapeHtml,askDialog,renderGateway,getView:() => view,
@@ -78,6 +81,7 @@ const purchases=createPurchaseWorkspace({main,hint,api,setScreen,getBook:()=>boo
 const contra=createContraWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type))});
 const journal=createJournalWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type)),openGeneral:from=>openFresh(()=>generalJournal.render(null,from))});
 const generalJournal=createGeneralJournalWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type)),openLegacy:from=>openFresh(()=>journal.render(null,from))});
+const notes=createNotesWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,getView:()=>view,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type))});
 const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,getView:()=>view,
   openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);}});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
@@ -412,6 +416,7 @@ function goBack() {
   if (['contra','contra-postings'].includes(view)) { contra.goBack(); return; }
   if (['journal','journal-postings'].includes(view)) { journal.goBack(); return; }
   if (['journal-general','journal-general-postings'].includes(view)) { generalJournal.goBack(); return; }
+  if (['credit-note','debit-note','credit-note-postings','debit-note-postings'].includes(view)) { notes.goBack(); return; }
   if (['chart-masters','chart-ledgers','chart-groups','chart-cost-categories','chart-cost-centres'].includes(view)) { chart.goBack(); return; }
   if (accountingMasters.goBack()) return;
   if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary'].includes(view)) { reports.goBack(); return; }
@@ -433,10 +438,14 @@ document.addEventListener('keydown', event => {
   if(view==='gateway'&&event.altKey&&!event.ctrlKey&&!event.metaKey&&event.key==='F2'){event.preventDefault();changeCompanyPeriod();return;}
   if(companyUI.onKey(event))return;
   if(ledgerGroupPicker?.onKey(event))return;
-  if (sales.onKey(event)) return;
+  if (sales.onKey(event) || notes.onKey(event)) return;
   if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event)) return;
   if (view === 'ledger' && event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'a') {
     event.preventDefault(); saveLedger(); return;
+  }
+  if (['sale','purchase','receipt','payment','contra','journal','journal-general','credit-note','debit-note'].includes(view) && event.altKey && !event.ctrlKey && !event.metaKey) {
+    if (event.key === 'F5') { event.preventDefault(); openFresh(() => notes.renderDebitNote(null, view)); return; }
+    if (event.key === 'F6') { event.preventDefault(); openFresh(() => notes.renderCreditNote(null, view)); return; }
   }
   if (event.ctrlKey || event.altKey || event.metaKey || saving) return;
   if (event.key === 'Escape') { event.preventDefault(); goBack(); return; }
@@ -446,6 +455,8 @@ document.addEventListener('keydown', event => {
     else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); selectMenu(event.key === 'Home' ? 0 : menu.length-1,true); }
     else if (event.key === 'Enter') { if(event.target.closest('button:not([data-menu])'))return;event.preventDefault(); openGatewayItem(); }
     else if (event.key.toLowerCase() === 'c' || event.key.toLowerCase() === 'a') { event.preventDefault(); renderMasters(event.key.toLowerCase() === 'c' ? 'create' : 'alter'); }
+    else if (event.key.toLowerCase() === 'v') { event.preventDefault(); openFresh(() => sales.renderSale()); }
+    else if (event.key.toLowerCase() === 'k') { event.preventDefault(); sales.openDayBook(); }
   } else if (view === 'masters') {
     if (!main.contains(event.target)) return;
     const buttons = Array.from(main.querySelectorAll('.master-menu-content button'));

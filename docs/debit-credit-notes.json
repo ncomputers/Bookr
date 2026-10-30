@@ -1,0 +1,61 @@
+{
+  "feature": "debit-credit-notes",
+  "layer": "3.1",
+  "complete": true,
+  "vouchers": {
+    "credit_note": {
+      "shortcut": "Alt+F6",
+      "purpose": "Sales returns and credits to customer accounts",
+      "party_kind": ["customer", "cash"],
+      "account_kind": ["sales"],
+      "postings": {
+        "debit": "sales",
+        "credit": "party"
+      },
+      "fields": [
+        "date",
+        "original_invoice_number",
+        "original_invoice_date",
+        "party_account_name",
+        "current_balance",
+        "sales_ledger",
+        "amount",
+        "narration",
+        "bill_reference"
+      ]
+    },
+    "debit_note": {
+      "shortcut": "Alt+F5",
+      "purpose": "Purchase returns and debits to supplier accounts",
+      "party_kind": ["supplier", "cash"],
+      "account_kind": ["purchase"],
+      "postings": {
+        "debit": "party",
+        "credit": "purchase"
+      },
+      "fields": [
+        "date",
+        "original_invoice_number",
+        "original_invoice_date",
+        "party_account_name",
+        "current_balance",
+        "purchase_ledger",
+        "amount",
+        "narration",
+        "bill_reference"
+      ]
+    }
+  },
+  "keyboard": {
+    "Alt+F5": "Open Debit Note from any voucher screen",
+    "Alt+F6": "Open Credit Note from any voucher screen",
+    "Ctrl+A": "Accept and save voucher",
+    "F2": "Edit voucher date",
+    "Enter": "Next field / trigger sub-form",
+    "Escape": "Cancel or return to previous screen"
+  },
+  "accounting_effect": {
+    "credit_note": "Debits Sales Accounts, reducing sales income; credits Customer, reducing accounts receivable.",
+    "debit_note": "Debits Supplier, reducing accounts payable; credits Purchase Accounts, reducing purchase expense."
+  }
+}

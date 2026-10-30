@@ -42,7 +42,7 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     button('open-day-book','Day Book',()=>leaveFor(openDayBook));
     if(voucher)button('view-purchase-postings','View Entries',()=>leaveFor(showPostings));
     const rail=document.querySelector('.function-rail');
-    for(const [key,type,label] of [['F5','payment','Payment'],['F6','receipt','Receipt'],['F7','journal','Journal'],['F8','sale','Sales'],['F9','purchase','Purchase']]){
+    for(const [key,type,label] of [['F5','payment','Payment'],['F6','receipt','Receipt'],['F7','journal','Journal'],['F8','sale','Sales'],['F9','purchase','Purchase'],['Alt+F5','debit_note','Debit Note'],['Alt+F6','credit_note','Credit Note']]){
       const b=document.createElement('button');b.type='button';b.dataset.salesRail='';b.textContent=`${key}: ${label}`;b.onclick=()=>leaveFor(()=>type==='purchase'?renderPurchase(null,origin):openVoucher(null,origin,type));rail.insertBefore(b,rail.querySelector('.rail-space'));
     }
     const dateKey=rail.querySelector('button');dateKey.disabled=false;dateKey.onclick=()=>{main.querySelector('#purchase-date').focus();main.querySelector('#purchase-date').select();};
@@ -112,6 +112,10 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
   function onKey(e){
     if(!['purchase','purchase-postings'].includes(getView()))return false;if(saving){e.preventDefault();return true;}
     if(e.ctrlKey && !e.altKey && e.key.toLowerCase()==='a' && getView()==='purchase'){e.preventDefault();save();return true;}
+    if(e.altKey && !e.ctrlKey && !e.metaKey){
+      if(e.key==='F5'){e.preventDefault();leaveFor(()=>openVoucher(null,origin,'debit_note'));return true;}
+      if(e.key==='F6'){e.preventDefault();leaveFor(()=>openVoucher(null,origin,'credit_note'));return true;}
+    }
     if(e.ctrlKey || e.altKey || e.metaKey)return false;
     const type={F4:'contra',F5:'payment',F6:'receipt',F7:'journal',F8:'sale',F9:'purchase'}[e.key];
     if(type){e.preventDefault();leaveFor(()=>type==='purchase'?renderPurchase(null,origin):openVoucher(null,origin,type));return true;}

@@ -9,7 +9,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   let outstandingDirection='receivable',trialPeriod=null,showZero=false,statementOrigin='selector';
   let outstandingAsOf=null;
   let monthlyContext=null;
-  const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal'}[type]);
+  const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal',credit_note:'Credit Note',debit_note:'Debit Note'}[type]);
   const periods=new Map();
   const outstandingDates=new Map();
   const balance=value=>`${formatRupees(Math.abs(value))} ${value<0?'Cr':'Dr'}`;
