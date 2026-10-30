@@ -334,7 +334,7 @@ function renderLedger(ledger = null, message = '',returnTo = null) {
   for(const [key,limit] of Object.entries({account_number:80,ifs_code:40,swift_code:40}))bankSection.querySelector(`[data-bank-field="${key}"]`).maxLength=limit;
   const updateKind=()=>{
     const group=ledgerGroups.find(group=>group.value===main.querySelector('#ledger-group').value);ledgerKind=group?.kind??'general';
-    const bank=ledgerKind==='bank',expense=['expense','income'].includes(ledgerKind),party=['customer','supplier'].includes(ledgerKind);
+    const bank=ledgerKind==='bank',expense=['expense','income','sales','purchase'].includes(ledgerKind),party=['customer','supplier'].includes(ledgerKind);
     main.querySelector('.parent-group').textContent=group?.parent?'('+group.parent+')':'';
     main.querySelector('.billwise-row').hidden=!party;main.querySelector('#ledger-billwise').disabled=!party;bankSection.hidden=!bank;bankSection.querySelectorAll('input').forEach(field=>field.disabled=!bank);
     expenseSettings.hidden=!expense;main.querySelector('#expense-ledger-type').disabled=!expense;
@@ -343,6 +343,12 @@ function renderLedger(ledger = null, message = '',returnTo = null) {
     openingEditor.setKind(ledgerKind);
   };
   main.querySelector('#ledger-group').addEventListener('change',updateKind);updateKind();
+  if (ledger) {
+    api('/api/cost-centres/applicability').then(map => {
+      const el = main.querySelector('#ledger-cost-centres');
+      if (el && Object.hasOwn(map, String(ledger.id))) el.value = map[String(ledger.id)] ? '1' : '0';
+    }).catch(() => {});
+  }
   ledgerGroupPicker=createListPicker({host:main,select:main.querySelector('#ledger-group'),id:'ledger-group',title:'List of Groups',searchLabel:'Search groups',acceptControl:document.querySelector('#accept-ledger'),onAcceptAll:()=>saveLedger(),onAccepted:()=>{
     const fields=ledgerFields();
     const index=fields.indexOf(main.querySelector('#ledger-group'));fields[index+1]?.focus();
@@ -387,6 +393,13 @@ async function saveLedger() {
     saved = await api(editing ? `/api/${route}/${editing.id}` : `/api/${route}`, {
       method:editing ? 'PUT' : 'POST', body:JSON.stringify({ ...values, ...(editing ? { revision:editing.revision } : {}) })
     });
+    const ccSelect = main.querySelector('#ledger-cost-centres');
+    if (ccSelect && ['expense', 'income', 'sales', 'purchase'].includes(saved.kind)) {
+      await api('/api/cost-centres/applicability', {
+        method: 'POST',
+        body: JSON.stringify({ledger_id: saved.id, applicable: ccSelect.value === '1'})
+      }).catch(() => {});
+    }
     book.ledgers = book.ledgers.filter(row => row.id !== saved.id).concat(saved).sort((a,b) => a.name.localeCompare(b.name));
     await refreshBook().catch(() => {});
     const wasEditing = Boolean(editing);

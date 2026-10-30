@@ -7,6 +7,7 @@ import { editVoucherDetails } from './voucher-details.js';
 import { editBillReference } from './bill-details.js';
 import { editReportDate,editReportPeriod } from './report-period.js';
 import { editVoucherType } from './voucher-type.js';
+import { editCostAllocations } from './cost-allocations.js';
 
 export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,renderGateway,getView,openLedgerFromSale,openReceipt,openOtherVoucher}) {
   const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal',credit_note:'Credit Note',debit_note:'Debit Note'}[type]);
@@ -34,7 +35,10 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
   }
   function updateTotal() {
     let amount = 0;
-    try { amount = parseRupees(value('sale-amount')); } catch {}
+    const inputs = main.querySelectorAll('.sale-line input[inputmode="decimal"], #sale-amount');
+    inputs.forEach(inp => {
+      try { amount += parseRupees(inp.value); } catch {}
+    });
     main.querySelector('#sale-total').textContent = formatRupees(amount);
     updateBalance();
   }
@@ -120,22 +124,32 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     if (voucher) currentDate = voucher.date;
     setScreen(voucher ? 'Accounting Voucher Alteration' : 'Accounting Voucher Creation','sale',message || 'F8: Sales · F2: date · Enter: next · Ctrl+A: accept · Esc: back');
     const customers = book().ledgers.filter(row => ['customer','cash'].includes(row.kind));
-    const accounts = book().ledgers.filter(row => row.kind === 'sales');
+    const allParticulars = book().ledgers.filter(row => ['sales','income','expense','general'].includes(row.kind));
     const number = voucher?.number ?? Math.max(0,...book().vouchers.filter(row => row.type === 'sale').map(row => row.number))+1;
     billReference = voucher?.bill?.reference ?? String(number);
     billTerms=structuredClone(voucher?.bill?.terms ?? null);
     reviewedBill = voucher ? billSignature(voucher) : '';
+    const savedLines = voucher?.lines ?? (voucher?.details?.lines || []);
+    const primaryLine = savedLines[0] ?? { ledger_id: voucher?.account_id, amount: voucher?.amount };
+    const extraLines = savedLines.slice(1);
     main.innerHTML = `<form id="sales-form" autocomplete="off" novalidate>
       <div class="voucher-heading"><strong class="voucher-type">Sales</strong><span>No. <b id="sale-number">${number}</b></span><div class="voucher-date"><label for="sale-date" class="sr-only">Voucher date</label><input id="sale-date" value="${entryDate(voucher?.date ?? currentDate)}" aria-describedby="sale-date-help" spellcheck="false"><span id="sale-weekday"></span></div></div>
       <div class="voucher-party"><label for="sale-customer">Party A/c name</label><span>:</span><input id="sale-customer" role="combobox" aria-autocomplete="list" aria-controls="party-options" aria-expanded="false" spellcheck="false" data-customer-id="${voucher?.customer_id ?? ''}" value="${escapeHtml(voucher?.customer_name ?? '')}"></div><div id="party-options" class="party-options" role="listbox" aria-label="Customer and Cash ledger accounts" hidden></div>
       <div class="party-balance"><i>Current balance</i><span>:</span><i id="party-balance">—</i></div>
       <div class="voucher-lines-heading"><strong>Particulars</strong><span class="rate-heading">Rate &nbsp; per</span><strong>Amount</strong></div>
-      <div class="sale-line" ${voucher ? '' : 'hidden'}><label for="sale-account" class="sr-only">Sales ledger</label><select id="sale-account"><option value=""></option>${accounts.map(row => `<option value="${row.id}" ${row.id === voucher?.account_id ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><label for="sale-amount" class="sr-only">Sale amount</label><input id="sale-amount" inputmode="decimal" maxlength="20" value="${voucher ? inputRupees(voucher.amount) : ''}" aria-describedby="sale-amount-help"></div>
+      <div id="voucher-lines">
+        <div class="sale-line" data-line="0" ${voucher ? '' : 'hidden'}><label for="sale-account" class="sr-only">Sales ledger</label><select id="sale-account" class="line-ledger"><option value=""></option>${allParticulars.map(row => `<option value="${row.id}" ${row.id === (primaryLine.ledger_id ?? voucher?.account_id) ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><label for="sale-amount" class="sr-only">Sale amount</label><input id="sale-amount" class="line-amount" inputmode="decimal" maxlength="20" value="${voucher ? inputRupees(primaryLine.amount ?? voucher.amount) : ''}" aria-describedby="sale-amount-help"></div>
+        ${extraLines.map((line, idx) => `
+          <div class="sale-line" data-line="${idx + 1}"><select class="line-ledger"><option value=""></option>${allParticulars.map(row => `<option value="${row.id}" ${row.id === line.ledger_id ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value="${inputRupees(line.amount)}"><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button></div>
+        `).join('')}
+      </div>
+      <div class="line-tools" ${voucher ? '' : 'hidden'}><button type="button" id="sale-add-line" class="add-line-button" tabindex="-1">+ Add Line</button></div>
       <div class="voucher-space"><span id="sale-date-help" class="sr-only">Date: 1-Apr-2026 or 2026-04-01.</span><span id="sale-amount-help" class="sr-only">Sale amount, no tax or inventory, up to two decimal places.</span>${!customers.length ? '<div class="voucher-scope"><strong>Create a customer or Cash ledger before entering a sale.</strong></div>' : ''}</div>
       <div id="sale-error" class="ledger-error" role="alert"></div>
       <div class="voucher-bottom"><div class="voucher-narration"><label for="sale-narration">Narration:</label><textarea id="sale-narration" rows="2" maxlength="1000">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="sale-total">0.00</span></div></div>
     </form>`;
     button('accept-sale','<u>A</u>: Accept <span>Ctrl+A</span>',saveSale);
+    button('sale-cost-allocations','Cost Allocations',showCostAllocations);
     button('bill-details','Bill-wise Details',() => showBillDetails());
     button('open-day-book','Day Book',() => leaveFor(openDayBook));
     button('party-details','Party Details',()=>showDetails());
@@ -158,6 +172,30 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     date.addEventListener('input',weekday); weekday();
     main.querySelector('#sale-amount').addEventListener('input',updateTotal);
     main.querySelector('#sales-form').addEventListener('submit',event => { event.preventDefault(); saveSale(); });
+    function bindLineEvents(container = main) {
+      container.querySelectorAll('.line-amount').forEach(inp => {
+        inp.removeEventListener('input', updateTotal);
+        inp.addEventListener('input', updateTotal);
+      });
+      container.querySelectorAll('.remove-line-btn').forEach(btn => {
+        btn.onclick = () => {
+          btn.closest('.sale-line').remove();
+          updateTotal();
+        };
+      });
+    }
+    bindLineEvents();
+    main.querySelector('#sale-add-line')?.addEventListener('click', () => {
+      const container = main.querySelector('#voucher-lines');
+      const idx = container.querySelectorAll('.sale-line').length;
+      const div = document.createElement('div');
+      div.className = 'sale-line';
+      div.dataset.line = String(idx);
+      div.innerHTML = `<select class="line-ledger"><option value=""></option>${allParticulars.map(row => `<option value="${row.id}">${escapeHtml(row.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value=""><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>`;
+      container.appendChild(div);
+      bindLineEvents(div);
+      div.querySelector('.line-ledger').focus();
+    });
     bindCustomerPicker(); updateTotal(); updateBalance();
     initialValues = JSON.stringify(formValues()); main.querySelector(voucher?'#sale-date':'#sale-customer').focus();
   }
@@ -165,23 +203,89 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     const customer = customerForName(value('sale-customer'));
     if (!customer) { error('Choose an existing customer or Cash ledger.','sale-customer'); return; }
     if(customer.kind==='cash'){
-      main.querySelector('.sale-line').hidden=false;updateBalance();
+      main.querySelectorAll('.sale-line').forEach(el => el.hidden = false);
+      const tools = main.querySelector('.line-tools'); if (tools) tools.hidden = false;
+      updateBalance();
     }
     editVoucherDetails({customer,details,escapeHtml,setCaption:name => { document.querySelector('.screen-title h1').textContent = name || (editing ? 'Accounting Voucher Alteration' : 'Accounting Voucher Creation'); },
-      onDone:next => { details = next; main.querySelector('.sale-line').hidden = false; main.querySelector('#sale-account').focus(); },
+      onDone:next => {
+        details = next;
+        main.querySelectorAll('.sale-line').forEach(el => el.hidden = false);
+        const tools = main.querySelector('.line-tools'); if (tools) tools.hidden = false;
+        main.querySelector('#sale-account').focus();
+      },
       onCancel:() => main.querySelector(customer.kind==='cash'?'#sale-account':'#sale-customer').focus()});
+  }
+  function readLines() {
+    const lineEls = main.querySelectorAll('.sale-line');
+    const lines = [];
+    for (const el of lineEls) {
+      const select = el.querySelector('.line-ledger, #sale-account');
+      const input = el.querySelector('.line-amount, #sale-amount');
+      const lid = Number(select?.value);
+      if (!lid) continue;
+      let amt = 0;
+      try { amt = parseRupees(input?.value); } catch { amt = 0; }
+      if (amt > 0) lines.push({ ledger_id: lid, amount: amt });
+    }
+    return lines;
   }
   function readSaleInput() {
     main.querySelector('#sale-error').textContent = '';
-    let date, amount;
+    let date;
     try { date = parseEntryDate(value('sale-date')); } catch (failure) { error(failure.message,'sale-date'); return; }
     const customer = customerForName(value('sale-customer'));
     if (!customer) { error('Choose an existing customer or Cash ledger.','sale-customer'); return; }
     if (main.querySelector('.sale-line').hidden) { showDetails(); return; }
-    try { amount = parseRupees(value('sale-amount')); } catch (failure) { error(failure.message,'sale-amount'); return; }
+    const lines = readLines();
+    if (!lines.length) {
+      let amount = 0;
+      try { amount = parseRupees(value('sale-amount')); } catch (failure) { error(failure.message,'sale-amount'); return; }
+      const account = Number(value('sale-account'));
+      if (!account) { error('Choose a sales ledger.','sale-account'); return; }
+      lines.push({ ledger_id: account, amount });
+    }
+    const hasMultiple = lines.length > 1;
+    const totalAmount = lines.reduce((sum, l) => sum + l.amount, 0);
+    const nextDetails = { ...details };
+    if (hasMultiple) nextDetails.lines = lines;
+    return {
+      type: 'sale',
+      date,
+      customer_id: customer.id,
+      account_id: lines[0].ledger_id,
+      amount: totalAmount,
+      ...(hasMultiple ? { lines } : {}),
+      narration: value('sale-narration'),
+      details: nextDetails,
+      ...(editing ? { revision: editing.revision } : {})
+    };
+  }
+  function showCostAllocations() {
+    if (saving || getView() !== 'sale' || document.querySelector('dialog')) return;
+    const lines = readLines();
     const account = Number(value('sale-account'));
-    if (!account) { error('Choose a sales ledger.','sale-account'); return; }
-    return {type:'sale',date,customer_id:customer.id,account_id:account,amount,narration:value('sale-narration'),details,...(editing ? {revision:editing.revision} : {})};
+    let amount = 0;
+    try { amount = parseRupees(value('sale-amount')); } catch {}
+    const targetLedgerId = lines[0]?.ledger_id ?? account;
+    const targetAmount = lines[0]?.amount ?? amount;
+    const targetLedger = book().ledgers.find(l => l.id === targetLedgerId);
+    if (!targetLedger) { error('Choose a particulars ledger first.','sale-account'); return; }
+    if (!targetAmount) { error('Enter an amount first.','sale-amount'); return; }
+    editCostAllocations({
+      ledger: targetLedger,
+      amount: targetAmount,
+      existingAllocations: details.cost_allocations || [],
+      api,
+      escapeHtml,
+      setCaption: name => { document.querySelector('.screen-title h1').textContent = name || (editing ? 'Accounting Voucher Alteration' : 'Accounting Voucher Creation'); },
+      onDone: allocs => {
+        const others = (details.cost_allocations || []).filter(ca => ca.ledger_id !== targetLedger.id);
+        details.cost_allocations = [...others, ...allocs];
+        main.querySelector('#sale-narration').focus();
+      },
+      onCancel: () => main.querySelector('#sale-amount').focus()
+    });
   }
   function showBillDetails(input = null) {
     if (saving || getView() !== 'sale' || document.querySelector('dialog')) return;

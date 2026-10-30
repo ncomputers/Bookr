@@ -5,6 +5,7 @@ import {createEntryDateState} from './working-date.js';
 import {entryDate,parseEntryDate,formatRupees,inputRupees,parseRupees} from './entry-values.js';
 import {editVoucherDetails} from './voucher-details.js';
 import {editBillReference} from './bill-details.js';
+import {editCostAllocations} from './cost-allocations.js';
 
 export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,getView,renderGateway,openDayBook,openVoucher}) {
   const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
@@ -21,7 +22,10 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
   function leaveFor(action){if(saving || document.querySelector('dialog'))return;if(dirty())askDialog('Discard unsaved purchase changes?',action,'Discard');else action();}
   const returnTo=()=>typeof origin==='function'?origin():origin==='daybook'?openDayBook():renderGateway(3);
   function update(){
-    let amount=0;try{amount=parseRupees(value('amount'));}catch{}
+    let amount=0;
+    main.querySelectorAll('.sale-line input[inputmode="decimal"], #purchase-amount').forEach(inp=>{
+      try{amount+=parseRupees(inp.value);}catch{}
+    });
     main.querySelector('#purchase-total').textContent=formatRupees(amount);
     const party=supplier(),balance=party?savedLedgerBalance(getBook(),party.id):0;
     main.querySelector('#purchase-balance').textContent=party?`${formatRupees(Math.abs(balance))} ${balance<0?'Cr':'Dr'}`:'—';
@@ -34,9 +38,13 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     reviewed='';
     setScreen(voucher?'Accounting Voucher Alteration':'Accounting Voucher Creation','purchase',message || 'F9: Purchase · F5: Payment · F2: date · Enter: next · Ctrl+A: accept');
     const number=voucher?.number ?? Math.max(0,...getBook().vouchers.filter(v=>v.type==='purchase').map(v=>v.number))+1;
-    const accounts=getBook().ledgers.filter(l=>l.kind==='purchase');
-    main.innerHTML=`<form id="purchase-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">Purchase</strong><span>No. <b>${number}</b></span><div class="voucher-date"><label class="sr-only" for="purchase-date">Voucher date</label><input id="purchase-date" value="${entryDate(currentDate)}"><span id="purchase-weekday"></span></div></div><div class="supplier-invoice"><label for="purchase-invoice">Supplier Invoice No.</label><span>:</span><input id="purchase-invoice" maxlength="120" value="${escapeHtml(details.supplier_invoice?.number ?? '')}"><label for="purchase-invoice-date">Date</label><span>:</span><input id="purchase-invoice-date" value="${details.supplier_invoice?.date ? entryDate(details.supplier_invoice.date) : ''}"></div><div class="voucher-party"><label for="purchase-supplier">Party A/c name</label><span>:</span><input id="purchase-supplier" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="purchase-party-options" value="${escapeHtml(voucher?.supplier_name ?? '')}" spellcheck="false"></div><div class="party-balance"><i>Current balance &nbsp;:</i><i id="purchase-balance"></i></div><div id="purchase-party-options" class="party-options" role="listbox" aria-label="Supplier and Cash ledger accounts" hidden></div><div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div><div class="sale-line"><label class="sr-only" for="purchase-account">Purchase ledger</label><select id="purchase-account">${accounts.map(l=>`<option value="${l.id}" ${voucher?.account_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><label class="sr-only" for="purchase-amount">Purchase amount</label><input id="purchase-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(voucher.amount):''}"></div><div class="voucher-space"></div><div id="purchase-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="purchase-narration">Narration:</label><textarea id="purchase-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="purchase-total"></span></div></div></form>`;
+    const allParticulars=getBook().ledgers.filter(l=>['purchase','expense','income','general'].includes(l.kind));
+    const savedLines=voucher?.lines ?? (voucher?.details?.lines || []);
+    const primaryLine=savedLines[0] ?? {ledger_id:voucher?.account_id,amount:voucher?.amount};
+    const extraLines=savedLines.slice(1);
+    main.innerHTML=`<form id="purchase-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">Purchase</strong><span>No. <b>${number}</b></span><div class="voucher-date"><label class="sr-only" for="purchase-date">Voucher date</label><input id="purchase-date" value="${entryDate(currentDate)}"><span id="purchase-weekday"></span></div></div><div class="supplier-invoice"><label for="purchase-invoice">Supplier Invoice No.</label><span>:</span><input id="purchase-invoice" maxlength="120" value="${escapeHtml(details.supplier_invoice?.number ?? '')}"><label for="purchase-invoice-date">Date</label><span>:</span><input id="purchase-invoice-date" value="${details.supplier_invoice?.date ? entryDate(details.supplier_invoice.date) : ''}"></div><div class="voucher-party"><label for="purchase-supplier">Party A/c name</label><span>:</span><input id="purchase-supplier" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="purchase-party-options" value="${escapeHtml(voucher?.supplier_name ?? '')}" spellcheck="false"></div><div class="party-balance"><i>Current balance &nbsp;:</i><i id="purchase-balance"></i></div><div id="purchase-party-options" class="party-options" role="listbox" aria-label="Supplier and Cash ledger accounts" hidden></div><div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div><div id="purchase-lines"><div class="sale-line" data-line="0"><label class="sr-only" for="purchase-account">Purchase ledger</label><select id="purchase-account" class="line-ledger">${allParticulars.map(l=>`<option value="${l.id}" ${(primaryLine.ledger_id ?? voucher?.account_id ?? allParticulars[0]?.id)===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><label class="sr-only" for="purchase-amount">Purchase amount</label><input id="purchase-amount" class="line-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(primaryLine.amount ?? voucher.amount):''}"></div>${extraLines.map((line,idx)=>`<div class="sale-line" data-line="${idx+1}"><select class="line-ledger"><option value=""></option>${allParticulars.map(l=>`<option value="${l.id}" ${line.ledger_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value="${inputRupees(line.amount)}"><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button></div>`).join('')}</div><div class="line-tools"><button type="button" id="purchase-add-line" class="add-line-button" tabindex="-1">+ Add Line</button></div><div class="voucher-space"></div><div id="purchase-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="purchase-narration">Narration:</label><textarea id="purchase-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="purchase-total"></span></div></div></form>`;
     button('accept-purchase','A: Accept  Ctrl+A',save);
+    button('purchase-cost-allocations','Cost Allocations',showCostAllocations);
     button('purchase-party-details','Party Details',showDetails);
     button('purchase-bill-details','Bill-wise Details',showBill);
     button('open-day-book','Day Book',()=>leaveFor(openDayBook));
@@ -49,6 +57,22 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     const date=main.querySelector('#purchase-date');
     const weekday=()=>{try{main.querySelector('#purchase-weekday').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',timeZone:'UTC'}).format(new Date(parseEntryDate(date.value)+'T12:00:00Z'));}catch{main.querySelector('#purchase-weekday').textContent='';}};
     date.addEventListener('input',weekday);weekday();
+    function bindLineEvents(container=main){
+      container.querySelectorAll('.line-amount').forEach(inp=>{
+        inp.removeEventListener('input',update);inp.addEventListener('input',update);
+      });
+      container.querySelectorAll('.remove-line-btn').forEach(btn=>{
+        btn.onclick=()=>{btn.closest('.sale-line').remove();update();};
+      });
+    }
+    bindLineEvents();
+    main.querySelector('#purchase-add-line')?.addEventListener('click',()=>{
+      const container=main.querySelector('#purchase-lines');
+      const idx=container.querySelectorAll('.sale-line').length;
+      const div=document.createElement('div');div.className='sale-line';div.dataset.line=String(idx);
+      div.innerHTML=`<select class="line-ledger"><option value=""></option>${allParticulars.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value=""><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>`;
+      container.appendChild(div);bindLineEvents(div);div.querySelector('.line-ledger').focus();
+    });
     main.querySelector('#purchase-amount').addEventListener('input',update);
     main.querySelector('#purchase-form').addEventListener('submit',e=>{e.preventDefault();save();});
     initialInvoice={number:value('invoice'),date:value('invoice-date')};
@@ -74,19 +98,48 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     if(saving || document.querySelector('dialog'))return;const party=supplier();if(!party){error('Choose an existing supplier or Cash ledger.','supplier');return;}
     editVoucherDetails({purchase:true,customer:party,details,escapeHtml,setCaption:caption=>{document.querySelector('.screen-title h1').textContent=caption || (editing?'Accounting Voucher Alteration':'Accounting Voucher Creation');},onDone:next=>{details=next;main.querySelector('#purchase-account').focus();},onCancel:()=>main.querySelector('#purchase-supplier').focus()});
   }
+  function readLines(){
+    const lineEls=main.querySelectorAll('.sale-line');const lines=[];
+    for(const el of lineEls){
+      const select=el.querySelector('.line-ledger, #purchase-account');
+      const input=el.querySelector('.line-amount, #purchase-amount');
+      const lid=Number(select?.value);if(!lid)continue;
+      let amt=0;try{amt=parseRupees(input?.value);}catch{amt=0;}
+      if(amt>0)lines.push({ledger_id:lid,amount:amt});
+    }
+    return lines;
+  }
   function read(){
-    error('');let date,invoiceDate,amount;const party=supplier();
+    error('');let date,invoiceDate;const party=supplier();
     try{date=parseEntryDate(value('date'));}catch(failure){error(failure.message,'date');return;}
     try{invoiceDate=value('invoice-date').trim()?parseEntryDate(value('invoice-date')):'';}catch(failure){error(failure.message,'invoice-date');return;}
     if(!party){error('Choose an existing supplier or Cash ledger.','supplier');return;}
-    try{amount=parseRupees(value('amount'));}catch(failure){error(failure.message,'amount');return;}
+    const lines=readLines();
+    if(!lines.length){
+      let amount=0;try{amount=parseRupees(value('amount'));}catch(failure){error(failure.message,'amount');return;}
+      const account=Number(value('account'));
+      if(!account){error('Choose a purchase ledger.','account');return;}
+      lines.push({ledger_id:account,amount});
+    }
+    const hasMultiple=lines.length>1;
+    const totalAmount=lines.reduce((sum,l)=>sum+l.amount,0);
     const nextDetails={...details};
     if(editing && value('invoice')===initialInvoice.number && value('invoice-date')===initialInvoice.date){
       // Display defaults must not materialize or fill unrelated saved metadata.
       if(Object.hasOwn(editing.details ?? {},'supplier_invoice'))nextDetails.supplier_invoice=structuredClone(editing.details.supplier_invoice);
       else delete nextDetails.supplier_invoice;
     }else nextDetails.supplier_invoice={number:value('invoice').trim(),date:invoiceDate};
-    return {type:'purchase',date,supplier_id:party.id,account_id:Number(value('account')),amount,narration:value('narration'),details:nextDetails,...(party.kind==='cash'?{bill:null}:reference?{bill:{reference,terms:billTerms}}:{}),...(editing?{revision:editing.revision}:{})};
+    if(hasMultiple)nextDetails.lines=lines;
+    return {type:'purchase',date,supplier_id:party.id,account_id:lines[0].ledger_id,amount:totalAmount,...(hasMultiple?{lines}:{}),narration:value('narration'),details:nextDetails,...(party.kind==='cash'?{bill:null}:reference?{bill:{reference,terms:billTerms}}:{}),...(editing?{revision:editing.revision}:{})};
+  }
+  function showCostAllocations(){
+    if(saving || document.querySelector('dialog') || getView()!=='purchase')return;
+    const lines=readLines();const account=Number(value('account'));let amount=0;try{amount=parseRupees(value('amount'));}catch{}
+    const targetLedgerId=lines[0]?.ledger_id ?? account;const targetAmount=lines[0]?.amount ?? amount;
+    const targetLedger=getBook().ledgers.find(l=>l.id===targetLedgerId);
+    if(!targetLedger){error('Choose a purchase ledger first.','account');return;}
+    if(!targetAmount){error('Enter an amount first.','amount');return;}
+    editCostAllocations({ledger:targetLedger,amount:targetAmount,existingAllocations:details.cost_allocations || [],api,escapeHtml,setCaption:caption=>{document.querySelector('.screen-title h1').textContent=caption || (editing?'Accounting Voucher Alteration':'Accounting Voucher Creation');},onDone:allocs=>{const others=(details.cost_allocations || []).filter(ca=>ca.ledger_id!==targetLedger.id);details.cost_allocations=[...others,...allocs];main.querySelector('#purchase-narration').focus();},onCancel:()=>main.querySelector('#purchase-amount').focus()});
   }
   function showBill(){
     if(cashParty())return;

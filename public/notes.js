@@ -5,6 +5,7 @@ import {createEntryDateState} from './working-date.js';
 import {entryDate,parseEntryDate,formatRupees,inputRupees,parseRupees} from './entry-values.js';
 import {editVoucherDetails} from './voucher-details.js';
 import {editBillReference} from './bill-details.js';
+import {editCostAllocations} from './cost-allocations.js';
 
 export function createNotesWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,getView,renderGateway,openDayBook,openVoucher}) {
   const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
@@ -29,7 +30,10 @@ export function createNotesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
   const returnTo=()=>typeof origin==='function'?origin():origin==='daybook'?openDayBook():renderGateway(3);
 
   function update(){
-    let amount=0;try{amount=parseRupees(value('amount'));}catch{}
+    let amount=0;
+    main.querySelectorAll('.sale-line input[inputmode="decimal"], #note-amount').forEach(inp=>{
+      try{amount+=parseRupees(inp.value);}catch{}
+    });
     main.querySelector('#note-total').textContent=formatRupees(amount);
     const party=selectedParty(),balance=party?savedLedgerBalance(getBook(),party.id):0;
     main.querySelector('#note-balance').textContent=party?`${formatRupees(Math.abs(balance))} ${balance<0?'Cr':'Dr'}`:'—';
@@ -45,12 +49,16 @@ export function createNotesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     const title=isCredit()?'Credit Note':'Debit Note';
     setScreen(voucher?'Accounting Voucher Alteration':'Accounting Voucher Creation',currentView(),message || `${isCredit()?'Alt+F6: Credit Note':'Alt+F5: Debit Note'} · F2: date · Enter: next · Ctrl+A: accept`);
     const number=voucher?.number ?? Math.max(0,...getBook().vouchers.filter(v=>v.type===currentType).map(v=>v.number))+1;
-    const accounts=getBook().ledgers.filter(l=>l.kind===accountKind());
+    const allParticulars=getBook().ledgers.filter(l=>[accountKind(),'expense','income','general'].includes(l.kind));
     const partyName=voucher?.customer_name ?? voucher?.supplier_name ?? '';
+    const savedLines=voucher?.lines ?? (voucher?.details?.lines || []);
+    const primaryLine=savedLines[0] ?? {ledger_id:voucher?.account_id,amount:voucher?.amount};
+    const extraLines=savedLines.slice(1);
 
-    main.innerHTML=`<form id="note-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">${title}</strong><span>No. <b>${number}</b></span><div class="voucher-date"><label class="sr-only" for="note-date">Voucher date</label><input id="note-date" value="${entryDate(currentDate)}"><span id="note-weekday"></span></div></div><div class="supplier-invoice"><label for="note-invoice">Original Invoice No.</label><span>:</span><input id="note-invoice" maxlength="120" value="${escapeHtml(details.original_invoice?.number ?? '')}"><label for="note-invoice-date">Date</label><span>:</span><input id="note-invoice-date" value="${details.original_invoice?.date ? entryDate(details.original_invoice.date) : ''}"></div><div class="voucher-party"><label for="note-party">Party A/c name</label><span>:</span><input id="note-party" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="note-party-options" value="${escapeHtml(partyName)}" spellcheck="false"></div><div class="party-balance"><i>Current balance &nbsp;:</i><i id="note-balance"></i></div><div id="note-party-options" class="party-options" role="listbox" aria-label="${isCredit()?'Customer':'Supplier'} and Cash ledger accounts" hidden></div><div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div><div class="sale-line"><label class="sr-only" for="note-account">${isCredit()?'Sales':'Purchase'} ledger</label><select id="note-account">${accounts.map(l=>`<option value="${l.id}" ${voucher?.account_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><label class="sr-only" for="note-amount">Amount</label><input id="note-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(voucher.amount):''}"></div><div class="voucher-space"></div><div id="note-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="note-narration">Narration:</label><textarea id="note-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="note-total"></span></div></div></form>`;
+    main.innerHTML=`<form id="note-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">${title}</strong><span>No. <b>${number}</b></span><div class="voucher-date"><label class="sr-only" for="note-date">Voucher date</label><input id="note-date" value="${entryDate(currentDate)}"><span id="note-weekday"></span></div></div><div class="supplier-invoice"><label for="note-invoice">Original Invoice No.</label><span>:</span><input id="note-invoice" maxlength="120" value="${escapeHtml(details.original_invoice?.number ?? '')}"><label for="note-invoice-date">Date</label><span>:</span><input id="note-invoice-date" value="${details.original_invoice?.date ? entryDate(details.original_invoice.date) : ''}"></div><div class="voucher-party"><label for="note-party">Party A/c name</label><span>:</span><input id="note-party" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="note-party-options" value="${escapeHtml(partyName)}" spellcheck="false"></div><div class="party-balance"><i>Current balance &nbsp;:</i><i id="note-balance"></i></div><div id="note-party-options" class="party-options" role="listbox" aria-label="${isCredit()?'Customer':'Supplier'} and Cash ledger accounts" hidden></div><div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div><div id="note-lines"><div class="sale-line" data-line="0"><label class="sr-only" for="note-account">${isCredit()?'Sales':'Purchase'} ledger</label><select id="note-account" class="line-ledger">${allParticulars.map((l,i)=>`<option value="${l.id}" ${(primaryLine.ledger_id ?? voucher?.account_id ?? allParticulars[0]?.id)===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><label class="sr-only" for="note-amount">Amount</label><input id="note-amount" class="line-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(primaryLine.amount ?? voucher.amount):''}"></div>${extraLines.map((line,idx)=>`<div class="sale-line" data-line="${idx+1}"><select class="line-ledger"><option value=""></option>${allParticulars.map(l=>`<option value="${l.id}" ${line.ledger_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value="${inputRupees(line.amount)}"><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button></div>`).join('')}</div><div class="line-tools"><button type="button" id="note-add-line" class="add-line-button" tabindex="-1">+ Add Line</button></div><div class="voucher-space"></div><div id="note-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="note-narration">Narration:</label><textarea id="note-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="note-total"></span></div></div></form>`;
 
     button('accept-note','A: Accept  Ctrl+A',save);
+    button('note-cost-allocations','Cost Allocations',showCostAllocations);
     button('note-party-details','Party Details',showDetails);
     button('note-bill-details','Bill-wise Details',showBill);
     button('open-day-book','Day Book',()=>leaveFor(openDayBook));
@@ -66,6 +74,22 @@ export function createNotesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     const date=main.querySelector('#note-date');
     const weekday=()=>{try{main.querySelector('#note-weekday').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',timeZone:'UTC'}).format(new Date(parseEntryDate(date.value)+'T12:00:00Z'));}catch{main.querySelector('#note-weekday').textContent='';}};
     date.addEventListener('input',weekday);weekday();
+    function bindLineEvents(container=main){
+      container.querySelectorAll('.line-amount').forEach(inp=>{
+        inp.removeEventListener('input',update);inp.addEventListener('input',update);
+      });
+      container.querySelectorAll('.remove-line-btn').forEach(btn=>{
+        btn.onclick=()=>{btn.closest('.sale-line').remove();update();};
+      });
+    }
+    bindLineEvents();
+    main.querySelector('#note-add-line')?.addEventListener('click',()=>{
+      const container=main.querySelector('#note-lines');
+      const idx=container.querySelectorAll('.sale-line').length;
+      const div=document.createElement('div');div.className='sale-line';div.dataset.line=String(idx);
+      div.innerHTML=`<select class="line-ledger"><option value=""></option>${allParticulars.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value=""><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>`;
+      container.appendChild(div);bindLineEvents(div);div.querySelector('.line-ledger').focus();
+    });
     main.querySelector('#note-amount').addEventListener('input',update);
     main.querySelector('#note-form').addEventListener('submit',e=>{e.preventDefault();save();});
     initialInvoice={number:value('invoice'),date:value('invoice-date')};
@@ -105,26 +129,55 @@ export function createNotesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     editVoucherDetails({purchase:!isCredit(),customer:party,details,escapeHtml,setCaption:caption=>{document.querySelector('.screen-title h1').textContent=caption || (editing?'Accounting Voucher Alteration':'Accounting Voucher Creation');},onDone:next=>{details=next;main.querySelector('#note-account').focus();},onCancel:()=>main.querySelector('#note-party').focus()});
   }
 
+  function readLines(){
+    const lineEls=main.querySelectorAll('.sale-line');const lines=[];
+    for(const el of lineEls){
+      const select=el.querySelector('.line-ledger, #note-account');
+      const input=el.querySelector('.line-amount, #note-amount');
+      const lid=Number(select?.value);if(!lid)continue;
+      let amt=0;try{amt=parseRupees(input?.value);}catch{amt=0;}
+      if(amt>0)lines.push({ledger_id:lid,amount:amt});
+    }
+    return lines;
+  }
+
   function read(){
-    error('');let date,invoiceDate,amount;const party=selectedParty();
+    error('');let date,invoiceDate;const party=selectedParty();
     try{date=parseEntryDate(value('date'));}catch(failure){error(failure.message,'date');return;}
     try{invoiceDate=value('invoice-date').trim()?parseEntryDate(value('invoice-date')):'';}catch(failure){error(failure.message,'invoice-date');return;}
     if(!party){error(`Choose an existing ${isCredit()?'customer':'supplier'} or Cash ledger.`,'party');return;}
-    try{amount=parseRupees(value('amount'));}catch(failure){error(failure.message,'amount');return;}
-    const account=Number(value('account'));
-    if(!account){error(`Choose a ${isCredit()?'sales':'purchase'} ledger.`,'account');return;}
+    const lines=readLines();
+    if(!lines.length){
+      let amount=0;try{amount=parseRupees(value('amount'));}catch(failure){error(failure.message,'amount');return;}
+      const account=Number(value('account'));
+      if(!account){error(`Choose a ${isCredit()?'sales':'purchase'} ledger.`,'account');return;}
+      lines.push({ledger_id:account,amount});
+    }
+    const hasMultiple=lines.length>1;
+    const totalAmount=lines.reduce((sum,l)=>sum+l.amount,0);
     const nextDetails={...details};
     if(editing && value('invoice')===initialInvoice.number && value('invoice-date')===initialInvoice.date){
       if(Object.hasOwn(editing.details ?? {},'original_invoice'))nextDetails.original_invoice=structuredClone(editing.details.original_invoice);
       else delete nextDetails.original_invoice;
     }else nextDetails.original_invoice={number:value('invoice').trim(),date:invoiceDate};
+    if(hasMultiple)nextDetails.lines=lines;
     return {
       type:currentType,date,
       ...(isCredit()?{customer_id:party.id}:{supplier_id:party.id,customer_id:party.id}),
-      account_id:account,amount,narration:value('narration'),details:nextDetails,
+      account_id:lines[0].ledger_id,amount:totalAmount,...(hasMultiple?{lines}:{}),narration:value('narration'),details:nextDetails,
       ...(party.kind==='cash'?{bill:null}:reference?{bill:{reference,terms:billTerms}}:{}),
       ...(editing?{revision:editing.revision}:{})
     };
+  }
+
+  function showCostAllocations(){
+    if(saving || document.querySelector('dialog') || getView()!==currentView())return;
+    const lines=readLines();const account=Number(value('account'));let amount=0;try{amount=parseRupees(value('amount'));}catch{}
+    const targetLedgerId=lines[0]?.ledger_id ?? account;const targetAmount=lines[0]?.amount ?? amount;
+    const targetLedger=getBook().ledgers.find(l=>l.id===targetLedgerId);
+    if(!targetLedger){error(`Choose a ${isCredit()?'sales':'purchase'} ledger first.`,'account');return;}
+    if(!targetAmount){error('Enter an amount first.','amount');return;}
+    editCostAllocations({ledger:targetLedger,amount:targetAmount,existingAllocations:details.cost_allocations || [],api,escapeHtml,setCaption:caption=>{document.querySelector('.screen-title h1').textContent=caption || (editing?'Accounting Voucher Alteration':'Accounting Voucher Creation');},onDone:allocs=>{const others=(details.cost_allocations || []).filter(ca=>ca.ledger_id!==targetLedger.id);details.cost_allocations=[...others,...allocs];main.querySelector('#note-narration').focus();},onCancel:()=>main.querySelector('#note-amount').focus()});
   }
 
   function showBill(){
