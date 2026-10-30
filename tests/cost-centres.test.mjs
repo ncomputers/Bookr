@@ -155,3 +155,32 @@ test('cost centre CRUD, category binding, hierarchy and cycle prevention', () =>
     rmSync(dir, {recursive: true, force: true});
   }
 });
+
+test('ledger cost centres applicability defaults and overrides', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bookr-cc-app-'));
+  const file = join(dir, 'test.cost-centres.json');
+  try {
+    const store = new CostCentresStore(file);
+    // Defaults: true for revenue, false for others
+    assert.equal(store.isApplicable(10, 'expense'), true);
+    assert.equal(store.isApplicable(11, 'income'), true);
+    assert.equal(store.isApplicable(12, 'sales'), true);
+    assert.equal(store.isApplicable(13, 'purchase'), true);
+    assert.equal(store.isApplicable(14, 'customer'), false);
+    assert.equal(store.isApplicable(15, 'bank'), false);
+
+    // Explicit override
+    store.setApplicability(10, false);
+    assert.equal(store.isApplicable(10, 'expense'), false);
+
+    store.setApplicability(14, true);
+    assert.equal(store.isApplicable(14, 'customer'), true);
+
+    // Persistence on reload
+    const reopened = new CostCentresStore(file);
+    assert.equal(reopened.isApplicable(10, 'expense'), false);
+    assert.equal(reopened.isApplicable(14, 'customer'), true);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});

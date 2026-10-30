@@ -138,6 +138,8 @@ const handler = async (req, res) => {
       if(req.method==='DELETE' && costCategoryMatch)return send(res,200,costCentres.deleteCategory(costCategoryMatch[1]));
       if(req.method==='POST' && url.pathname==='/api/cost-categories'){const input=await body(req);return send(res,201,costCentres.createCategory(input));}
       const costCentreMatch=url.pathname.match(/^\/api\/cost-centres\/(\d+)$/);
+      if(req.method==='GET' && url.pathname==='/api/cost-centres/applicability')return send(res,200,costCentres.getApplicabilityMap());
+      if(req.method==='POST' && url.pathname==='/api/cost-centres/applicability'){const input=await body(req);return send(res,200,costCentres.setApplicability(input.ledger_id,input.applicable));}
       if(req.method==='GET' && url.pathname==='/api/cost-centres'){
         const catId=url.searchParams.get('category_id');
         return send(res,200,costCentres.listCentres(catId));
