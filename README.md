@@ -36,7 +36,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Configure a company's currency symbol and formal name before financial records exist.
 - Change the working date from Gateway with F2; new vouchers use that date.
 - Change the current period from Gateway with Alt+F2, including later years without changing company master dates.
-- Ledger creation and alteration with supported account groups and opening balances.
+- Accounting Masters: All 28 canonical groups (34 display labels), unified Ledger master across all groups, Cost Categories, Cost Centres, and hierarchical Chart of Accounts.
 - Sales, purchases, receipts, payments, contra and supported journal entries.
 - Save and reopen vouchers, view postings, ledger statements and outstanding bills.
 - Trial balance, financial reports and ledger monthly summaries.

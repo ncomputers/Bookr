@@ -42,6 +42,17 @@ test('generic masters reject malformed names, unsupported groups, malformed open
   }finally{book.close();}
 });
 
+test('all observed groups preserve exact membership while only the nine verified roles can post',()=>{
+  const directory=mkdtempSync(join(tmpdir(),'bookr-ledger-groups-')),file=join(directory,'book.sqlite');let book=new Book(file);
+  try{
+    const roles=[['bank','Bank Accounts',16],['cash','Cash-in-Hand',18],['customer','Sundry Debtors',27],['capital','Capital Account',2],['supplier','Sundry Creditors',26],['expense','Indirect Expenses',8],['purchase','Purchase Accounts',13],['income','Indirect Incomes',9],['sales','Sales Accounts',14]];
+    for(const[kind,group_name,group_id]of roles){const ledger=book.saveLedger({kind,group_name,group_id,name:'Exact '+group_name});assert.equal(ledger.kind,kind);assert.equal(ledger.group_name,group_name);assert.equal(ledger.group_id,group_id);assert.deepEqual(book.masterLedger(ledger.id),ledger);}
+    const alias=book.saveLedger({name:'Fictional General Account',group_name:'Bank OCC A/c',group_id:null});assert.equal(alias.kind,'general');assert.equal(alias.group_name,'Bank OCC A/c');assert.equal(alias.group_id,null);assert.equal(book.masterLedger(alias.id).group_name,'Bank OCC A/c');
+    const before=book.state();assert.throws(()=>book.saveLedger({name:'Wrong Role',kind:'expense',group_name:'Sales Accounts',group_id:14}),BookError);assert.throws(()=>book.saveVoucher({type:'sale',date:'2026-04-01',customer_id:alias.id,account_id:2,amount:100}),BookError);assert.deepEqual(book.state(),before);
+    const state=book.state();book.close();book=new Book(file);assert.deepEqual(book.state(),state);assert.equal(book.masterLedger(alias.id).group_name,'Bank OCC A/c');
+  }finally{book.close();assert.ok(directory.startsWith(join(tmpdir(),'bookr-ledger-groups-')));rmSync(directory,{recursive:true,force:true});}
+});
+
 test('multiple Cash, Sales and Purchase masters feed posting reports and renamed seeded masters survive database reopen',()=>{
   const directory=mkdtempSync(join(tmpdir(),'bookr-ledger-masters-')),file=join(directory,'book.sqlite');let book=new Book(file);
   try{

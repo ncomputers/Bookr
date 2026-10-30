@@ -12,6 +12,7 @@ import {requireCurrencyAwareness} from './lib/company-currency-protocol.mjs';
 import {MobileCodeError} from './public/company-mobile-code.js';
 import {GeographyStore,GeographyError} from './lib/company-geography.mjs';
 import {GroupsStore} from './lib/groups.mjs';
+import {CostCentresStore} from './lib/cost-centres.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4315);
@@ -29,6 +30,7 @@ await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
 const geography=new GeographyStore(dbPath+'.locations.json');
 const groups=new GroupsStore(dbPath+'.groups.json');
+const costCentres=new CostCentresStore(dbPath+'.cost-centres.json');
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
 const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true,company_mobile_calling_code:true,company_backup_v3:true,company_geography_masters:true});
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
@@ -129,6 +131,21 @@ const handler = async (req, res) => {
       if(req.method==='PUT' && groupMatch){const input=await body(req);return send(res,200,groups.updateGroup(groupMatch[1],input));}
       if(req.method==='DELETE' && groupMatch)return send(res,200,groups.deleteGroup(groupMatch[1]));
       if(req.method==='POST' && url.pathname==='/api/groups'){const input=await body(req);return send(res,201,groups.createGroup(input));}
+      const costCategoryMatch=url.pathname.match(/^\/api\/cost-categories\/(\d+)$/);
+      if(req.method==='GET' && url.pathname==='/api/cost-categories')return send(res,200,costCentres.listCategories());
+      if(req.method==='GET' && costCategoryMatch){const c=costCentres.getCategory(costCategoryMatch[1]);if(!c)throw new BookError('Cost category not found.',404);return send(res,200,c);}
+      if(req.method==='PUT' && costCategoryMatch){const input=await body(req);return send(res,200,costCentres.updateCategory(costCategoryMatch[1],input));}
+      if(req.method==='DELETE' && costCategoryMatch)return send(res,200,costCentres.deleteCategory(costCategoryMatch[1]));
+      if(req.method==='POST' && url.pathname==='/api/cost-categories'){const input=await body(req);return send(res,201,costCentres.createCategory(input));}
+      const costCentreMatch=url.pathname.match(/^\/api\/cost-centres\/(\d+)$/);
+      if(req.method==='GET' && url.pathname==='/api/cost-centres'){
+        const catId=url.searchParams.get('category_id');
+        return send(res,200,costCentres.listCentres(catId));
+      }
+      if(req.method==='GET' && costCentreMatch){const c=costCentres.getCentre(costCentreMatch[1]);if(!c)throw new BookError('Cost centre not found.',404);return send(res,200,c);}
+      if(req.method==='PUT' && costCentreMatch){const input=await body(req);return send(res,200,costCentres.updateCentre(costCentreMatch[1],input));}
+      if(req.method==='DELETE' && costCentreMatch)return send(res,200,costCentres.deleteCentre(costCentreMatch[1]));
+      if(req.method==='POST' && url.pathname==='/api/cost-centres'){const input=await body(req);return send(res,201,costCentres.createCentre(input));}
       const ledgerMatch=url.pathname.match(/^\/api\/ledgers\/(\d+)$/);
       if(req.method==='GET' && ledgerMatch)return send(res,200,book.masterLedger(ledgerMatch[1]));
       if(req.method==='PUT' && ledgerMatch)return send(res,200,await write((fresh,input)=>fresh.saveLedger(input,Number(ledgerMatch[1]))));
