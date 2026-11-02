@@ -37,7 +37,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Change the working date from Gateway with F2; new vouchers use that date.
 - Change the current period from Gateway with Alt+F2, including later years without changing company master dates.
 - Accounting Masters: All 28 canonical groups (34 display labels), unified Ledger master across all groups, Cost Categories, Cost Centres, and hierarchical Chart of Accounts.
-- Sales, purchases, receipts, payments, contra, credit notes (Alt+F6), debit notes (Alt+F5), multi-line accounting invoices with cost centre allocations, and supported journal entries.
+- Sales, purchases, receipts, payments, contra, credit notes (Alt+F6), debit notes (Alt+F5), multi-line accounting invoices, multi-party compound journals, and voucher cost centre allocations.
 - Save and reopen vouchers, view postings, ledger statements and outstanding bills.
 - Trial balance, financial reports and ledger monthly summaries.
 - Shared keyboard pickers, date editors, bill allocations and discard dialogs.
