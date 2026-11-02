@@ -113,6 +113,7 @@ const handler = async (req, res) => {
       if (req.method === 'GET' && url.pathname === '/api/payment-bills') return send(res,200,book.paymentBills(url.searchParams.get('supplier'),url.searchParams.get('payment') ?? 0));
       if (req.method === 'GET' && url.pathname === '/api/trial-balance') return send(res,200,book.trialBalance({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/financial-reports') return send(res,200,book.financialReports({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
+      if (req.method === 'GET' && url.pathname === '/api/gst-summary') return send(res,200,book.gstSummary({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/statement') return send(res,200,book.statement(url.searchParams.get('ledger'),{from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/monthly-summary') {
         const allowed=['ledger','from','to'];

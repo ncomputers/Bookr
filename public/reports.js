@@ -68,11 +68,11 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   }
   function showPeriod(){
     if(busy || document.querySelector('dialog'))return;
-    const trial=getView()==='trial-balance';
-    const dates=getBook().vouchers.filter(v=>trial || v.customer_id===ledgerId || v.account_id===ledgerId).map(v=>v.date).sort();
-    const selected=trial?trialPeriod:periods.get(ledgerId);
+    const trial=getView()==='trial-balance',gst=getView()==='gst-summary';
+    const dates=getBook().vouchers.filter(v=>trial || gst || v.customer_id===ledgerId || v.account_id===ledgerId).map(v=>v.date).sort();
+    const selected=trial?trialPeriod:gst?gstPeriod:periods.get(ledgerId);
     const period={from:selected?.from ?? dates[0] ?? initialEntryDate(getBook()),to:selected?.to ?? dates.at(-1) ?? initialEntryDate(getBook())};
-    editReportPeriod({period,onDone:async next=>{busy=true;try{await refreshBook();if(trial)await renderTrialBalance(next);else await renderStatement(ledgerId,next);}finally{busy=false;}}});
+    editReportPeriod({period,onDone:async next=>{busy=true;try{await refreshBook();if(trial)await renderTrialBalance(next);else if(gst)await renderGstSummary(next);else await renderStatement(ledgerId,next);}finally{busy=false;}}});
   }
   async function renderOutstanding(id=null,direction=null,asOf=undefined){
     const nextDirection=direction ?? (getBook().ledgers.find(l=>l.id===id)?.kind==='supplier'?'payable':'receivable');
@@ -108,13 +108,17 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     run(async()=>{if(opening){await openOpeningMaster(opening.customer_id,back,opening.opening_bill_id);return;}const voucher=await api(`/api/vouchers/${id}`);openVoucher(voucher,back);});
   }
 
+  let gstPeriod = null;
   function renderMoreReports(){
-    setScreen('Display More Reports','more-reports','Trial Balance · Enter: open · Esc: Gateway');
-    main.innerHTML='<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING</h2><button id="open-trial-balance" class="selected">Trial Balance</button></div></section>';
-    main.querySelector('button').onclick=openTrialBalance;main.querySelector('button').focus();
+    setScreen('Display More Reports','more-reports','Trial Balance · GST Summary · Enter: open · Esc: Gateway');
+    main.innerHTML='<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING</h2><button id="open-trial-balance" class="selected">Trial Balance</button><button id="open-gst-summary">GST Summary</button></div></section>';
+    main.querySelector('#open-trial-balance').onclick=openTrialBalance;
+    main.querySelector('#open-gst-summary').onclick=openGstSummary;
+    main.querySelector('#open-trial-balance').focus();
   }
   const openMoreReports=()=>run(()=>renderMoreReports());
   const openTrialBalance=()=>run(()=>renderTrialBalance());
+  const openGstSummary=()=>run(()=>renderGstSummary());
   function openTrialLedger(id){statementOrigin='trial-balance';run(()=>renderStatement(id,trialPeriod));}
   async function renderTrialBalance(period=trialPeriod){
     const query=period?'?'+new URLSearchParams(period):'';
@@ -130,10 +134,64 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     const dateKey=document.querySelector('.function-rail button');dateKey.disabled=false;dateKey.innerHTML='<span><u>F2</u>: Period</span><span>‹</span>';dateKey.onclick=showPeriod;
     highlight();main.focus();
   }
+  async function renderGstSummary(period=gstPeriod){
+    const query=period?'?'+new URLSearchParams(period):'';
+    const report=await api('/api/gst-summary'+query);gstPeriod=period;
+    setScreen('GST Summary','gst-summary','Statutory GST Summary · F2: Period · Esc: reports');
+    const caption=period?entryDate(period.from)+' to '+entryDate(period.to):'All saved vouchers';
+    main.innerHTML=`<section class="day-book gst-summary-report">
+      <div class="report-ledger-name"><strong>GST Summary Report</strong><span id="gst-period-caption">${caption}</span></div>
+      <div class="report-table-scroll">
+        <h2 style="padding:6px 4px 2px;font-size:12px;color:#124;">1. Outward Supplies (Sales & Credit Notes)</h2>
+        <table class="voucher-report">
+          <thead><tr><th>Category</th><th>Taxable Amount</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total Tax</th><th>Total Value</th></tr></thead>
+          <tbody>
+            <tr><td>B2B Supplies</td><td class="amount">${formatRupees(report.outward_supplies.b2b.taxable_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2b.cgst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2b.sgst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2b.igst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2b.total_tax)}</td><td class="amount">${formatRupees(report.outward_supplies.b2b.total_value)}</td></tr>
+            <tr><td>B2C Supplies</td><td class="amount">${formatRupees(report.outward_supplies.b2c.taxable_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2c.cgst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2c.sgst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2c.igst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.b2c.total_tax)}</td><td class="amount">${formatRupees(report.outward_supplies.b2c.total_value)}</td></tr>
+            <tr style="font-weight:bold;border-top:1px solid #c4c4c4;"><td>Total Outward</td><td class="amount">${formatRupees(report.outward_supplies.total.taxable_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.total.cgst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.total.sgst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.total.igst_amount)}</td><td class="amount">${formatRupees(report.outward_supplies.total.total_tax)}</td><td class="amount">${formatRupees(report.outward_supplies.total.total_value)}</td></tr>
+          </tbody>
+        </table>
 
-  function goBack(){if(getView()==='monthly-summary')monthlyContext.back();else if(getView()==='trial-balance')openMoreReports();else if(getView()==='more-reports')renderGateway(7);else if(getView()==='statement'){if(typeof statementOrigin==='function')statementOrigin();else if(statementOrigin==='trial-balance')openTrialBalance();else chooseLedger();}else if(getView()==='outstanding' && ledgerId)openStatement(ledgerId);else renderGateway(getView()==='outstanding'?(outstandingDirection==='payable'?8:6):5);}
+        <h2 style="padding:10px 4px 2px;font-size:12px;color:#124;">2. Inward Supplies (Purchases & Debit Notes - Eligible ITC)</h2>
+        <table class="voucher-report">
+          <thead><tr><th>Supply Type</th><th>Taxable Amount</th><th>Input CGST</th><th>Input SGST</th><th>Input IGST</th><th>Total Tax</th><th>Total Value</th></tr></thead>
+          <tbody>
+            <tr><td>Inward Supplies</td><td class="amount">${formatRupees(report.inward_supplies.taxable_amount)}</td><td class="amount">${formatRupees(report.inward_supplies.cgst_amount)}</td><td class="amount">${formatRupees(report.inward_supplies.sgst_amount)}</td><td class="amount">${formatRupees(report.inward_supplies.igst_amount)}</td><td class="amount">${formatRupees(report.inward_supplies.total_tax)}</td><td class="amount">${formatRupees(report.inward_supplies.total_value)}</td></tr>
+          </tbody>
+        </table>
+
+        <h2 style="padding:10px 4px 2px;font-size:12px;color:#124;">3. Net Tax Payable</h2>
+        <table class="voucher-report">
+          <thead><tr><th>Tax Head</th><th>Output Tax Liability</th><th>Input Tax Credit (ITC)</th><th>Net Tax Payable</th></tr></thead>
+          <tbody>
+            <tr><td>Central Tax (CGST)</td><td class="amount">${formatRupees(report.net_tax_payable.output_cgst)}</td><td class="amount">${formatRupees(report.net_tax_payable.input_cgst)}</td><td class="amount">${formatRupees(report.net_tax_payable.net_cgst)}</td></tr>
+            <tr><td>State Tax (SGST)</td><td class="amount">${formatRupees(report.net_tax_payable.output_sgst)}</td><td class="amount">${formatRupees(report.net_tax_payable.input_sgst)}</td><td class="amount">${formatRupees(report.net_tax_payable.net_sgst)}</td></tr>
+            <tr><td>Integrated Tax (IGST)</td><td class="amount">${formatRupees(report.net_tax_payable.output_igst)}</td><td class="amount">${formatRupees(report.net_tax_payable.input_igst)}</td><td class="amount">${formatRupees(report.net_tax_payable.net_igst)}</td></tr>
+            <tr style="font-weight:bold;border-top:1px solid #c4c4c4;"><td>Total Tax</td><td class="amount">${formatRupees(report.outward_supplies.total.total_tax)}</td><td class="amount">${formatRupees(report.inward_supplies.total_tax)}</td><td class="amount" id="gst-net-total">${formatRupees(report.net_tax_payable.total_net_tax)}</td></tr>
+          </tbody>
+        </table>
+
+        <h2 style="padding:10px 4px 2px;font-size:12px;color:#124;">4. Rate-wise Summary</h2>
+        <table class="voucher-report">
+          <thead><tr><th>GST Rate</th><th>Taxable Amount</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total Tax</th></tr></thead>
+          <tbody>${report.rate_wise.map(r=>`<tr><td>${r.rate}%</td><td class="amount">${formatRupees(r.taxable_amount)}</td><td class="amount">${formatRupees(r.cgst_amount)}</td><td class="amount">${formatRupees(r.sgst_amount)}</td><td class="amount">${formatRupees(r.igst_amount)}</td><td class="amount">${formatRupees(r.total_tax)}</td></tr>`).join('') || '<tr><td colspan="6">No entries.</td></tr>'}</tbody>
+        </table>
+
+        <h2 style="padding:10px 4px 2px;font-size:12px;color:#124;">5. HSN/SAC Summary</h2>
+        <table class="voucher-report">
+          <thead><tr><th>HSN / SAC</th><th>Taxable Amount</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total Tax</th></tr></thead>
+          <tbody>${report.hsn_wise.map(h=>`<tr><td>${escapeHtml(h.hsn_sac)}</td><td class="amount">${formatRupees(h.taxable_amount)}</td><td class="amount">${formatRupees(h.cgst_amount)}</td><td class="amount">${formatRupees(h.sgst_amount)}</td><td class="amount">${formatRupees(h.igst_amount)}</td><td class="amount">${formatRupees(h.total_tax)}</td></tr>`).join('') || '<tr><td colspan="6">No entries.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </section>`;
+    button('gst-period','F2: Period',showPeriod);
+    if(period)button('gst-all-dates','All dates',()=>run(()=>renderGstSummary(null)));
+    const dateKey=document.querySelector('.function-rail button');dateKey.disabled=false;dateKey.innerHTML='<span><u>F2</u>: Period</span><span>‹</span>';dateKey.onclick=showPeriod;
+  }
+
+  function goBack(){if(getView()==='monthly-summary')monthlyContext.back();else if(getView()==='trial-balance'||getView()==='gst-summary')openMoreReports();else if(getView()==='more-reports')renderGateway(7);else if(getView()==='statement'){if(typeof statementOrigin==='function')statementOrigin();else if(statementOrigin==='trial-balance')openTrialBalance();else chooseLedger();}else if(getView()==='outstanding' && ledgerId)openStatement(ledgerId);else renderGateway(getView()==='outstanding'?(outstandingDirection==='payable'?8:6):5);}
   function onKey(e){
-    if(!['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary'].includes(getView()))return false;
+    if(!['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary'].includes(getView()))return false;
     if(busy){e.preventDefault();return true;}
     if(e.ctrlKey || e.altKey || e.metaKey)return false;
     if(getView()==='monthly-summary'){
@@ -147,7 +205,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       }return false;
     }
     if(e.key==='F6' && getView()==='statement'){e.preventDefault();openMonthly();return true;}
-    if(e.key==='F2' && ['statement','trial-balance'].includes(getView())){e.preventDefault();showPeriod();return true;}
+    if(e.key==='F2' && ['statement','trial-balance','gst-summary'].includes(getView())){e.preventDefault();showPeriod();return true;}
     if(e.key==='F2' && getView()==='outstanding'){e.preventDefault();showOutstandingAsOf();return true;}
     if(e.key==='F5' && getView()==='statement'){e.preventDefault();if(['customer','supplier'].includes(getBook().ledgers.find(l=>l.id===ledgerId)?.kind))openOutstanding(ledgerId);return true;}
     if(getView()==='more-reports'){if(e.key==='Enter'){e.preventDefault();openTrialBalance();return true;}return false;}
@@ -156,5 +214,5 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       e.preventDefault();if(e.key==='Enter'){if(rows.length){if(getView()==='report-selector')openStatement(rows[index].id);else if(getView()==='trial-balance')openTrialLedger(rows[index].id);else reopen(rows[index].id);}}else highlight(e.key==='ArrowDown'?1:-1);return true;
     }return false;
   }
-  return {chooseLedger,openStatement,openLedgerFromReport,openOutstanding,openPayables,openMoreReports,goBack,onKey,isSaving:()=>busy};
+  return {chooseLedger,openStatement,openLedgerFromReport,openOutstanding,openPayables,openMoreReports,openGstSummary,goBack,onKey,isSaving:()=>busy};
 }

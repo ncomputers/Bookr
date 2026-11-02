@@ -1,0 +1,193 @@
+{
+  "feature": "gst",
+  "layer": "4",
+  "complete": true,
+  "sources": {
+    "statutory": [
+      "Central Goods and Services Tax Act, 2017 (CGST Act)",
+      "Integrated Goods and Services Tax Act, 2017 (IGST Act)",
+      "State Goods and Services Tax Acts (SGST Acts)",
+      "Section 170 CGST Act: Rounding off of tax to nearest rupee/paise",
+      "GSTIN Format Specification: 15-character alphanumeric (2-digit State Code + 10-char PAN + 1-char Entity Code + 'Z' + 1 Checksum)",
+      "Census 2011 Indian State Codes (01 to 38, 97)"
+    ],
+    "rea_reference_study": [
+      "project/tally-web/evidence/deep-inspection/supplementary-labels.json",
+      "project/tally-web/tally-sandbox/app/tallyres.dat (GST schemas, error messages, tax calculation rules)"
+    ]
+  },
+  "implementation_order": [
+    "company_gstin",
+    "party_gstin_and_state",
+    "tax_ledgers",
+    "hsn_and_rate_on_lines",
+    "automatic_tax_on_invoices",
+    "gst_on_credit_and_debit_notes",
+    "gst_summary_report"
+  ],
+  "state_codes": {
+    "01": "Jammu & Kashmir",
+    "02": "Himachal Pradesh",
+    "03": "Punjab",
+    "04": "Chandigarh",
+    "05": "Uttarakhand",
+    "06": "Haryana",
+    "07": "Delhi",
+    "08": "Rajasthan",
+    "09": "Uttar Pradesh",
+    "10": "Bihar",
+    "11": "Sikkim",
+    "12": "Arunachal Pradesh",
+    "13": "Nagaland",
+    "14": "Manipur",
+    "15": "Mizoram",
+    "16": "Tripura",
+    "17": "Meghalaya",
+    "18": "Assam",
+    "19": "West Bengal",
+    "20": "Jharkhand",
+    "21": "Odisha",
+    "22": "Chhattisgarh",
+    "23": "Madhya Pradesh",
+    "24": "Gujarat",
+    "26": "Dadra & Nagar Haveli and Daman & Diu",
+    "27": "Maharashtra",
+    "29": "Karnataka",
+    "30": "Goa",
+    "31": "Lakshadweep",
+    "32": "Kerala",
+    "33": "Tamil Nadu",
+    "34": "Puducherry",
+    "35": "Andaman & Nicobar Islands",
+    "36": "Telangana",
+    "37": "Andhra Pradesh",
+    "38": "Ladakh",
+    "97": "Other Territory"
+  },
+  "gstin_format": {
+    "length": 15,
+    "pattern": "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$",
+    "registration_types": [
+      "Regular",
+      "Composition",
+      "Consumer",
+      "Unregistered"
+    ]
+  },
+  "company_gst": {
+    "fields": [
+      "gstin",
+      "gst_registration_type"
+    ],
+    "description": "Company GST details stored in company profile, backup bundle, and editable in Company Alteration."
+  },
+  "party_gst": {
+    "fields": [
+      "gstin",
+      "gst_registration_type",
+      "state"
+    ],
+    "applicable_ledger_kinds": [
+      "customer",
+      "supplier"
+    ],
+    "description": "Party GSTIN, registration type, and registered state on Customer (Sundry Debtors) and Supplier (Sundry Creditors) ledgers."
+  },
+  "tax_ledgers": {
+    "group": "Duties & Taxes",
+    "parent_nature": "Current Liabilities",
+    "canonical_ledgers": {
+      "input": [
+        "Input CGST",
+        "Input SGST",
+        "Input IGST"
+      ],
+      "output": [
+        "Output CGST",
+        "Output SGST",
+        "Output IGST"
+      ]
+    },
+    "tax_types": [
+      "CGST",
+      "SGST",
+      "IGST"
+    ]
+  },
+  "line_items": {
+    "fields": [
+      "hsn_sac",
+      "gst_rate",
+      "amount"
+    ],
+    "standard_rates": [
+      0,
+      5,
+      12,
+      18,
+      28
+    ],
+    "description": "HSN/SAC code and GST percentage rate per invoice line item; taxable amount in integer paise."
+  },
+  "tax_calculation": {
+    "arithmetic": "integer_paise_only",
+    "intra_state": {
+      "condition": "Company State == Party State / Place of Supply",
+      "cgst_rate": "gst_rate / 2",
+      "sgst_rate": "gst_rate / 2",
+      "cgst_amount": "Math.round((taxable_amount * (gst_rate / 2)) / 100)",
+      "sgst_amount": "Math.round((taxable_amount * (gst_rate / 2)) / 100)"
+    },
+    "inter_state": {
+      "condition": "Company State != Party State / Place of Supply",
+      "igst_rate": "gst_rate",
+      "igst_amount": "Math.round((taxable_amount * gst_rate) / 100)"
+    },
+    "voucher_postings": {
+      "sales": {
+        "credit": ["sales_ledger (taxable)", "output_tax_ledgers (cgst/sgst or igst)"],
+        "debit": ["customer (total_invoice_amount)"]
+      },
+      "purchase": {
+        "debit": ["purchase_ledger (taxable)", "input_tax_ledgers (cgst/sgst or igst)"],
+        "credit": ["supplier (total_invoice_amount)"]
+      }
+    }
+  },
+  "credit_debit_notes": {
+    "credit_note": {
+      "purpose": "Sales return with GST adjustment",
+      "debit": ["sales_ledger (taxable)", "output_tax_ledgers (cgst/sgst or igst)"],
+      "credit": ["customer (total_credit_note_amount)"],
+      "reference_fields": ["original_invoice_number", "original_invoice_date"]
+    },
+    "debit_note": {
+      "purpose": "Purchase return with GST adjustment",
+      "credit": ["purchase_ledger (taxable)", "input_tax_ledgers (cgst/sgst or igst)"],
+      "debit": ["supplier (total_debit_note_amount)"],
+      "reference_fields": ["original_invoice_number", "original_invoice_date"]
+    }
+  },
+  "gst_summary_report": {
+    "sections": {
+      "outward_supplies": {
+        "title": "Outward Supplies (Sales & Credit Notes)",
+        "categories": ["b2b", "b2c", "inter_state", "intra_state"],
+        "metrics": ["taxable_amount", "igst_amount", "cgst_amount", "sgst_amount", "total_tax", "total_value"]
+      },
+      "inward_supplies": {
+        "title": "Inward Supplies (Purchases & Debit Notes)",
+        "metrics": ["taxable_amount", "igst_amount", "cgst_amount", "sgst_amount", "total_tax", "total_value"]
+      },
+      "rate_wise_summary": {
+        "rates": [0, 5, 12, 18, 28]
+      },
+      "hsn_summary": {
+        "metrics": ["hsn_sac", "taxable_amount", "igst_amount", "cgst_amount", "sgst_amount", "total_tax"]
+      },
+      "net_tax_payable": {
+        "metrics": ["output_cgst - input_cgst", "output_sgst - input_sgst", "output_igst - input_igst"]
+      }
+    }
+  }
+}

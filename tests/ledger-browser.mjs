@@ -109,7 +109,10 @@ try {
   // Ordinary Enter walks through fields and reaches an acceptance confirmation.
   // The party opening amount is now an enabled final field. A blank opening
   // advances to the same acceptance confirmation without opening a breakup.
-  for (let index=0;index<10;index++) await page.keyboard.press('Enter');
+  for (let index=0;index<15;index++) {
+    if (await page.getByRole('dialog').isVisible()) break;
+    await page.keyboard.press('Enter');
+  }
   await page.getByRole('dialog').waitFor();
   await page.keyboard.press('y');
   await waitForSaved(page,'Saved Second Fictional Customer');

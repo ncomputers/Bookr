@@ -22,6 +22,7 @@ import {createCompanyDataWorkspace} from './company-data.js';
 import {createCompanyLifecycle} from './company-lifecycle.js';
 import {createActivityTracker} from './workspace-activity.js';
 import {companyCurrency,encodeCompanyCurrencyContext,confirmCompanyCurrency} from './company-currency.js';
+import {STATE_CODE_TO_NAME, GST_REGISTRATION_TYPES} from './gst.js';
 
 const main = document.querySelector('#main');
 const hint = document.querySelector('#screen-hint');
@@ -302,7 +303,9 @@ async function openCustomer() {
 }
 function ledgerValues() {
   const selected=ledgerGroups.find(group=>group.value===main.querySelector('#ledger-group').value),kind=selected?.kind??ledgerKind;
-  return {kind,group_id:selected?.group_id??null,group_name:selected?.name??'',...Object.fromEntries(['name','alias','mailing_name','address','state','country','pincode'].map(name => [name,main.querySelector(`[name="${name}"]`).value])),...(['expense','income'].includes(kind)?{ledger_type:'Not Applicable'}:{}),...(kind==='bank'?{bank:Object.fromEntries([...main.querySelectorAll('[data-bank-field]')].map(field=>[field.dataset.bankField,field.value]))}:{})};
+  const party=['customer','supplier'].includes(kind);
+  const isDuties=selected?.name==='Duties & Taxes';
+  return {kind,group_id:selected?.group_id??null,group_name:selected?.name??'',...Object.fromEntries(['name','alias','mailing_name','address','state','country','pincode'].map(name => [name,main.querySelector(`[name="${name}"]`).value])),...(party?{gstin:main.querySelector('#ledger-gstin')?.value?.trim().toUpperCase()??'',gst_registration_type:main.querySelector('#ledger-gst-registration-type')?.value??'Unregistered'}:{}),...(isDuties?{tax_type:main.querySelector('#ledger-tax-type')?.value??'',tax_rate:Number(main.querySelector('#ledger-tax-rate')?.value)||0}:{}),...(['expense','income'].includes(kind)?{ledger_type:'Not Applicable'}:{}),...(kind==='bank'?{bank:Object.fromEntries([...main.querySelectorAll('[data-bank-field]')].map(field=>[field.dataset.bankField,field.value]))}:{})};
 }
 const ledgerDraft=()=>({...ledgerValues(),opening:openingEditor?.snapshot()});
 function isDirty() { return (view === 'ledger' && JSON.stringify(ledgerDraft()) !== initialValues) || accountingMasters.isDirty() || sales.dirty() || receipts.dirty() || payments.dirty() || purchases.dirty() || contra.dirty() || journal.dirty() || generalJournal.dirty() || companyUI.dirty() || companyDataUI.dirty(); }
@@ -326,6 +329,8 @@ function renderLedger(ledger = null, message = '',returnTo = null) {
       <div class="mailing-row"><label for="mailing-state">State</label><span>:</span><input id="mailing-state" name="state" maxlength="120" value="${escapeHtml(ledger?.state ?? 'Not Applicable')}"></div>
       <div class="mailing-row"><label for="mailing-country">Country</label><span>:</span><input id="mailing-country" name="country" maxlength="120" value="${escapeHtml(ledger?.country ?? 'India')}"></div>
       <div class="mailing-row"><label for="mailing-pincode">Pincode</label><span>:</span><input id="mailing-pincode" name="pincode" maxlength="20" value="${escapeHtml(ledger?.pincode ?? '')}"></div>
+      <div class="mailing-row gst-party-field"><label for="ledger-gst-registration-type">Registration Type</label><span>:</span><select id="ledger-gst-registration-type" name="gst_registration_type">${GST_REGISTRATION_TYPES.map(type=>`<option value="${type}" ${(ledger?.gst_registration_type ?? 'Unregistered')===type?'selected':''}>${type}</option>`).join('')}</select></div>
+      <div class="mailing-row gst-party-field"><label for="ledger-gstin">GSTIN / UIN</label><span>:</span><input id="ledger-gstin" name="gstin" maxlength="15" value="${escapeHtml(ledger?.gstin ?? '')}" spellcheck="false"></div>
       <p id="ledger-scope" class="ledger-scope">Customer ledger · Sundry Debtors · bill-by-bill balances · no opening balance.</p></section></div>
     <div id="ledger-error" class="ledger-error" role="alert"></div>
     <div id="ledger-opening-editor"></div>
@@ -336,18 +341,34 @@ function renderLedger(ledger = null, message = '',returnTo = null) {
   bankSection.innerHTML='<h2>Bank Account Details</h2>'+Object.entries({account_holder:"A/c Holder's Name",account_number:'A/c No.',ifs_code:'IFS Code',swift_code:'SWIFT Code',bank_name:'Bank Name',branch:'Branch'}).map(([key,label])=>`<div class="accounting-row"><label for="bank-${key}">${label}</label><span>:</span><input id="bank-${key}" data-bank-field="${key}" maxlength="120" value="${escapeHtml(ledger?.bank?.[key] ?? (key==='account_holder'?book.company:key==='bank_name'?'Not Applicable':''))}" ${key==='bank_name'?'readonly':''}></div>`).join('');
   main.querySelector('.ledger-accounting').append(bankSection);
   const expenseSettings=document.createElement('div');expenseSettings.className='expense-ledger-settings';expenseSettings.innerHTML='<div class="accounting-row"><label for="expense-ledger-type">Type of Ledger</label><span>:</span><input id="expense-ledger-type" value="Not Applicable" readonly></div><div class="accounting-row cost-centre-row"><label for="ledger-cost-centres">Cost Centres are applicable</label><span>:</span><select id="ledger-cost-centres"><option value="1">Yes</option><option value="0">No</option></select></div>';main.querySelector('.ledger-accounting').append(expenseSettings);
+  const taxSettings=document.createElement('div');taxSettings.className='tax-ledger-settings';taxSettings.innerHTML=`<div class="accounting-row"><label for="ledger-tax-type">Tax Type</label><span>:</span><select id="ledger-tax-type"><option value="">Not Applicable</option><option value="CGST" ${ledger?.tax_type==='CGST'?'selected':''}>CGST</option><option value="SGST" ${ledger?.tax_type==='SGST'?'selected':''}>SGST</option><option value="IGST" ${ledger?.tax_type==='IGST'?'selected':''}>IGST</option></select></div><div class="accounting-row"><label for="ledger-tax-rate">Rate of Tax (%)</label><span>:</span><input id="ledger-tax-rate" type="number" min="0" max="100" step="0.01" value="${ledger?.tax_rate ?? 0}"></div>`;main.querySelector('.ledger-accounting').append(taxSettings);
   for(const [key,limit] of Object.entries({account_number:80,ifs_code:40,swift_code:40}))bankSection.querySelector(`[data-bank-field="${key}"]`).maxLength=limit;
   const updateKind=()=>{
     const group=ledgerGroups.find(group=>group.value===main.querySelector('#ledger-group').value);ledgerKind=group?.kind??'general';
-    const bank=ledgerKind==='bank',expense=['expense','income','sales','purchase'].includes(ledgerKind),party=['customer','supplier'].includes(ledgerKind);
+    const bank=ledgerKind==='bank',expense=['expense','income','sales','purchase'].includes(ledgerKind),party=['customer','supplier'].includes(ledgerKind),isDuties=group?.name==='Duties & Taxes';
     main.querySelector('.parent-group').textContent=group?.parent?'('+group.parent+')':'';
     main.querySelector('.billwise-row').hidden=!party;main.querySelector('#ledger-billwise').disabled=!party;bankSection.hidden=!bank;bankSection.querySelectorAll('input').forEach(field=>field.disabled=!bank);
     expenseSettings.hidden=!expense;main.querySelector('#expense-ledger-type').disabled=!expense;
+    taxSettings.hidden=!isDuties;taxSettings.querySelectorAll('input, select').forEach(field=>field.disabled=!isDuties);
+    const partyFields=main.querySelectorAll('.gst-party-field');partyFields.forEach(row=>{row.hidden=!party;row.querySelectorAll('input, select').forEach(field=>field.disabled=!party);});
     if(expense && !ledger){if(main.querySelector('#mailing-name').value===name.value)main.querySelector('#mailing-name').value='';if(main.querySelector('#mailing-state').value==='Not Applicable')main.querySelector('#mailing-state').value='';if(main.querySelector('#mailing-country').value==='India')main.querySelector('#mailing-country').value='';}
     main.querySelector('#ledger-scope').textContent=`${group.name} · ${party?'bill-by-bill balances · ':''}${supportsOpeningBalance(ledgerKind)?'opening balance on '+entryDate(companyCalendar(book).books_from)+'.':'opening balance is zero in this version.'}`;
     openingEditor.setKind(ledgerKind);
   };
   main.querySelector('#ledger-group').addEventListener('change',updateKind);updateKind();
+  const gstinInput=main.querySelector('#ledger-gstin'),stateInput=main.querySelector('#mailing-state'),regTypeSelect=main.querySelector('#ledger-gst-registration-type');
+  if(gstinInput){
+    gstinInput.addEventListener('input',()=>{
+      const val=gstinInput.value.trim().toUpperCase();
+      if(val.length>=2){
+        const code=val.slice(0,2);
+        if(STATE_CODE_TO_NAME[code]){
+          if(!stateInput.value||stateInput.value==='Not Applicable')stateInput.value=STATE_CODE_TO_NAME[code];
+          if(regTypeSelect.value==='Unregistered')regTypeSelect.value='Regular';
+        }
+      }
+    });
+  }
   if (ledger) {
     api('/api/cost-centres/applicability').then(map => {
       const el = main.querySelector('#ledger-cost-centres');
@@ -417,6 +438,8 @@ async function saveLedger() {
     main.querySelector('#ledger-group').disabled=Boolean(editing || (ledgerReturn && ledgerReturn.lockKind!==false));
     main.querySelectorAll('[data-bank-field]').forEach(field=>field.disabled=ledgerKind!=='bank');main.querySelector('#ledger-billwise').disabled=!['customer','supplier'].includes(ledgerKind);
     main.querySelector('#expense-ledger-type').disabled=!['expense','income'].includes(ledgerKind);
+    main.querySelectorAll('.tax-ledger-settings input, .tax-ledger-settings select').forEach(field=>field.disabled=main.querySelector('#ledger-group').selectedOptions[0]?.textContent!=='Duties & Taxes');
+    main.querySelectorAll('.gst-party-field input, .gst-party-field select').forEach(field=>field.disabled=!['customer','supplier'].includes(ledgerKind));
     openingEditor.setDisabled(false);
     accept.disabled = false;
     main.querySelector('#ledger-name').focus();
@@ -465,7 +488,7 @@ function goBack() {
   if (['credit-note','debit-note','credit-note-postings','debit-note-postings'].includes(view)) { notes.goBack(); return; }
   if (['chart-masters','chart-ledgers','chart-groups','chart-cost-categories','chart-cost-centres'].includes(view)) { chart.goBack(); return; }
   if (accountingMasters.goBack()) return;
-  if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary'].includes(view)) { reports.goBack(); return; }
+  if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary'].includes(view)) { reports.goBack(); return; }
   if (['balance-sheet','profit-loss','financial-group'].includes(view)) { financial.goBack(); return; }
   if (view === 'ledger') {
     const back = () => {
