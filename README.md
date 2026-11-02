@@ -22,6 +22,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 ## Current features
 
 - Create companies and edit any loaded company's mailing and contact details.
+- Delete companies via Alt+D in Company Alteration with two-stage confirmation.
 - Edit a separate mobile calling code without changing the number or country.
 - Choose India States, UK Regions and a bounded list of countries with the keyboard while preserving existing free-text values.
 - Create reusable country and state suggestions without posting accounting entries.
@@ -36,7 +37,7 @@ Bookr creates its local SQLite data in `storage/`. Company books are separate, a
 - Configure a company's currency symbol and formal name before financial records exist.
 - Change the working date from Gateway with F2; new vouchers use that date.
 - Change the current period from Gateway with Alt+F2, including later years without changing company master dates.
-- Accounting Masters: All 28 canonical groups (34 display labels), unified Ledger master across all groups, Cost Categories, Cost Centres, and hierarchical Chart of Accounts.
+- Accounting Masters: All 28 canonical groups (34 display labels) with full hierarchy/natures, unified Ledger master across all groups with Alt+D deletion protection, opening balances on all Balance Sheet groups, Cost Categories, Cost Centres, and hierarchical Chart of Accounts.
 - Sales, purchases, receipts, payments, contra, credit notes (Alt+F6), debit notes (Alt+F5), multi-line accounting invoices, multi-party compound journals, and voucher cost centre allocations.
 - Save and reopen vouchers, view postings, ledger statements and outstanding bills.
 - Trial balance, financial reports and ledger monthly summaries.

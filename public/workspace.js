@@ -172,6 +172,11 @@ function setScreen(name, screen, message) {
     const accept = document.createElement('button');
     accept.type = 'button'; accept.id = 'accept-ledger'; accept.innerHTML = '<u>A</u>: Accept <span>Ctrl+A</span>';
     accept.addEventListener('click', saveLedger); quit.after(accept);
+    if (editing && editing.id !== 1 && editing.name !== 'Cash' && editing.name !== 'Profit & Loss A/c') {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button'; delBtn.id = 'delete-ledger'; delBtn.innerHTML = '<u>D</u>: Delete <span>Alt+D</span>';
+      delBtn.addEventListener('click', deleteCurrentLedger); accept.after(delBtn);
+    }
   }
   document.querySelector('.rail-preview').innerHTML = 'Bookr<br><span>'+escapeHtml(book?companyCurrency(book).currency_name+' · Fictional accounts':'Select a company')+'</span>';
 }
@@ -417,6 +422,34 @@ async function saveLedger() {
     main.querySelector('#ledger-name').focus();
   } finally { saving = false; }
 }
+async function deleteCurrentLedger() {
+  if (!editing || saving || document.querySelector('dialog')) return;
+  if (editing.id === 1 || editing.name === 'Cash' || editing.name === 'Profit & Loss A/c') {
+    main.querySelector('#ledger-error').textContent = 'Built-in ledgers cannot be deleted.';
+    return;
+  }
+  const target = editing;
+  askDialog(`Delete ledger ${target.name}?`, async () => {
+    saving = true;
+    try {
+      await api('/api/ledgers/' + target.id, {method: 'DELETE'});
+      book.ledgers = book.ledgers.filter(l => l.id !== target.id);
+      await refreshBook().catch(() => {});
+      if (ledgerReturn) {
+        const returnTo = ledgerReturn;
+        ledgerReturn = null;
+        returnTo.onCancel();
+      } else {
+        renderSelector();
+        hint.textContent = `Deleted ledger ${target.name}.`;
+      }
+    } catch (error) {
+      main.querySelector('#ledger-error').textContent = error.message;
+    } finally {
+      saving = false;
+    }
+  }, 'Delete');
+}
 function goBack() {
   if (busy() || document.querySelector('dialog')) return;
   if(['company-menu','companies','company-create','company-alter'].includes(view)){companyUI.back();return;}
@@ -455,6 +488,9 @@ document.addEventListener('keydown', event => {
   if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event)) return;
   if (view === 'ledger' && event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'a') {
     event.preventDefault(); saveLedger(); return;
+  }
+  if (view === 'ledger' && event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'd') {
+    event.preventDefault(); deleteCurrentLedger(); return;
   }
   if (['sale','purchase','receipt','payment','contra','journal','journal-general','credit-note','debit-note'].includes(view) && event.altKey && !event.ctrlKey && !event.metaKey) {
     if (event.key === 'F5') { event.preventDefault(); openFresh(() => notes.renderDebitNote(null, view)); return; }

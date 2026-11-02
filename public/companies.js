@@ -174,7 +174,34 @@ export function createCompanyWorkspace({main,hint,api,setScreen,getView,getBook,
     }else if(getView()==='companies')menu();else renderGateway();
   }
   function showFeatures(){if(busy||switching||document.querySelector('dialog'))return;featureOverlay=openCompanyFeatures({name:main.querySelector('#company-name')?.value||getBook()?.company||'Bookr'});}
+  function deleteCurrentCompany(){
+    if(!editingProfile || busy || switching || document.querySelector('dialog'))return;
+    const target=editingProfile;
+    askDialog('Delete?',()=>{
+      askDialog('Are you sure?',async()=>{
+        busy=true;
+        try{
+          await api('/api/companies/'+target.id,{method:'DELETE'});
+          if(onShut)onShut(target.id);
+          await onEdited();
+          const catalog=await api('/api/companies');
+          if(catalog.companies.length>0){
+            await onSelect(catalog.companies[0].id);
+          }else{
+            openSelector('select');
+          }
+        }catch(error){
+          main.querySelector('#company-error').textContent=error.message;
+        }finally{
+          busy=false;
+        }
+      },'Delete');
+    },'Delete');
+  }
   function onKey(event){
+    if(event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase()==='d' && getView()==='company-alter'){
+      event.preventDefault();deleteCurrentCompany();return true;
+    }
     if(!event.altKey&&!event.ctrlKey&&!event.metaKey&&event.key==='F12'&&['company-create','company-alter'].includes(getView())){event.preventDefault();if(!busy&&!switching)displayView?.configure();return true;}
     if(!event.altKey&&!event.ctrlKey&&!event.metaKey&&event.key==='F11'&&[...views,'gateway'].includes(getView())){event.preventDefault();showFeatures();return true;}
     if(event.key==='F3' && !event.metaKey && !(event.ctrlKey&&event.altKey)){event.preventDefault();openSelector(event.ctrlKey?'shut':event.altKey?'select':'change');return true;}

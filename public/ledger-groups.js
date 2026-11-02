@@ -25,7 +25,28 @@ const groupIds = Object.freeze({
   'Investments':10,'Loans (Liability)':11,'Misc. Expenses (ASSET)':12,'Purchase Accounts':13,
   'Sales Accounts':14,'Suspense A/c':15
 });
-const knownParents = Object.freeze({'Bank Accounts':'Current Assets','Cash-in-Hand':'Current Assets','Sundry Debtors':'Current Assets','Sundry Creditors':'Current Liabilities'});
+const groupParents = Object.freeze({
+  'Bank Accounts':'Current Assets','Bank OCC A/c':'Loans (Liability)','Bank OD A/c':'Loans (Liability)',
+  'Branch / Divisions':'','Capital Account':'','Cash-in-Hand':'Current Assets','Current Assets':'',
+  'Current Liabilities':'','Deposits (Asset)':'Current Assets','Direct Expenses':'','Direct Incomes':'',
+  'Duties & Taxes':'Current Liabilities','Expenses (Direct)':'','Expenses (Indirect)':'','Fixed Assets':'',
+  'Income (Direct)':'','Income (Indirect)':'','Indirect Expenses':'','Indirect Incomes':'','Investments':'',
+  'Loans & Advances (Asset)':'Current Assets','Loans (Liability)':'','Misc. Expenses (ASSET)':'','Provisions':'Current Liabilities',
+  'Purchase Accounts':'','Reserves & Surplus':'Capital Account','Retained Earnings':'Capital Account',
+  'Sales Accounts':'','Secured Loans':'Loans (Liability)','Stock-in-Hand':'Current Assets',
+  'Sundry Creditors':'Current Liabilities','Sundry Debtors':'Current Assets','Suspense A/c':'','Unsecured Loans':'Loans (Liability)'
+});
+const groupNatures = Object.freeze({
+  'Bank Accounts':'Assets','Bank OCC A/c':'Liabilities','Bank OD A/c':'Liabilities','Branch / Divisions':'Liabilities',
+  'Capital Account':'Liabilities','Cash-in-Hand':'Assets','Current Assets':'Assets','Current Liabilities':'Liabilities',
+  'Deposits (Asset)':'Assets','Direct Expenses':'Expenses','Direct Incomes':'Income','Duties & Taxes':'Liabilities',
+  'Expenses (Direct)':'Expenses','Expenses (Indirect)':'Expenses','Fixed Assets':'Assets','Income (Direct)':'Income',
+  'Income (Indirect)':'Income','Indirect Expenses':'Expenses','Indirect Incomes':'Income','Investments':'Assets',
+  'Loans & Advances (Asset)':'Assets','Loans (Liability)':'Liabilities','Misc. Expenses (ASSET)':'Assets',
+  'Provisions':'Liabilities','Purchase Accounts':'Expenses','Reserves & Surplus':'Liabilities','Retained Earnings':'Liabilities',
+  'Sales Accounts':'Income','Secured Loans':'Liabilities','Stock-in-Hand':'Assets','Sundry Creditors':'Liabilities',
+  'Sundry Debtors':'Assets','Suspense A/c':'Liabilities','Unsecured Loans':'Liabilities'
+});
 const unmappedLabels = new Set(['Bank OCC A/c','Expenses (Direct)','Expenses (Indirect)','Income (Direct)','Income (Indirect)','Retained Earnings']);
 
 export const ledgerGroups = Object.freeze(DISPLAY_LABELS.map(name=>Object.freeze({
@@ -33,10 +54,8 @@ export const ledgerGroups = Object.freeze(DISPLAY_LABELS.map(name=>Object.freeze
   // Null means this observed label has no verified local canonical group ID.
   group_id:unmappedLabels.has(name)?null:groupIds[name],
   kind:roles[name]??'general',name,
-  parent:knownParents[name]??'',
-  // Group nature and alias relationships outside the observed posting roles
-  // are not yet established for this reference version.
-  nature:null
+  parent:groupParents[name]??'',
+  nature:groupNatures[name]??null
 })));
 
 export const supportedLedgerGroups=Object.freeze(ledgerGroups.filter(group=>group.kind!=='general'));

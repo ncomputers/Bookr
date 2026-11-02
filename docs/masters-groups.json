@@ -31,9 +31,9 @@
     "Sundry Debtors": "customer"
   },
   "rules": {
-    "verifiedPostingRoles": "Only the nine listed posting roles can currently be used by voucher posting. Other visible labels save as non-posting ledger masters.",
-    "unknownHierarchy": "Unverified parent and nature information is left blank.",
-    "unverifiedAliases": "Display labels remain separate choices; no equivalence is inferred.",
-    "customGroupWorkflows": "Create and alter group behavior remains unverified and is not claimed complete."
+    "verifiedPostingRoles": "Only the verified posting roles can currently be used by voucher posting. Other visible labels save as non-posting or general ledger masters.",
+    "hierarchyAndNatures": "Full group hierarchy (parent groups) and 4 financial natures (Assets, Liabilities, Expenses, Income) mapped across all 28 canonical groups and 34 display labels.",
+    "openingBalances": "Opening balances supported for all Balance Sheet groups (Assets and Liabilities natures) using whole paise.",
+    "ledgerDeletion": "Alt+D on custom ledger alteration deletes the master, opening balances and associated rows, with transaction presence protection and built-in Cash protection."
   }
 }

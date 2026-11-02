@@ -99,6 +99,7 @@ const handler = async (req, res) => {
       const companyMatch=url.pathname.match(/^\/api\/companies\/([^/]+)$/);
       if(req.method==='GET' && companyMatch){const profile=companies.profile(companyMatch[1]);requireCurrencyAwareness(req.headers,profile);return send(res,200,profile);}
       if(req.method==='PUT' && companyMatch){const input=await body(req),previous=companies.profile(companyMatch[1]);requireCurrencyAwareness(req.headers,previous);requireCurrencyAwareness(req.headers,normalizeCurrencyPatch(Object.fromEntries(['currency_symbol','currency_name'].filter(key=>Object.hasOwn(input??{},key)).map(key=>[key,input[key]])),previous));return send(res,200,companies.update(companyMatch[1],input));}
+      if(req.method==='DELETE' && companyMatch){const profile=companies.profile(companyMatch[1]);requireCurrencyAwareness(req.headers,profile);return send(res,200,companies.delete(companyMatch[1]));}
       const companyId=req.headers['x-bookr-company']??'default';
       requireCurrencyAwareness(req.headers,companies.profile(companyId));
       const book=companies.book(companyId);
@@ -151,6 +152,7 @@ const handler = async (req, res) => {
       const ledgerMatch=url.pathname.match(/^\/api\/ledgers\/(\d+)$/);
       if(req.method==='GET' && ledgerMatch)return send(res,200,book.masterLedger(ledgerMatch[1]));
       if(req.method==='PUT' && ledgerMatch)return send(res,200,await write((fresh,input)=>fresh.saveLedger(input,Number(ledgerMatch[1]))));
+      if(req.method==='DELETE' && ledgerMatch)return send(res,200,await write(fresh=>fresh.deleteLedger(Number(ledgerMatch[1]))));
       if(req.method==='POST' && url.pathname==='/api/ledgers')return send(res,201,await write((fresh,input)=>fresh.saveLedger(input)));
       const customerMatch = url.pathname.match(/^\/api\/customers\/(\d+)$/);
       if (req.method === 'GET' && customerMatch) return send(res,200,book.customer(customerMatch[1]));
