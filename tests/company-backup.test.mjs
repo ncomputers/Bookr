@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync,realpathSync,readdirSync} from 'node:fs';
+import {mkdtempSync,rmSync,realpathSync,readdirSync,existsSync} from 'node:fs';
 import {join,relative,isAbsolute} from 'node:path';
 import {tmpdir} from 'node:os';
 import {DatabaseSync} from 'node:sqlite';
@@ -78,3 +78,149 @@ test('Legacy default voucher before Books exports read-only but cannot silently 
 test('A later-year Receipt restores with original master dates and remains editable under an explicit future current period',()=>{const {exportCompanyBundle,restoreCompanyBundle}=api();fixture(({store,directory})=>{const f=seed(store),future={from:'2026-04-01',to:'2027-03-31'},receipt=f.book.saveVoucher({type:'receipt',date:future.from,ledger_id:f.capital.id,account_id:1,amount:100},null,{currentPeriod:future}),beforeSource=rows(f.book.db),beforeProfile=store.profile(f.profile.id),beforeDefault=rows(store.book().db),bundle=exportCompanyBundle(store,f.profile.id),created=restoreCompanyBundle(store,bundle,{name:'Portable Future Receipt Copy'}),copy=store.book(created.id);assert.deepEqual(rows(copy.db),beforeSource);for(const[key,value]of Object.entries(dates))assert.equal(created[key],value);const input={type:'receipt',date:receipt.date,ledger_id:f.capital.id,account_id:1,amount:100,revision:receipt.revision,narration:'Edited restored future Receipt'};assert.throws(()=>copy.saveVoucher(input,receipt.id));const saved=copy.saveVoucher(input,receipt.id,{currentPeriod:future});assert.equal(saved.id,receipt.id);assert.equal(saved.date,'2026-04-01');assert.equal(saved.revision,receipt.revision+1);assert.equal(copy.state().totals.balanced,true);assert.deepEqual(rows(f.book.db),beforeSource);assert.deepEqual(store.profile(f.profile.id),beforeProfile);assert.deepEqual(rows(store.book().db),beforeDefault);});});
 
 test('Export rejects an unknown persisted company setting instead of silently omitting it from a portable backup',()=>{const {exportCompanyBundle}=api();fixture(({store,directory})=>{const f=seed(store),row=store.catalog.prepare('SELECT details FROM companies WHERE id=?').get(f.profile.id),details=JSON.parse(row.details);details.future_currency_policy={symbol:'FICTIONAL',mode:'unimplemented-setting'};store.catalog.prepare('UPDATE companies SET details=? WHERE id=?').run(JSON.stringify(details),f.profile.id);const before=snapshot(store,directory);let emitted=false;assert.throws(()=>{exportCompanyBundle(store,f.profile.id);emitted=true;},/unsupported|setting|profile|company/i);assert.equal(emitted,false);equalSnapshot(store,directory,before);assert.equal(store.catalog.isTransaction,false);});});
+
+test('Custom groups and cost centres round-trip through export and fresh restore into companion files with full isolation and validation',()=>{
+ const {exportCompanyBundle,restoreCompanyBundle}=api();
+ fixture(({store,reopen,directory})=>{
+  const f=seed(store);
+  const groupsStore=store.groups(f.profile.id);
+  const ccStore=store.costCentres(f.profile.id);
+
+  // 1. Create a custom group under Sundry Debtors
+  const sundryDebtors=groupsStore.list().find(g=>g.name==='Sundry Debtors');
+  const customGroup=groupsStore.createGroup({
+   name:'Northern Wholesale Debtors',
+   alias:'NWD',
+   parent_id:sundryDebtors.id
+  });
+
+  // 2. Create custom cost category and centres
+  const cat=ccStore.createCategory({
+   name:'Client Accounts',
+   alias:'CA',
+   allocate_revenue:1,
+   allocate_non_revenue:0
+  });
+  const centre1=ccStore.createCentre({
+   category_id:cat.id,
+   name:'Enterprise West',
+   alias:'EW'
+  });
+  const centre2=ccStore.createCentre({
+   category_id:cat.id,
+   name:'Enterprise East',
+   alias:'EE'
+  });
+
+  // 3. Set ledger applicability
+  ccStore.setApplicability(f.expense.id,true);
+  ccStore.setApplicability(f.income.id,false);
+
+  // 4. Post voucher with cost allocations
+  const allocVoucher=f.book.saveVoucher({
+   type:'payment',
+   date,
+   supplier_id:f.supplier.id,
+   account_id:1,
+   amount:20000,
+   allocations:[{opening_bill_id:f.supplier.opening_bills[0].id,amount:20000}],
+   details:{
+    cost_allocations:[{
+     ledger_id:f.supplier.id,
+     category_id:cat.id,
+     category_name:cat.name,
+     allocations:[
+      {centre_id:centre1.id,centre_name:centre1.name,amount:12000},
+      {centre_id:centre2.id,centre_name:centre2.name,amount:8000}
+     ]
+    }]
+   }
+  });
+
+  // Verify companion files exist for source company
+  const sourceFile=store.fileFor(f.profile.id);
+  assert.ok(existsSync(sourceFile+'.groups.json'));
+  assert.ok(existsSync(sourceFile+'.cost-centres.json'));
+
+  // 5. Export company bundle
+  const beforeExport=snapshot(store,directory);
+  const bundle=exportCompanyBundle(store,f.profile.id);
+  equalSnapshot(store,directory,beforeExport); // Export must not write files
+
+  // Verify bundle contents
+  assert.equal(bundle.version,3);
+  assert.ok(Array.isArray(bundle.groups));
+  assert.ok(bundle.groups.some(g=>g.name==='Northern Wholesale Debtors'&&g.id===customGroup.id));
+  assert.ok(bundle.cost_centres);
+  assert.equal(bundle.cost_centres.version,1);
+  assert.ok(bundle.cost_centres.categories.some(c=>c.id===cat.id&&c.name==='Client Accounts'));
+  assert.ok(bundle.cost_centres.centres.some(c=>c.id===centre1.id&&c.name==='Enterprise West'));
+  assert.ok(bundle.cost_centres.centres.some(c=>c.id===centre2.id&&c.name==='Enterprise East'));
+  assert.equal(bundle.cost_centres.ledger_applicability[String(f.expense.id)],true);
+  assert.equal(bundle.cost_centres.ledger_applicability[String(f.income.id)],false);
+
+  // 6. Test corruption cases before restoring successfully
+  const corruptCases=[
+   corrupt(bundle,v=>{v.groups.push({...customGroup,id:999,name:'Invalid Nature',nature:'NonExistent'});}),
+   corrupt(bundle,v=>{v.groups.push({...customGroup,id:customGroup.id,name:'Duplicate ID Group'});}),
+   corrupt(bundle,v=>{v.groups.push({...customGroup,id:998,parent_id:998});}), // self parent
+   corrupt(bundle,v=>{delete v.cost_centres.version;}),
+   corrupt(bundle,v=>{v.cost_centres.categories=v.cost_centres.categories.filter(c=>c.id!==1);}), // missing primary category
+   corrupt(bundle,v=>{v.cost_centres.centres.push({id:888,category_id:99999,parent_id:null,name:'No Category Centre',alias:'',revision:1});}),
+   corrupt(bundle,v=>{v.cost_centres.ledger_applicability['999999']=true;}) // nonexistent ledger
+  ];
+  for(const invalid of corruptCases){
+   const beforeCorrupt=snapshot(store,directory);
+   assert.throws(()=>restoreCompanyBundle(store,invalid,{name:'Must Not Publish Bad Groups CC'}));
+   equalSnapshot(store,directory,beforeCorrupt);
+  }
+
+  // 7. Fresh restore into a new company
+  const restored=restoreCompanyBundle(store,bundle,{name:'Portable Groups CC Restored'});
+  assert.notEqual(restored.id,f.profile.id);
+  assert.equal(restored.name,'Portable Groups CC Restored');
+
+  // Verify companion files exist for restored company
+  const restoredFile=store.fileFor(restored.id);
+  assert.ok(existsSync(restoredFile+'.groups.json'));
+  assert.ok(existsSync(restoredFile+'.cost-centres.json'));
+
+  // 8. Verify restored groups
+  const restoredGroups=store.groups(restored.id);
+  const foundGroup=restoredGroups.get('Northern Wholesale Debtors');
+  assert.ok(foundGroup);
+  assert.equal(foundGroup.id,customGroup.id);
+  assert.equal(foundGroup.alias,'NWD');
+  assert.equal(foundGroup.parent_id,sundryDebtors.id);
+  assert.equal(restoredGroups.list().length,29);
+
+  // 9. Verify restored cost centres
+  const restoredCC=store.costCentres(restored.id);
+  assert.equal(restoredCC.listCategories().length,2);
+  const foundCat=restoredCC.getCategory('Client Accounts');
+  assert.ok(foundCat);
+  assert.equal(foundCat.id,cat.id);
+  assert.equal(restoredCC.listCentres(foundCat.id).length,2);
+  assert.ok(restoredCC.getCentre('Enterprise West'));
+  assert.ok(restoredCC.getCentre('Enterprise East'));
+  assert.equal(restoredCC.isApplicable(f.expense.id),true);
+  assert.equal(restoredCC.isApplicable(f.income.id),false);
+
+  // 10. Verify voucher cost allocations in restored book
+  const restoredBook=store.book(restored.id);
+  const restoredVoucher=restoredBook.voucher(allocVoucher.id);
+  assert.deepEqual(restoredVoucher.details.cost_allocations,allocVoucher.details.cost_allocations);
+
+  // 11. Verify isolation: mutating restored does not touch source or default
+  restoredGroups.createGroup({name:'Restored Only Group',parent_id:sundryDebtors.id});
+  assert.equal(restoredGroups.list().length,30);
+  assert.equal(groupsStore.list().length,29);
+  assert.equal(store.groups('default').list().length,28);
+
+  // 12. Persistence across reopen
+  const reopened=reopen();
+  assert.equal(reopened.groups(restored.id).list().length,30);
+  assert.equal(reopened.costCentres(restored.id).listCategories().length,2);
+  assert.equal(reopened.costCentres(restored.id).isApplicable(f.expense.id),true);
+ });
+});
