@@ -4,7 +4,7 @@ import {monthlyMarkup} from './monthly-summary.js';
 import {dueDateText} from './bill-terms.js';
 import {companyPeriod,initialEntryDate} from './company-context.js';
 
-export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster,openSalesRegister,openPurchaseRegister,openJournalRegister,openPaymentRegister,openReceiptRegister,openContraRegister,openDebitNoteRegister,openCreditNoteRegister,openBankReconciliation,openStatistics,openCashBankSummary,openCashFlow}) {
+export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster,openSalesRegister,openPurchaseRegister,openJournalRegister,openPaymentRegister,openReceiptRegister,openContraRegister,openDebitNoteRegister,openCreditNoteRegister,openBankReconciliation,openStatistics,openCashBankSummary,openCashFlow,openFundsFlow,openExceptionReports}) {
   let ledgerId=null,rows=[],index=0,busy=false;
   let outstandingDirection='receivable',trialPeriod=null,showZero=false,statementOrigin='selector';
   let outstandingAsOf=null;
@@ -121,6 +121,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       <h2 class="menu-heading">ACCOUNTING</h2>
       <button id="open-trial-balance" class="selected">Trial Balance</button>
       <button id="open-cash-flow">Cash Flow</button>
+      <button id="open-funds-flow">Funds Flow</button>
       <button id="open-cash-bank-summary">Cash/Bank Book(s)</button>
       <button id="open-statistics">Statistics</button>
       <button id="open-bank-reconciliation">Bank Reconciliation</button>
@@ -136,10 +137,13 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       <button id="open-credit-note-register">Credit Note Register</button>
       <h2 class="menu-heading">INVENTORY</h2>
       <button id="open-stock-summary">Stock Summary</button>
+      <h2 class="menu-heading">EXCEPTION</h2>
+      <button id="open-exception-reports">Exception Reports</button>
     </div></section>`;
     main.querySelector('#open-trial-balance').onclick=openTrialBalance;
     main.querySelector('#open-gst-summary').onclick=openGstSummary;
     if(openCashFlow)main.querySelector('#open-cash-flow').onclick=()=>run(openCashFlow);
+    if(openFundsFlow)main.querySelector('#open-funds-flow').onclick=()=>run(openFundsFlow);
     if(openCashBankSummary)main.querySelector('#open-cash-bank-summary').onclick=()=>run(openCashBankSummary);
     if(openStatistics)main.querySelector('#open-statistics').onclick=()=>run(openStatistics);
     if(openSalesRegister)main.querySelector('#open-sales-register').onclick=()=>run(openSalesRegister);
@@ -152,6 +156,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     if(openCreditNoteRegister)main.querySelector('#open-credit-note-register').onclick=()=>run(openCreditNoteRegister);
     if(openBankReconciliation)main.querySelector('#open-bank-reconciliation').onclick=()=>run(openBankReconciliation);
     main.querySelector('#open-stock-summary').onclick=()=>openStockSummary('reports');
+    if(openExceptionReports)main.querySelector('#open-exception-reports').onclick=()=>run(openExceptionReports);
     main.querySelector('#open-trial-balance').focus();
   }
   const openMoreReports=()=>run(()=>renderMoreReports());

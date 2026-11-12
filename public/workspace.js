@@ -30,6 +30,8 @@ import {createRatioAnalysisWorkspace} from './ratio-analysis.js';
 import {createCashBankSummaryWorkspace} from './cash-bank-summary.js';
 import {createCashFlowWorkspace} from './cash-flow.js';
 import {createBankingHubWorkspace} from './banking-hub.js';
+import {createFundsFlow} from './funds-flow.js';
+import {createExceptionReports} from './exception-reports.js';
 import {STATE_CODE_TO_NAME, GST_REGISTRATION_TYPES} from './gst.js';
 
 const main = document.querySelector('#main');
@@ -105,6 +107,8 @@ const ratioAnalysisUI=createRatioAnalysisWorkspace({main,hint,api,setScreen,getB
 const cashBankSummaryUI=createCashBankSummaryWorkspace({main,hint,api,setScreen,getBook:()=>book,renderGateway,formatRupees,entryDate,openMonthlySummary:id=>reports.openMonthlySummary(id)});
 const cashFlowUI=createCashFlowWorkspace({main,hint,api,setScreen,getBook:()=>book,renderGateway,formatRupees,entryDate});
 const bankingHub=createBankingHubWorkspace({main,hint,api,setScreen,getBook:()=>book,renderGateway,formatRupees,entryDate,openBankReconciliation:bankId=>bankId?bankReconciliation.openReconciliation(bankId):bankReconciliation.chooseBank()});
+const fundsFlowUI=createFundsFlow({main,hint,api,setScreen,escapeHtml,getBook:()=>book,refreshBook,onBack:()=>reports.openMoreReports()});
+const exceptionReportsUI=createExceptionReports({main,hint,api,setScreen,escapeHtml,getBook:()=>book,refreshBook,openStatement:id=>reports.openStatement(id),openVoucher,onBack:()=>reports.openMoreReports()});
 const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,getView:()=>view,
   openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);},
   openSalesRegister:()=>voucherRegisters.openSummary('sales'),
@@ -118,7 +122,9 @@ const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshB
   openBankReconciliation:()=>bankReconciliation.chooseBank(),
   openStatistics:()=>statisticsUI.open(),
   openCashBankSummary:()=>cashBankSummaryUI.open(),
-  openCashFlow:()=>cashFlowUI.open()});
+  openCashFlow:()=>cashFlowUI.open(),
+  openFundsFlow:()=>fundsFlowUI.openSummary(),
+  openExceptionReports:()=>exceptionReportsUI.openMenu()});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const accountingMasters=createAccountingMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
 const inventoryMasters=createInventoryMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
@@ -535,11 +541,14 @@ function goBack() {
   if (['balance-sheet','profit-loss','financial-group'].includes(view)) { financial.goBack(); return; }
   if (['ratio-analysis'].includes(view)) { renderGateway(12); return; }
   if (view === 'cash-flow-drilldown') { if (cashFlowUI.back()) return; }
+  if (['funds-flow-drilldown'].includes(view)) { fundsFlowUI.goBack(); return; }
+  if (['negative-ledgers', 'overdue-receivables', 'overdue-payables'].includes(view)) { exceptionReportsUI.goBack(); return; }
+  if (['exception-reports'].includes(view)) { reports.openMoreReports(); return; }
   if (['cheque-items'].includes(view)) { bankingHub.openChequeRegister(); return; }
   if (['cheque-register', 'deposit-slip', 'payment-advice', 'deposit-slip-select', 'payment-advice-select'].includes(view)) { bankingHub.open(); return; }
   if (['banking-hub'].includes(view)) { renderGateway(5); return; }
   if (['voucher-register-month'].includes(view)) { voucherRegisters.openSummary(); return; }
-  if (['voucher-register-summary','bank-reconciliation','select-bank','statistics','cash-flow','cash-bank-summary'].includes(view)) { reports.openMoreReports(); return; }
+  if (['voucher-register-summary','bank-reconciliation','select-bank','statistics','cash-flow','cash-bank-summary','funds-flow'].includes(view)) { reports.openMoreReports(); return; }
   if (view === 'ledger') {
     const back = () => {
       if (ledgerReturn) { const returnTo = ledgerReturn; ledgerReturn = null; returnTo.onCancel(); }
@@ -558,7 +567,7 @@ document.addEventListener('keydown', event => {
   if(companyUI.onKey(event))return;
   if(ledgerGroupPicker?.onKey(event))return;
   if (sales.onKey(event) || notes.onKey(event)) return;
-  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event) || inventoryMasters.onKey(event) || bankReconciliation.onKey(event) || voucherRegisters.onKey(event) || statisticsUI.onKey(event)) return;
+  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event) || inventoryMasters.onKey(event) || bankReconciliation.onKey(event) || voucherRegisters.onKey(event) || statisticsUI.onKey(event) || fundsFlowUI.onKey(event) || exceptionReportsUI.onKey(event)) return;
   if (view === 'ledger' && event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'a') {
     event.preventDefault(); saveLedger(); return;
   }

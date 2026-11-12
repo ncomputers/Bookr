@@ -45,4 +45,9 @@
 .cashflow-total-bar{background:#f4f7fb;border-top:2px solid #285484;padding:8px 14px;font-weight:bold;font-size:13px;margin-top:8px;display:flex;justify-content:space-between}
 .group-bold{font-weight:bold;background:#fafafa}
 .indent-ledger{padding-left:24px}
+.funds-flow-detail-wrap{padding:4px 0}
+.funds-flow-report .amount{text-align:right}
+.negative-ledgers-report .amount{text-align:right}
+.overdue-bills-report .amount{text-align:right}
+
 

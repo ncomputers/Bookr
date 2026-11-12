@@ -220,6 +220,21 @@ const handler = async (req, res) => {
         const month = url.searchParams.get('month') || null;
         return send(res, 200, book.cashFlow({ period: { from: url.searchParams.get('from'), to: url.searchParams.get('to') }, month }));
       }
+      if (req.method === 'GET' && url.pathname === '/api/funds-flow') {
+        const month = url.searchParams.get('month') || null;
+        return send(res, 200, book.fundsFlow({ period: { from: url.searchParams.get('from'), to: url.searchParams.get('to') }, month }));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/exception-reports/negative-ledgers') {
+        return send(res, 200, book.negativeLedgers({ from: url.searchParams.get('from'), to: url.searchParams.get('to') }));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/exception-reports/overdue-receivables') {
+        const asOf = url.searchParams.get('as_of') || null;
+        return send(res, 200, book.overdueBills('receivable', { asOf }));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/exception-reports/overdue-payables') {
+        const asOf = url.searchParams.get('as_of') || null;
+        return send(res, 200, book.overdueBills('payable', { asOf }));
+      }
       if (req.method === 'GET' && url.pathname === '/api/statement') return send(res,200,book.statement(url.searchParams.get('ledger'),{from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/monthly-summary') {
         const allowed=['ledger','from','to'];
