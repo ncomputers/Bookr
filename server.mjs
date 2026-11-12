@@ -140,6 +140,33 @@ const handler = async (req, res) => {
       if (req.method === 'GET' && url.pathname === '/api/trial-balance') return send(res,200,book.trialBalance({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/financial-reports') return send(res,200,book.financialReports({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/gst-summary') return send(res,200,book.gstSummary({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
+      if (req.method === 'GET' && url.pathname === '/api/banking/reconciliation') {
+        const ledger = url.searchParams.get('ledger');
+        if (!ledger || !/^\d+$/.test(ledger)) throw new BookError('Choose a valid bank ledger.', 400);
+        return send(res, 200, book.bankReconciliation(Number(ledger), {
+          asOfDate: url.searchParams.get('as_of'),
+          includeReconciled: url.searchParams.get('include_reconciled') === 'true'
+        }));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/banking/reconciliation') {
+        return send(res, 200, await write(async (fresh, input) => {
+          if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BookError('Enter reconciliation details.', 400);
+          const ledgerId = Number(input.ledger_id);
+          if (!Number.isSafeInteger(ledgerId) || ledgerId <= 0) throw new BookError('Choose a valid bank ledger.', 400);
+          return fresh.reconcileBankVouchers(ledgerId, input.reconciliations);
+        }));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/registers/summary') {
+        const type = url.searchParams.get('type') || 'sales';
+        return send(res, 200, book.voucherRegisterSummary(type));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/registers/month') {
+        const type = url.searchParams.get('type') || 'sales';
+        const year = Number(url.searchParams.get('year') || 2026);
+        const month = Number(url.searchParams.get('month') || 4);
+        const columnar = url.searchParams.get('columnar') === 'true';
+        return send(res, 200, book.voucherRegisterMonth(type, year, month, { columnar }));
+      }
       if (req.method === 'GET' && url.pathname === '/api/statement') return send(res,200,book.statement(url.searchParams.get('ledger'),{from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/monthly-summary') {
         const allowed=['ledger','from','to'];

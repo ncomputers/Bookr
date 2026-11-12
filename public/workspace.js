@@ -16,13 +16,15 @@ import {ledgerGroups} from './ledger-groups.js';
 import {createListPicker} from './list-picker.js';
 import {createCompanyWorkspace} from './companies.js';
 import {companyCalendar,companyPeriod,shortCompanyDate,companyDateCaption} from './company-context.js';
-import {entryDate} from './entry-values.js';
+import {entryDate,formatRupees} from './entry-values.js';
 import {createWorkingDateContext,followingWorkingDate} from './working-date.js';
 import {editReportDate,editReportPeriod} from './report-period.js';
 import {createCompanyDataWorkspace} from './company-data.js';
 import {createCompanyLifecycle} from './company-lifecycle.js';
 import {createActivityTracker} from './workspace-activity.js';
 import {companyCurrency,encodeCompanyCurrencyContext,confirmCompanyCurrency} from './company-currency.js';
+import {createBankReconciliationWorkspace} from './bank-reconciliation.js';
+import {createVoucherRegistersWorkspace} from './voucher-registers.js';
 import {STATE_CODE_TO_NAME, GST_REGISTRATION_TYPES} from './gst.js';
 
 const main = document.querySelector('#main');
@@ -84,8 +86,14 @@ const contra=createContraWorkspace({main,hint,api,setScreen,getView:()=>view,get
 const journal=createJournalWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type)),openGeneral:from=>openFresh(()=>generalJournal.render(null,from))});
 const generalJournal=createGeneralJournalWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type)),openLegacy:from=>openFresh(()=>journal.render(null,from))});
 const notes=createNotesWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,getView:()=>view,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type))});
+const bankReconciliation=createBankReconciliationWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,formatRupees,entryDate});
+const voucherRegisters=createVoucherRegistersWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,formatRupees,entryDate,openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type))});
 const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,getView:()=>view,
-  openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);}});
+  openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);},
+  openSalesRegister:()=>voucherRegisters.openSummary('sales'),
+  openPurchaseRegister:()=>voucherRegisters.openSummary('purchase'),
+  openJournalRegister:()=>voucherRegisters.openSummary('journal'),
+  openBankReconciliation:()=>bankReconciliation.chooseBank()});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const accountingMasters=createAccountingMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
 const inventoryMasters=createInventoryMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
@@ -155,7 +163,7 @@ function setScreen(name, screen, message) {
   main.className = screen === 'gateway' ? '' : 'entry-workspace';
   title.textContent = name;
   document.querySelector('.screen-company')?.remove();
-  if (['ledger','sale','receipt','purchase','payment','contra','contra-postings','daybook','postings','receipt-postings','purchase-postings','payment-postings','statement','outstanding','trial-balance','balance-sheet','profit-loss','financial-group','chart-ledgers','monthly-summary','journal','journal-postings','journal-general','journal-general-postings','company-alter'].includes(screen)) {
+  if (['ledger','sale','receipt','purchase','payment','contra','contra-postings','daybook','postings','receipt-postings','purchase-postings','payment-postings','statement','outstanding','trial-balance','balance-sheet','profit-loss','financial-group','chart-ledgers','monthly-summary','journal','journal-postings','journal-general','journal-general-postings','company-alter','bank-reconciliation','select-bank','voucher-register-summary','voucher-register-month'].includes(screen)) {
     const company = document.createElement('span');
     company.className = 'screen-company'; company.textContent = book.company; title.after(company);
   }
@@ -498,6 +506,8 @@ function goBack() {
   if (inventoryMasters.goBack()) return;
   if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary','stock-summary'].includes(view)) { reports.goBack(); return; }
   if (['balance-sheet','profit-loss','financial-group'].includes(view)) { financial.goBack(); return; }
+  if (['voucher-register-month'].includes(view)) { voucherRegisters.openSummary(); return; }
+  if (['voucher-register-summary','bank-reconciliation','select-bank'].includes(view)) { reports.openMoreReports(); return; }
   if (view === 'ledger') {
     const back = () => {
       if (ledgerReturn) { const returnTo = ledgerReturn; ledgerReturn = null; returnTo.onCancel(); }
@@ -516,7 +526,7 @@ document.addEventListener('keydown', event => {
   if(companyUI.onKey(event))return;
   if(ledgerGroupPicker?.onKey(event))return;
   if (sales.onKey(event) || notes.onKey(event)) return;
-  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event) || inventoryMasters.onKey(event)) return;
+  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event) || inventoryMasters.onKey(event) || bankReconciliation.onKey(event) || voucherRegisters.onKey(event)) return;
   if (view === 'ledger' && event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'a') {
     event.preventDefault(); saveLedger(); return;
   }

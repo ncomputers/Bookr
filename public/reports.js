@@ -4,7 +4,7 @@ import {monthlyMarkup} from './monthly-summary.js';
 import {dueDateText} from './bill-terms.js';
 import {companyPeriod,initialEntryDate} from './company-context.js';
 
-export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster}) {
+export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster,openSalesRegister,openPurchaseRegister,openJournalRegister,openBankReconciliation}) {
   let ledgerId=null,rows=[],index=0,busy=false;
   let outstandingDirection='receivable',trialPeriod=null,showZero=false,statementOrigin='selector';
   let outstandingAsOf=null;
@@ -112,10 +112,14 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   let stockPeriod = null;
   let stockOrigin = 'gateway';
   function renderMoreReports(){
-    setScreen('Display More Reports','more-reports','Trial Balance · GST Summary · Stock Summary · Enter: open · Esc: Gateway');
-    main.innerHTML='<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING</h2><button id="open-trial-balance" class="selected">Trial Balance</button><button id="open-gst-summary">GST Summary</button><h2 class="menu-heading">INVENTORY</h2><button id="open-stock-summary">Stock Summary</button></div></section>';
+    setScreen('Display More Reports','more-reports','Trial Balance · GST Summary · Registers · Stock Summary · Enter: open · Esc: Gateway');
+    main.innerHTML='<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING</h2><button id="open-trial-balance" class="selected">Trial Balance</button><button id="open-gst-summary">GST Summary</button><button id="open-sales-register">Sales Register</button><button id="open-purchase-register">Purchase Register</button><button id="open-journal-register">Journal Register</button><button id="open-bank-reconciliation">Bank Reconciliation</button><h2 class="menu-heading">INVENTORY</h2><button id="open-stock-summary">Stock Summary</button></div></section>';
     main.querySelector('#open-trial-balance').onclick=openTrialBalance;
     main.querySelector('#open-gst-summary').onclick=openGstSummary;
+    if(openSalesRegister)main.querySelector('#open-sales-register').onclick=()=>run(openSalesRegister);
+    if(openPurchaseRegister)main.querySelector('#open-purchase-register').onclick=()=>run(openPurchaseRegister);
+    if(openJournalRegister)main.querySelector('#open-journal-register').onclick=()=>run(openJournalRegister);
+    if(openBankReconciliation)main.querySelector('#open-bank-reconciliation').onclick=()=>run(openBankReconciliation);
     main.querySelector('#open-stock-summary').onclick=()=>openStockSummary('reports');
     main.querySelector('#open-trial-balance').focus();
   }
@@ -273,7 +277,25 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     if(e.key==='F2' && ['statement','trial-balance','gst-summary','stock-summary'].includes(getView())){e.preventDefault();showPeriod();return true;}
     if(e.key==='F2' && getView()==='outstanding'){e.preventDefault();showOutstandingAsOf();return true;}
     if(e.key==='F5' && getView()==='statement'){e.preventDefault();if(['customer','supplier'].includes(getBook().ledgers.find(l=>l.id===ledgerId)?.kind))openOutstanding(ledgerId);return true;}
-    if(getView()==='more-reports'){if(e.key==='Enter'){e.preventDefault();openTrialBalance();return true;}return false;}
+    if(getView()==='more-reports'){
+      const buttons=Array.from(main.querySelectorAll('.master-menu-content button'));
+      const active=document.activeElement;
+      const idx=buttons.indexOf(active);
+      if(['ArrowDown','ArrowUp'].includes(e.key)){
+        e.preventDefault();
+        const next=(idx+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;
+        buttons.forEach((b,i)=>b.classList.toggle('selected',i===next));
+        buttons[next].focus();
+        return true;
+      }
+      if(e.key==='Enter'){
+        e.preventDefault();
+        if(active&&active.click)active.click();
+        else openTrialBalance();
+        return true;
+      }
+      return false;
+    }
     if(e.key==='Enter' && e.target.closest('button'))return false;
     if(['ArrowDown','ArrowUp','Enter'].includes(e.key)){
       e.preventDefault();if(e.key==='Enter'){if(rows.length){if(getView()==='report-selector')openStatement(rows[index].id);else if(getView()==='trial-balance')openTrialLedger(rows[index].id);else reopen(rows[index].id);}}else highlight(e.key==='ArrowDown'?1:-1);return true;
