@@ -156,6 +156,26 @@ const handler = async (req, res) => {
           return fresh.reconcileBankVouchers(ledgerId, input.reconciliations);
         }));
       }
+      if (req.method === 'GET' && url.pathname === '/api/banking/cheque-register') {
+        const ledger = url.searchParams.get('ledger');
+        return send(res, 200, book.chequeRegister(ledger ? Number(ledger) : null));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/banking/deposit-slip') {
+        const ledger = url.searchParams.get('ledger');
+        if (!ledger || !/^\d+$/.test(ledger)) throw new BookError('Choose a valid bank account.', 400);
+        return send(res, 200, book.depositSlip(Number(ledger), {
+          from: url.searchParams.get('from'),
+          to: url.searchParams.get('to')
+        }));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/banking/payment-advice') {
+        const ledger = url.searchParams.get('ledger');
+        if (!ledger || !/^\d+$/.test(ledger)) throw new BookError('Choose a valid bank account.', 400);
+        return send(res, 200, book.paymentAdvice(Number(ledger), {
+          from: url.searchParams.get('from'),
+          to: url.searchParams.get('to')
+        }));
+      }
       if (req.method === 'GET' && url.pathname === '/api/registers/summary') {
         const type = url.searchParams.get('type') || 'sales';
         return send(res, 200, book.voucherRegisterSummary(type));
