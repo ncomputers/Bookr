@@ -93,3 +93,13 @@ dialog::backdrop{background:#0002}dialog p{margin:0 0 18px}dialog button{min-wid
 @media(max-width:1000px){.native-entry-dialog.billwise-dialog.opening-bills{left:50%}}
 
 #home[aria-disabled='true']{cursor:progress;opacity:.65;text-decoration:underline dotted;text-underline-offset:4px}
+.sale-line.item-line{display:grid;grid-template-columns:minmax(140px,2fr) minmax(100px,1fr) 70px 130px 100px 24px;align-items:center;gap:8px;padding-top:2px;margin-top:8px}
+.sale-line.item-line select{width:100%;max-width:100%}
+.sale-line.item-line input{width:100%}
+.voucher-lines-heading.item-mode-heading{display:grid;grid-template-columns:minmax(140px,2fr) minmax(100px,1fr) 70px 130px 100px 24px;gap:8px;align-items:center}
+.item-gst-summary{display:flex;justify-content:flex-end;gap:16px;padding:6px 12px;background:#f7fafc;border-top:1px dashed #c0d0dc;font-size:11px;color:#1a365d}
+.stock-summary-report table th{font-size:11px;padding:4px}
+.stock-summary-report table td{font-size:11px;padding:4px}
+.inventory-section-title{font-size:11px;margin-top:10px;margin-bottom:6px;color:#0b2b40;border-bottom:1px solid #c8d4dc;padding-bottom:2px}
+.master-delete-container{padding:10px}
+.master-delete-btn{background:#fee;border:1px solid #d88;padding:4px 8px;cursor:pointer}

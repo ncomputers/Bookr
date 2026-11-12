@@ -8,21 +8,39 @@ import { editBillReference } from './bill-details.js';
 import { editReportDate,editReportPeriod } from './report-period.js';
 import { editVoucherType } from './voucher-type.js';
 import { editCostAllocations } from './cost-allocations.js';
+import { STATE_CODE_TO_NAME } from './gst.js';
 
 export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,renderGateway,getView,openLedgerFromSale,openReceipt,openOtherVoucher}) {
   const typeLabel=type=>({sale:'Sales',receipt:'Receipt',purchase:'Purchase',payment:'Payment',contra:'Contra',journal:'Journal',credit_note:'Credit Note',debit_note:'Debit Note'}[type]);
   const partyDebit=type=>type==='sale' || type==='payment' || type==='debit_note';
   const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
   let editing= null, origin = 'gateway', initialValues = '', saving = false, currentDate = null;
+  let invoiceMode = 'accounting';
   let reportRows = [], reportIndex = 0;
   let dayBookFilter={from:null,to:null,type:'all'};
   let details = {};
   let billReference = '', billTerms=null, reviewedBill = '';
   const book = getBook;
-  const value = id => main.querySelector('#'+id).value;
+  const value = id => main.querySelector('#'+id)?.value ?? '';
   const fields = () => [...main.querySelectorAll('#sales-form input,#sales-form select,#sales-form textarea')];
-  const formValues = () => ({date:value('sale-date'),customer:value('sale-customer'),account:value('sale-account'),amount:value('sale-amount'),narration:value('sale-narration'),details,billReference,billTerms});
-  const billSignature = input => `${input.customer_id}:${input.date}:${input.amount}`;
+  const formValues = () => ({
+    mode: invoiceMode,
+    date: value('sale-date'),
+    customer: value('sale-customer'),
+    account: main.querySelector('#sale-account')?.value ?? '',
+    amount: main.querySelector('#sale-amount')?.value ?? '',
+    item_lines: invoiceMode === 'item' ? [...main.querySelectorAll('.sale-line.item-line')].map(el => ({
+      item_id: el.querySelector('.line-item')?.value,
+      godown_id: el.querySelector('.line-godown')?.value,
+      qty: el.querySelector('.line-qty')?.value,
+      rate: el.querySelector('.line-rate')?.value
+    })) : [],
+    narration: value('sale-narration'),
+    details,
+    billReference,
+    billTerms
+  });
+  const billSignature = input => `${input.customer_id}:${input.date}:${input.amount ?? main.querySelector('#sale-total')?.textContent}`;
   const dirty = () => getView() === 'sale' && JSON.stringify(formValues()) !== initialValues;
   function button(id,html,action) {
     const element = document.createElement('button');
@@ -31,14 +49,57 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
   }
   function error(message,field) {
     main.querySelector('#sale-error').textContent = message;
-    if (field) main.querySelector('#'+field).focus();
+    if (field) main.querySelector('#'+field)?.focus();
   }
   function updateTotal() {
     let amount = 0;
-    const inputs = main.querySelectorAll('.sale-line input[inputmode="decimal"], #sale-amount');
-    inputs.forEach(inp => {
-      try { amount += parseRupees(inp.value); } catch {}
-    });
+    if (invoiceMode === 'item') {
+      let taxable = 0;
+      let cgstTotal = 0, sgstTotal = 0, igstTotal = 0;
+      const customer = customerForName(value('sale-customer'));
+      const companyState = book().companyState || (book().companyGstin ? (STATE_CODE_TO_NAME[book().companyGstin.slice(0, 2)] || '') : '') || 'Not Applicable';
+      const partyState = customer?.state || (customer?.gstin ? (STATE_CODE_TO_NAME[customer.gstin.slice(0, 2)] || '') : '') || (details.party?.state ?? 'Not Applicable');
+      const isInterState = companyState !== 'Not Applicable' && partyState !== 'Not Applicable' && companyState.toLowerCase() !== partyState.toLowerCase();
+
+      main.querySelectorAll('.sale-line.item-line').forEach(el => {
+        const qty = parseFloat(el.querySelector('.line-qty')?.value) || 0;
+        let rate = 0;
+        try { rate = parseRupees(el.querySelector('.line-rate')?.value || '0'); } catch {}
+        const lineAmt = Math.round(qty * rate);
+        const amtInput = el.querySelector('.line-amount');
+        if (amtInput) amtInput.value = lineAmt ? (lineAmt / 100).toFixed(2) : '0.00';
+        taxable += lineAmt;
+        const itemSelect = el.querySelector('.line-item');
+        const gstRate = parseFloat(itemSelect?.selectedOptions[0]?.dataset.gst) || 0;
+        if (gstRate > 0) {
+          if (isInterState) {
+            igstTotal += Math.round(lineAmt * gstRate / 100);
+          } else {
+            const halfTax = Math.round(lineAmt * gstRate / 200);
+            cgstTotal += halfTax;
+            sgstTotal += halfTax;
+          }
+        }
+      });
+      const totalTax = isInterState ? igstTotal : (cgstTotal + sgstTotal);
+      amount = taxable + totalTax;
+      const gstSummaryEl = main.querySelector('#sale-gst-summary');
+      if (gstSummaryEl) {
+        if (totalTax > 0) {
+          gstSummaryEl.innerHTML = `<span>Taxable: ${formatRupees(taxable)}</span>` +
+            (isInterState ? `<span>IGST: ${formatRupees(igstTotal)}</span>` : `<span>CGST: ${formatRupees(cgstTotal)}</span><span>SGST: ${formatRupees(sgstTotal)}</span>`) +
+            `<span>Total Tax: ${formatRupees(totalTax)}</span>`;
+          gstSummaryEl.hidden = false;
+        } else {
+          gstSummaryEl.hidden = true;
+        }
+      }
+    } else {
+      const inputs = main.querySelectorAll('.sale-line:not(.item-line) input[inputmode="decimal"], #sale-amount');
+      inputs.forEach(inp => {
+        try { amount += parseRupees(inp.value); } catch {}
+      });
+    }
     main.querySelector('#sale-total').textContent = formatRupees(amount);
     updateBalance();
   }
@@ -117,14 +178,24 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
       showDetails();
     },onCancel:restore});
   }
-  function renderSale(voucher = null,from = 'gateway',message = '') {
+  function renderSale(voucher = null,from = 'gateway',message = '',preserveMode = false) {
     currentDate=entryDates.forRender(voucher?{savedDate:voucher.date}:{});
     editing = voucher; origin = from;
+    if (!preserveMode) {
+      invoiceMode = (voucher?.details?.invoice_mode === 'item' || voucher?.item_lines?.length) ? 'item' : 'accounting';
+    }
     details = structuredClone(voucher?.details ?? {});
     if (voucher) currentDate = voucher.date;
     setScreen(voucher ? 'Accounting Voucher Alteration' : 'Accounting Voucher Creation','sale',message || 'F8: Sales · F2: date · Enter: next · Ctrl+A: accept · Esc: back');
     const customers = book().ledgers.filter(row => ['customer','cash'].includes(row.kind));
     const allParticulars = book().ledgers.filter(row => ['sales','income','expense','general'].includes(row.kind));
+    const stockItems = book().inventory?.stock_items || [];
+    const godowns = book().inventory?.godowns || [];
+    const defaultGodownId = godowns.find(g => g.is_default)?.id ?? godowns[0]?.id ?? '';
+    const savedItemLines = voucher?.item_lines ?? (voucher?.details?.item_lines || []);
+    if (invoiceMode === 'item' && !savedItemLines.length) {
+      savedItemLines.push({ item_id: stockItems[0]?.id, godown_id: defaultGodownId, quantity: '', rate: '', amount: 0 });
+    }
     const number = voucher?.number ?? Math.max(0,...book().vouchers.filter(row => row.type === 'sale').map(row => row.number))+1;
     billReference = voucher?.bill?.reference ?? String(number);
     billTerms=structuredClone(voucher?.bill?.terms ?? null);
@@ -136,18 +207,45 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
       <div class="voucher-heading"><strong class="voucher-type">Sales</strong><span>No. <b id="sale-number">${number}</b></span><div class="voucher-date"><label for="sale-date" class="sr-only">Voucher date</label><input id="sale-date" value="${entryDate(voucher?.date ?? currentDate)}" aria-describedby="sale-date-help" spellcheck="false"><span id="sale-weekday"></span></div></div>
       <div class="voucher-party"><label for="sale-customer">Party A/c name</label><span>:</span><input id="sale-customer" role="combobox" aria-autocomplete="list" aria-controls="party-options" aria-expanded="false" spellcheck="false" data-customer-id="${voucher?.customer_id ?? ''}" value="${escapeHtml(voucher?.customer_name ?? '')}"></div><div id="party-options" class="party-options" role="listbox" aria-label="Customer and Cash ledger accounts" hidden></div>
       <div class="party-balance"><i>Current balance</i><span>:</span><i id="party-balance">—</i></div>
-      <div class="voucher-lines-heading"><strong>Particulars</strong><span class="rate-heading">Rate &nbsp; per</span><strong>Amount</strong></div>
-      <div id="voucher-lines">
-        <div class="sale-line" data-line="0" ${voucher ? '' : 'hidden'}><label for="sale-account" class="sr-only">Sales ledger</label><select id="sale-account" class="line-ledger"><option value=""></option>${allParticulars.map(row => `<option value="${row.id}" ${row.id === (primaryLine.ledger_id ?? voucher?.account_id) ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><label for="sale-amount" class="sr-only">Sale amount</label><input id="sale-amount" class="line-amount" inputmode="decimal" maxlength="20" value="${voucher ? inputRupees(primaryLine.amount ?? voucher.amount) : ''}" aria-describedby="sale-amount-help"></div>
-        ${extraLines.map((line, idx) => `
-          <div class="sale-line" data-line="${idx + 1}"><select class="line-ledger"><option value=""></option>${allParticulars.map(row => `<option value="${row.id}" ${row.id === line.ledger_id ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value="${inputRupees(line.amount)}"><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button></div>
-        `).join('')}
-      </div>
-      <div class="line-tools" ${voucher ? '' : 'hidden'}><button type="button" id="sale-add-line" class="add-line-button" tabindex="-1">+ Add Line</button></div>
+      ${invoiceMode === 'item' ? `
+        <div class="voucher-lines-heading item-mode-heading"><strong>Name of Item</strong><span class="godown-heading">Godown</span><span class="qty-heading">Quantity</span><span class="rate-heading">Rate &nbsp; per</span><strong>Amount</strong></div>
+        <div id="voucher-lines">
+          ${savedItemLines.map((line, idx) => `
+            <div class="sale-line item-line" data-line="${idx}" ${voucher ? '' : 'hidden'}>
+              <select class="line-item" aria-label="Item name">
+                <option value="">Select Item</option>
+                ${stockItems.map(it => `<option value="${it.id}" data-rate="${(it.opening_rate / 100).toFixed(2)}" data-unit="${escapeHtml(it.unit_symbol || 'Nos')}" data-gst="${it.gst_rate || 0}" ${(line.item_id || line.id) === it.id ? 'selected' : ''}>${escapeHtml(it.name)}</option>`).join('')}
+              </select>
+              <select class="line-godown" aria-label="Godown">
+                ${godowns.map(g => `<option value="${g.id}" ${(line.godown_id || defaultGodownId) === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+              </select>
+              <input class="line-qty" type="number" step="any" min="0" placeholder="0" value="${line.quantity || ''}" aria-label="Quantity">
+              <div class="rate-group" style="display:inline-flex;align-items:center;gap:4px;">
+                <input class="line-rate" inputmode="decimal" maxlength="20" placeholder="0.00" value="${line.rate ? (line.rate / 100).toFixed(2) : ''}" aria-label="Rate" style="width:75px;">
+                <span class="line-unit">${line.unit_symbol || stockItems.find(it => it.id === line.item_id)?.unit_symbol || 'Nos'}</span>
+              </div>
+              <input class="line-amount" readonly value="${line.amount ? (line.amount / 100).toFixed(2) : '0.00'}" aria-label="Amount">
+              <button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>
+            </div>
+          `).join('')}
+        </div>
+        <div class="item-gst-summary" id="sale-gst-summary" hidden></div>
+        <div class="line-tools" ${voucher ? '' : 'hidden'}><button type="button" id="sale-add-item-line" class="add-line-button" tabindex="-1">+ Add Item</button></div>
+      ` : `
+        <div class="voucher-lines-heading"><strong>Particulars</strong><span class="rate-heading">Rate &nbsp; per</span><strong>Amount</strong></div>
+        <div id="voucher-lines">
+          <div class="sale-line" data-line="0" ${voucher ? '' : 'hidden'}><label for="sale-account" class="sr-only">Sales ledger</label><select id="sale-account" class="line-ledger"><option value=""></option>${allParticulars.map(row => `<option value="${row.id}" ${row.id === (primaryLine.ledger_id ?? voucher?.account_id) ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><label for="sale-amount" class="sr-only">Sale amount</label><input id="sale-amount" class="line-amount" inputmode="decimal" maxlength="20" value="${voucher ? inputRupees(primaryLine.amount ?? voucher.amount) : ''}" aria-describedby="sale-amount-help"></div>
+          ${extraLines.map((line, idx) => `
+            <div class="sale-line" data-line="${idx + 1}"><select class="line-ledger"><option value=""></option>${allParticulars.map(row => `<option value="${row.id}" ${row.id === line.ledger_id ? 'selected' : ''}>${escapeHtml(row.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value="${inputRupees(line.amount)}"><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button></div>
+          `).join('')}
+        </div>
+        <div class="line-tools" ${voucher ? '' : 'hidden'}><button type="button" id="sale-add-line" class="add-line-button" tabindex="-1">+ Add Line</button></div>
+      `}
       <div class="voucher-space"><span id="sale-date-help" class="sr-only">Date: 1-Apr-2026 or 2026-04-01.</span><span id="sale-amount-help" class="sr-only">Sale amount, no tax or inventory, up to two decimal places.</span>${!customers.length ? '<div class="voucher-scope"><strong>Create a customer or Cash ledger before entering a sale.</strong></div>' : ''}</div>
       <div id="sale-error" class="ledger-error" role="alert"></div>
       <div class="voucher-bottom"><div class="voucher-narration"><label for="sale-narration">Narration:</label><textarea id="sale-narration" rows="2" maxlength="1000">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="sale-total">0.00</span></div></div>
     </form>`;
+    button('toggle-mode', invoiceMode === 'item' ? 'As Accounting Invoice' : 'As Item Invoice', toggleMode);
     button('accept-sale','<u>A</u>: Accept <span>Ctrl+A</span>',saveSale);
     button('sale-cost-allocations','Cost Allocations',showCostAllocations);
     button('bill-details','Bill-wise Details',() => showBillDetails());
@@ -158,6 +256,9 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     const salesKey = document.createElement('button'); salesKey.type = 'button'; salesKey.dataset.salesRail = '';
     salesKey.innerHTML = '<span><u>F8</u>: Sales</span><span>‹</span>'; salesKey.addEventListener('click',() => leaveFor(openNewSale));
     rail.insertBefore(salesKey,rail.querySelector('.rail-space'));
+    const modeKey = document.createElement('button'); modeKey.type = 'button'; modeKey.dataset.salesRail = '';
+    modeKey.innerHTML = '<span><u>Ctrl+H</u>: Mode</span>'; modeKey.onclick = toggleMode;
+    rail.insertBefore(modeKey, salesKey);
     const receiptKey = document.createElement('button'); receiptKey.type='button'; receiptKey.dataset.salesRail=''; receiptKey.textContent='F6: Receipt';
     receiptKey.addEventListener('click',() => leaveFor(() => openReceipt(null,origin))); rail.insertBefore(receiptKey,salesKey);
     for(const [key,type,label] of [['F4','contra','Contra'],['F5','payment','Payment'],['F7','journal','Journal'],['F9','purchase','Purchase'],['Alt+F5','debit_note','Debit Note'],['Alt+F6','credit_note','Credit Note']]){
@@ -170,21 +271,72 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
       catch { main.querySelector('#sale-weekday').textContent = ''; }
     }
     date.addEventListener('input',weekday); weekday();
-    main.querySelector('#sale-amount').addEventListener('input',updateTotal);
+    main.querySelector('#sale-amount')?.addEventListener('input',updateTotal);
     main.querySelector('#sales-form').addEventListener('submit',event => { event.preventDefault(); saveSale(); });
     function bindLineEvents(container = main) {
-      container.querySelectorAll('.line-amount').forEach(inp => {
-        inp.removeEventListener('input', updateTotal);
-        inp.addEventListener('input', updateTotal);
-      });
-      container.querySelectorAll('.remove-line-btn').forEach(btn => {
-        btn.onclick = () => {
-          btn.closest('.sale-line').remove();
-          updateTotal();
-        };
-      });
+      if (invoiceMode === 'item') {
+        container.querySelectorAll('.line-item').forEach(sel => {
+          sel.onchange = () => {
+            const opt = sel.selectedOptions[0];
+            const row = sel.closest('.item-line');
+            if (opt && row) {
+              const unitSpan = row.querySelector('.line-unit');
+              if (unitSpan && opt.dataset.unit) unitSpan.textContent = opt.dataset.unit;
+              const rateInput = row.querySelector('.line-rate');
+              if (rateInput && !rateInput.value && Number(opt.dataset.rate) > 0) rateInput.value = opt.dataset.rate;
+            }
+            updateTotal();
+          };
+        });
+        container.querySelectorAll('.line-qty, .line-rate').forEach(inp => {
+          inp.oninput = updateTotal;
+        });
+        container.querySelectorAll('.remove-line-btn').forEach(btn => {
+          btn.onclick = () => {
+            btn.closest('.sale-line').remove();
+            updateTotal();
+          };
+        });
+      } else {
+        container.querySelectorAll('.line-amount').forEach(inp => {
+          inp.removeEventListener('input', updateTotal);
+          inp.addEventListener('input', updateTotal);
+        });
+        container.querySelectorAll('.remove-line-btn').forEach(btn => {
+          btn.onclick = () => {
+            btn.closest('.sale-line').remove();
+            updateTotal();
+          };
+        });
+      }
     }
     bindLineEvents();
+    main.querySelector('#sale-add-item-line')?.addEventListener('click', () => {
+      const container = main.querySelector('#voucher-lines');
+      const idx = container.querySelectorAll('.sale-line').length;
+      const div = document.createElement('div');
+      div.className = 'sale-line item-line';
+      div.dataset.line = String(idx);
+      div.innerHTML = `
+        <select class="line-item" aria-label="Item name">
+          <option value="">Select Item</option>
+          ${stockItems.map(it => `<option value="${it.id}" data-rate="${(it.opening_rate / 100).toFixed(2)}" data-unit="${escapeHtml(it.unit_symbol || 'Nos')}" data-gst="${it.gst_rate || 0}">${escapeHtml(it.name)}</option>`).join('')}
+        </select>
+        <select class="line-godown" aria-label="Godown">
+          ${godowns.map(g => `<option value="${g.id}" ${g.id === defaultGodownId ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+        </select>
+        <input class="line-qty" type="number" step="any" min="0" placeholder="0" value="" aria-label="Quantity">
+        <div class="rate-group" style="display:inline-flex;align-items:center;gap:4px;">
+          <input class="line-rate" inputmode="decimal" maxlength="20" placeholder="0.00" value="" aria-label="Rate" style="width:75px;">
+          <span class="line-unit">${stockItems[0]?.unit_symbol || 'Nos'}</span>
+        </div>
+        <input class="line-amount" readonly value="0.00" aria-label="Amount">
+        <button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>
+      `;
+      container.appendChild(div);
+      bindLineEvents(div);
+      div.querySelector('.line-item').focus();
+    });
     main.querySelector('#sale-add-line')?.addEventListener('click', () => {
       const container = main.querySelector('#voucher-lines');
       const idx = container.querySelectorAll('.sale-line').length;
@@ -199,6 +351,21 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     bindCustomerPicker(); updateTotal(); updateBalance();
     initialValues = JSON.stringify(formValues()); main.querySelector(voucher?'#sale-date':'#sale-customer').focus();
   }
+  function toggleMode() {
+    invoiceMode = invoiceMode === 'item' ? 'accounting' : 'item';
+    const currentCustomer = value('sale-customer');
+    const customerId = main.querySelector('#sale-customer')?.dataset.customerId;
+    renderSale(editing, origin, '', true);
+    if (currentCustomer) {
+      const input = main.querySelector('#sale-customer');
+      if (input) {
+        input.value = currentCustomer;
+        if (customerId) input.dataset.customerId = customerId;
+        main.querySelectorAll('.sale-line').forEach(el => el.hidden = false);
+        const tools = main.querySelector('.line-tools'); if (tools) tools.hidden = false;
+      }
+    }
+  }
   function showDetails() {
     const customer = customerForName(value('sale-customer'));
     if (!customer) { error('Choose an existing customer or Cash ledger.','sale-customer'); return; }
@@ -212,12 +379,12 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
         details = next;
         main.querySelectorAll('.sale-line').forEach(el => el.hidden = false);
         const tools = main.querySelector('.line-tools'); if (tools) tools.hidden = false;
-        main.querySelector('#sale-account').focus();
+        main.querySelector(invoiceMode === 'item' ? '.line-item' : '#sale-account')?.focus();
       },
-      onCancel:() => main.querySelector(customer.kind==='cash'?'#sale-account':'#sale-customer').focus()});
+      onCancel:() => main.querySelector(customer.kind==='cash'?(invoiceMode === 'item' ? '.line-item' : '#sale-account'):'#sale-customer')?.focus()});
   }
   function readLines() {
-    const lineEls = main.querySelectorAll('.sale-line');
+    const lineEls = main.querySelectorAll('.sale-line:not(.item-line)');
     const lines = [];
     for (const el of lineEls) {
       const select = el.querySelector('.line-ledger, #sale-account');
@@ -237,6 +404,35 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     const customer = customerForName(value('sale-customer'));
     if (!customer) { error('Choose an existing customer or Cash ledger.','sale-customer'); return; }
     if (main.querySelector('.sale-line').hidden) { showDetails(); return; }
+    if (invoiceMode === 'item') {
+      const item_lines = [];
+      const lineEls = main.querySelectorAll('.sale-line.item-line');
+      for (const el of lineEls) {
+        const select = el.querySelector('.line-item');
+        const itemId = Number(select?.value);
+        if (!itemId) continue;
+        const godownId = Number(el.querySelector('.line-godown')?.value) || null;
+        const qty = parseFloat(el.querySelector('.line-qty')?.value) || 0;
+        let rate = 0;
+        try { rate = parseRupees(el.querySelector('.line-rate')?.value || '0'); } catch {}
+        if (qty > 0 && rate > 0) {
+          item_lines.push({ item_id: itemId, godown_id: godownId, quantity: qty, rate });
+        }
+      }
+      if (!item_lines.length) {
+        error('Choose a stock item and enter quantity and rate.', 'first-item-select');
+        return;
+      }
+      const nextDetails = { ...details, invoice_mode: 'item', item_lines };
+      return {
+        type: 'sale',
+        date,
+        customer_id: customer.id,
+        narration: value('sale-narration'),
+        details: nextDetails,
+        ...(editing ? { revision: editing.revision } : {})
+      };
+    }
     const lines = readLines();
     if (!lines.length) {
       let amount = 0;
@@ -292,10 +488,14 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     input ??= readSaleInput();
     if (!input) return;
     if(book().ledgers.find(row=>row.id===input.customer_id)?.kind==='cash'){main.querySelector('#sale-narration').focus();return;}
-    editBillReference({currency:getBook(),customer:book().ledgers.find(row => row.id === input.customer_id),reference:billReference,terms:billTerms,amount:input.amount,date:input.date,escapeHtml,
+    let billAmt = input.amount;
+    if (invoiceMode === 'item' && billAmt === undefined) {
+      try { billAmt = parseRupees(main.querySelector('#sale-total').textContent); } catch { billAmt = 0; }
+    }
+    editBillReference({currency:getBook(),customer:book().ledgers.find(row => row.id === input.customer_id),reference:billReference,terms:billTerms,amount:billAmt,date:input.date,escapeHtml,
       setCaption:name => { document.querySelector('.screen-title h1').textContent = name || (editing ? 'Accounting Voucher Alteration' : 'Accounting Voucher Creation'); },
       onDone:(reference,terms) => { billReference = reference; billTerms=terms; reviewedBill = billSignature(input); main.querySelector('#sale-narration').focus(); },
-      onCancel:() => main.querySelector('#sale-amount').focus()});
+      onCancel:() => main.querySelector(invoiceMode === 'item' ? '.line-qty' : '#sale-amount')?.focus()});
   }
   async function saveSale() {
     if (saving || getView() !== 'sale' || document.querySelector('dialog')) return;
@@ -416,6 +616,7 @@ export function createSalesWorkspace({main,hint,api,setScreen,getBook,refreshBoo
     if (!['sale','daybook','postings'].includes(getView())) return false;
     if (saving) { event.preventDefault(); return true; }
     if (event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'a' && getView() === 'sale') { event.preventDefault(); saveSale(); return true; }
+    if (event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'h' && getView() === 'sale') { event.preventDefault(); toggleMode(); return true; }
     if(getView()==='daybook' && event.key==='F2' && !event.ctrlKey && !event.metaKey){event.preventDefault();showDayBookDates(event.altKey);return true;}
     if(getView()==='daybook' && event.key==='F4' && !event.ctrlKey && !event.altKey && !event.metaKey){event.preventDefault();showDayBookType();return true;}
     if(getView()==='daybook' && ['F6','F8'].includes(event.key) && !event.ctrlKey && !event.altKey && !event.metaKey){event.preventDefault();hint.textContent=event.key==='F8'?'Columnar view is not available yet.':'Choose New Receipt to enter a receipt voucher.';return true;}

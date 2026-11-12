@@ -1,0 +1,83 @@
+{
+  "feature": "inventory",
+  "layer": "5",
+  "complete": true,
+  "sources": {
+    "reference_study": [
+      "TallyPrime live XML export: Unit (simple/compound, UQC, decimal places)",
+      "TallyPrime live XML export: Godown (Main Location, hierarchy)",
+      "TallyPrime live XML export: StockGroup (Primary, is_addable)",
+      "TallyPrime live XML export: StockItem (unit, group, HSN, GST rate, opening balance, godown)",
+      "TallyPrime live XML export: ALLINVENTORYENTRIES.LIST on Sales/Purchase vouchers (Item, Godown, BilledQty, Rate, Per, Amount, Tax & Accounting Allocations)"
+    ],
+    "statutory": [
+      "CGST Act 2017 & HSN (Harmonized System of Nomenclature) classification for goods",
+      "CBIC standard Unit Quantity Codes (UQCs) e.g. NOS, PCS, KGS, BOX, BTL, MTR",
+      "Section 170 integer paise rounding rules for invoice and stock valuation amounts"
+    ]
+  },
+  "implementation_order": [
+    "inventory_schema_and_models",
+    "units_of_measure",
+    "godowns_locations",
+    "stock_groups",
+    "stock_items",
+    "item_invoice_sales_and_purchases",
+    "item_notes_returns",
+    "stock_movements_and_valuation",
+    "stock_summary_report",
+    "backup_and_restore_inventory"
+  ],
+  "masters": {
+    "units": {
+      "table": "units",
+      "fields": ["id", "symbol", "formal_name", "decimal_places", "uqc"],
+      "default_seed": { "symbol": "Nos", "formal_name": "Numbers", "decimal_places": 0, "uqc": "NOS-NUMBERS" }
+    },
+    "godowns": {
+      "table": "godowns",
+      "fields": ["id", "name", "parent_id", "address", "is_default"],
+      "default_seed": { "name": "Main Location", "is_default": 1 }
+    },
+    "stock_groups": {
+      "table": "stock_groups",
+      "fields": ["id", "name", "parent_id", "is_addable"],
+      "default_seed": { "name": "Primary", "is_addable": 1 }
+    },
+    "stock_items": {
+      "table": "stock_items",
+      "fields": [
+        "id", "name", "part_number", "stock_group_id", "unit_id",
+        "hsn_sac", "gst_rate", "taxability",
+        "opening_qty", "opening_rate", "opening_value", "godown_id"
+      ]
+    }
+  },
+  "voucher_item_line_contract": {
+    "item_id": "string",
+    "item_name": "string",
+    "godown_id": "string",
+    "godown_name": "string",
+    "quantity": "number",
+    "rate": "integer paise per unit",
+    "unit_symbol": "string",
+    "amount": "integer paise (Math.round(quantity * rate))",
+    "hsn_sac": "string",
+    "gst_rate": "number"
+  },
+  "stock_movement_contract": {
+    "item_id": "string",
+    "godown_id": "string",
+    "voucher_id": "string",
+    "voucher_type": "string",
+    "date": "YYYY-MM-DD",
+    "direction": "inward | outward",
+    "quantity": "number",
+    "rate": "integer paise per unit",
+    "value": "integer paise"
+  },
+  "valuation": {
+    "method": "moving_average",
+    "formula": "closing_value = Math.round(closing_qty * average_cost_paise)"
+  }
+}

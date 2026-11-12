@@ -6,43 +6,130 @@ import {entryDate,parseEntryDate,formatRupees,inputRupees,parseRupees} from './e
 import {editVoucherDetails} from './voucher-details.js';
 import {editBillReference} from './bill-details.js';
 import {editCostAllocations} from './cost-allocations.js';
+import {STATE_CODE_TO_NAME} from './gst.js';
 
 export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,askDialog,getView,renderGateway,openDayBook,openVoucher}) {
   const entryDates=createEntryDateState(()=>workingDateContext(getBook()));
   let editing=null,origin='gateway',saving=false,initial='',details={},reference='',billTerms=null,reviewed='',currentDate=null,detailsPartyId=null,initialInvoice=null;
-  const value=id=>main.querySelector('#purchase-'+id).value;
+  let invoiceMode='accounting';
+  const value=id=>main.querySelector('#purchase-'+id)?.value ?? '';
   const parties=()=>getBook().ledgers.filter(l=>l.kind==='supplier' || (l.kind==='cash' && getBook().capabilities?.cash_purchases===true));
   const supplier=()=>parties().find(l=>l.name.toLocaleLowerCase()===value('supplier').trim().toLocaleLowerCase());
   const cashParty=()=>supplier()?.kind==='cash';
-  const snapshot=()=>JSON.stringify({date:value('date'),invoice:value('invoice'),invoiceDate:value('invoice-date'),supplier:value('supplier'),account:value('account'),amount:value('amount'),narration:value('narration'),details,reference,billTerms});
+  const snapshot=()=>JSON.stringify({mode:invoiceMode,date:value('date'),invoice:value('invoice'),invoiceDate:value('invoice-date'),supplier:value('supplier'),account:main.querySelector('#purchase-account')?.value??'',amount:main.querySelector('#purchase-amount')?.value??'',item_lines:invoiceMode==='item'?[...main.querySelectorAll('.sale-line.item-line')].map(el=>({item_id:el.querySelector('.line-item')?.value,godown_id:el.querySelector('.line-godown')?.value,qty:el.querySelector('.line-qty')?.value,rate:el.querySelector('.line-rate')?.value})):[],narration:value('narration'),details,reference,billTerms});
   const dirty=()=>getView()==='purchase' && snapshot()!==initial;
-  const signature=input=>`${input.supplier_id}:${input.amount}:${input.date}:${input.details.supplier_invoice?.number ?? ''}`;
+  const signature=input=>`${input.supplier_id}:${input.amount ?? main.querySelector('#purchase-total')?.textContent}:${input.date}:${input.details.supplier_invoice?.number ?? ''}`;
   function button(id,label,action){const b=document.createElement('button');b.type='button';b.id=id;b.textContent=label;b.addEventListener('click',action);document.querySelector('.command-strip').insertBefore(b,hint);}
-  function error(message,field){main.querySelector('#purchase-error').textContent=message;if(field)main.querySelector('#purchase-'+field).focus();}
+  function error(message,field){main.querySelector('#purchase-error').textContent=message;if(field)main.querySelector('#purchase-'+field)?.focus();}
   function leaveFor(action){if(saving || document.querySelector('dialog'))return;if(dirty())askDialog('Discard unsaved purchase changes?',action,'Discard');else action();}
   const returnTo=()=>typeof origin==='function'?origin():origin==='daybook'?openDayBook():renderGateway(3);
   function update(){
     let amount=0;
-    main.querySelectorAll('.sale-line input[inputmode="decimal"], #purchase-amount').forEach(inp=>{
-      try{amount+=parseRupees(inp.value);}catch{}
-    });
+    if(invoiceMode==='item'){
+      let taxable=0;
+      let cgstTotal=0,sgstTotal=0,igstTotal=0;
+      const party=supplier();
+      const companyState=getBook().companyState || (getBook().companyGstin ? (STATE_CODE_TO_NAME[getBook().companyGstin.slice(0,2)] || '') : '') || 'Not Applicable';
+      const partyState=party?.state || (party?.gstin ? (STATE_CODE_TO_NAME[party.gstin.slice(0,2)] || '') : '') || (details.party?.state ?? 'Not Applicable');
+      const isInterState=companyState!=='Not Applicable' && partyState!=='Not Applicable' && companyState.toLowerCase()!==partyState.toLowerCase();
+
+      main.querySelectorAll('.sale-line.item-line').forEach(el=>{
+        const qty=parseFloat(el.querySelector('.line-qty')?.value) || 0;
+        let rate=0;
+        try{rate=parseRupees(el.querySelector('.line-rate')?.value || '0');}catch{}
+        const lineAmt=Math.round(qty*rate);
+        const amtInput=el.querySelector('.line-amount');
+        if(amtInput)amtInput.value=lineAmt ? (lineAmt/100).toFixed(2) : '0.00';
+        taxable+=lineAmt;
+        const itemSelect=el.querySelector('.line-item');
+        const gstRate=parseFloat(itemSelect?.selectedOptions[0]?.dataset.gst) || 0;
+        if(gstRate>0){
+          if(isInterState){
+            igstTotal+=Math.round(lineAmt*gstRate/100);
+          }else{
+            const halfTax=Math.round(lineAmt*gstRate/200);
+            cgstTotal+=halfTax;
+            sgstTotal+=halfTax;
+          }
+        }
+      });
+      const totalTax=isInterState?igstTotal:(cgstTotal+sgstTotal);
+      amount=taxable+totalTax;
+      const gstSummaryEl=main.querySelector('#purchase-gst-summary');
+      if(gstSummaryEl){
+        if(totalTax>0){
+          gstSummaryEl.innerHTML=`<span>Taxable: ${formatRupees(taxable)}</span>` +
+            (isInterState?`<span>Input IGST: ${formatRupees(igstTotal)}</span>`:`<span>Input CGST: ${formatRupees(cgstTotal)}</span><span>Input SGST: ${formatRupees(sgstTotal)}</span>`) +
+            `<span>Total Tax: ${formatRupees(totalTax)}</span>`;
+          gstSummaryEl.hidden=false;
+        }else{
+          gstSummaryEl.hidden=true;
+        }
+      }
+    }else{
+      main.querySelectorAll('.sale-line:not(.item-line) input[inputmode="decimal"], #purchase-amount').forEach(inp=>{
+        try{amount+=parseRupees(inp.value);}catch{}
+      });
+    }
     main.querySelector('#purchase-total').textContent=formatRupees(amount);
     const party=supplier(),balance=party?savedLedgerBalance(getBook(),party.id):0;
     main.querySelector('#purchase-balance').textContent=party?`${formatRupees(Math.abs(balance))} ${balance<0?'Cr':'Dr'}`:'—';
-    document.querySelector('#purchase-bill-details').disabled=party?.kind==='cash';
+    const billBtn=document.querySelector('#purchase-bill-details');if(billBtn)billBtn.disabled=party?.kind==='cash';
   }
-  function renderPurchase(voucher=null,from='gateway',message=''){
+  function renderPurchase(voucher=null,from='gateway',message='',preserveMode=false){
     currentDate=entryDates.forRender(voucher?{savedDate:voucher.date}:{});
-    editing=voucher;origin=from;details=structuredClone(voucher?.details ?? {});reference=voucher?.bill?.reference ?? '';billTerms=structuredClone(voucher?.bill?.terms ?? null);detailsPartyId=voucher?.supplier_id ?? null;
+    editing=voucher;origin=from;
+    if(!preserveMode){
+      invoiceMode=(voucher?.details?.invoice_mode==='item' || voucher?.item_lines?.length)?'item':'accounting';
+    }
+    details=structuredClone(voucher?.details ?? {});reference=voucher?.bill?.reference ?? '';billTerms=structuredClone(voucher?.bill?.terms ?? null);detailsPartyId=voucher?.supplier_id ?? null;
     if(voucher)currentDate=voucher.date;
     reviewed='';
     setScreen(voucher?'Accounting Voucher Alteration':'Accounting Voucher Creation','purchase',message || 'F9: Purchase · F5: Payment · F2: date · Enter: next · Ctrl+A: accept');
     const number=voucher?.number ?? Math.max(0,...getBook().vouchers.filter(v=>v.type==='purchase').map(v=>v.number))+1;
     const allParticulars=getBook().ledgers.filter(l=>['purchase','expense','income','general'].includes(l.kind));
+    const stockItems=getBook().inventory?.stock_items || [];
+    const godowns=getBook().inventory?.godowns || [];
+    const defaultGodownId=godowns.find(g=>g.is_default)?.id ?? godowns[0]?.id ?? '';
+    const savedItemLines=voucher?.item_lines ?? (voucher?.details?.item_lines || []);
+    if(invoiceMode==='item' && !savedItemLines.length){
+      savedItemLines.push({item_id:stockItems[0]?.id,godown_id:defaultGodownId,quantity:'',rate:'',amount:0});
+    }
     const savedLines=voucher?.lines ?? (voucher?.details?.lines || []);
     const primaryLine=savedLines[0] ?? {ledger_id:voucher?.account_id,amount:voucher?.amount};
     const extraLines=savedLines.slice(1);
-    main.innerHTML=`<form id="purchase-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">Purchase</strong><span>No. <b>${number}</b></span><div class="voucher-date"><label class="sr-only" for="purchase-date">Voucher date</label><input id="purchase-date" value="${entryDate(currentDate)}"><span id="purchase-weekday"></span></div></div><div class="supplier-invoice"><label for="purchase-invoice">Supplier Invoice No.</label><span>:</span><input id="purchase-invoice" maxlength="120" value="${escapeHtml(details.supplier_invoice?.number ?? '')}"><label for="purchase-invoice-date">Date</label><span>:</span><input id="purchase-invoice-date" value="${details.supplier_invoice?.date ? entryDate(details.supplier_invoice.date) : ''}"></div><div class="voucher-party"><label for="purchase-supplier">Party A/c name</label><span>:</span><input id="purchase-supplier" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="purchase-party-options" value="${escapeHtml(voucher?.supplier_name ?? '')}" spellcheck="false"></div><div class="party-balance"><i>Current balance &nbsp;:</i><i id="purchase-balance"></i></div><div id="purchase-party-options" class="party-options" role="listbox" aria-label="Supplier and Cash ledger accounts" hidden></div><div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div><div id="purchase-lines"><div class="sale-line" data-line="0"><label class="sr-only" for="purchase-account">Purchase ledger</label><select id="purchase-account" class="line-ledger">${allParticulars.map(l=>`<option value="${l.id}" ${(primaryLine.ledger_id ?? voucher?.account_id ?? allParticulars[0]?.id)===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><label class="sr-only" for="purchase-amount">Purchase amount</label><input id="purchase-amount" class="line-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(primaryLine.amount ?? voucher.amount):''}"></div>${extraLines.map((line,idx)=>`<div class="sale-line" data-line="${idx+1}"><select class="line-ledger"><option value=""></option>${allParticulars.map(l=>`<option value="${l.id}" ${line.ledger_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value="${inputRupees(line.amount)}"><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button></div>`).join('')}</div><div class="line-tools"><button type="button" id="purchase-add-line" class="add-line-button" tabindex="-1">+ Add Line</button></div><div class="voucher-space"></div><div id="purchase-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="purchase-narration">Narration:</label><textarea id="purchase-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="purchase-total"></span></div></div></form>`;
+    main.innerHTML=`<form id="purchase-form" novalidate autocomplete="off"><div class="voucher-heading"><strong class="voucher-type">Purchase</strong><span>No. <b>${number}</b></span><div class="voucher-date"><label class="sr-only" for="purchase-date">Voucher date</label><input id="purchase-date" value="${entryDate(currentDate)}"><span id="purchase-weekday"></span></div></div><div class="supplier-invoice"><label for="purchase-invoice">Supplier Invoice No.</label><span>:</span><input id="purchase-invoice" maxlength="120" value="${escapeHtml(details.supplier_invoice?.number ?? '')}"><label for="purchase-invoice-date">Date</label><span>:</span><input id="purchase-invoice-date" value="${details.supplier_invoice?.date ? entryDate(details.supplier_invoice.date) : ''}"></div><div class="voucher-party"><label for="purchase-supplier">Party A/c name</label><span>:</span><input id="purchase-supplier" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="purchase-party-options" value="${escapeHtml(voucher?.supplier_name ?? '')}" spellcheck="false"></div><div class="party-balance"><i>Current balance &nbsp;:</i><i id="purchase-balance"></i></div><div id="purchase-party-options" class="party-options" role="listbox" aria-label="Supplier and Cash ledger accounts" hidden></div>
+    ${invoiceMode==='item'?`
+      <div class="voucher-lines-heading item-mode-heading"><strong>Name of Item</strong><span class="godown-heading">Godown</span><span class="qty-heading">Quantity</span><span class="rate-heading">Rate &nbsp; per</span><strong>Amount</strong></div>
+      <div id="purchase-lines">
+        ${savedItemLines.map((line,idx)=>`
+          <div class="sale-line item-line" data-line="${idx}">
+            <select class="line-item" aria-label="Item name">
+              <option value="">Select Item</option>
+              ${stockItems.map(it=>`<option value="${it.id}" data-rate="${(it.opening_rate/100).toFixed(2)}" data-unit="${escapeHtml(it.unit_symbol||'Nos')}" data-gst="${it.gst_rate||0}" ${(line.item_id||line.id)===it.id?'selected':''}>${escapeHtml(it.name)}</option>`).join('')}
+            </select>
+            <select class="line-godown" aria-label="Godown">
+              ${godowns.map(g=>`<option value="${g.id}" ${(line.godown_id||defaultGodownId)===g.id?'selected':''}>${escapeHtml(g.name)}</option>`).join('')}
+            </select>
+            <input class="line-qty" type="number" step="any" min="0" placeholder="0" value="${line.quantity||''}" aria-label="Quantity">
+            <div class="rate-group" style="display:inline-flex;align-items:center;gap:4px;">
+              <input class="line-rate" inputmode="decimal" maxlength="20" placeholder="0.00" value="${line.rate?(line.rate/100).toFixed(2):''}" aria-label="Rate" style="width:75px;">
+              <span class="line-unit">${line.unit_symbol||stockItems.find(it=>it.id===line.item_id)?.unit_symbol||'Nos'}</span>
+            </div>
+            <input class="line-amount" readonly value="${line.amount?(line.amount/100).toFixed(2):'0.00'}" aria-label="Amount">
+            <button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>
+          </div>
+        `).join('')}
+      </div>
+      <div class="item-gst-summary" id="purchase-gst-summary" hidden></div>
+      <div class="line-tools"><button type="button" id="purchase-add-item-line" class="add-line-button" tabindex="-1">+ Add Item</button></div>
+    `:`
+      <div class="voucher-lines-heading"><strong>Particulars</strong><strong>Amount</strong></div>
+      <div id="purchase-lines"><div class="sale-line" data-line="0"><label class="sr-only" for="purchase-account">Purchase ledger</label><select id="purchase-account" class="line-ledger">${allParticulars.map(l=>`<option value="${l.id}" ${(primaryLine.ledger_id ?? voucher?.account_id ?? allParticulars[0]?.id)===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><label class="sr-only" for="purchase-amount">Purchase amount</label><input id="purchase-amount" class="line-amount" inputmode="decimal" maxlength="20" value="${voucher?inputRupees(primaryLine.amount ?? voucher.amount):''}"></div>${extraLines.map((line,idx)=>`<div class="sale-line" data-line="${idx+1}"><select class="line-ledger"><option value=""></option>${allParticulars.map(l=>`<option value="${l.id}" ${line.ledger_id===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value="${inputRupees(line.amount)}"><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button></div>`).join('')}</div>
+      <div class="line-tools"><button type="button" id="purchase-add-line" class="add-line-button" tabindex="-1">+ Add Line</button></div>
+    `}
+    <div class="voucher-space"></div><div id="purchase-error" class="ledger-error" role="alert"></div><div class="voucher-bottom"><div class="voucher-narration"><label for="purchase-narration">Narration:</label><textarea id="purchase-narration" maxlength="1000" rows="2">${escapeHtml(voucher?.narration ?? '')}</textarea></div><div class="voucher-total"><span id="purchase-total"></span></div></div></form>`;
+    button('toggle-purchase-mode',invoiceMode==='item'?'As Accounting Invoice':'As Item Invoice',toggleMode);
     button('accept-purchase','A: Accept  Ctrl+A',save);
     button('purchase-cost-allocations','Cost Allocations',showCostAllocations);
     button('purchase-party-details','Party Details',showDetails);
@@ -53,19 +140,57 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     for(const [key,type,label] of [['F5','payment','Payment'],['F6','receipt','Receipt'],['F7','journal','Journal'],['F8','sale','Sales'],['F9','purchase','Purchase'],['Alt+F5','debit_note','Debit Note'],['Alt+F6','credit_note','Credit Note']]){
       const b=document.createElement('button');b.type='button';b.dataset.salesRail='';b.textContent=`${key}: ${label}`;b.onclick=()=>leaveFor(()=>type==='purchase'?renderPurchase(null,origin):openVoucher(null,origin,type));rail.insertBefore(b,rail.querySelector('.rail-space'));
     }
+    const modeKey=document.createElement('button');modeKey.type='button';modeKey.dataset.salesRail='';modeKey.innerHTML='<span><u>Ctrl+H</u>: Mode</span>';modeKey.onclick=toggleMode;rail.insertBefore(modeKey,rail.querySelector('.rail-space'));
     const dateKey=rail.querySelector('button');dateKey.disabled=false;dateKey.onclick=()=>{main.querySelector('#purchase-date').focus();main.querySelector('#purchase-date').select();};
     const date=main.querySelector('#purchase-date');
     const weekday=()=>{try{main.querySelector('#purchase-weekday').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',timeZone:'UTC'}).format(new Date(parseEntryDate(date.value)+'T12:00:00Z'));}catch{main.querySelector('#purchase-weekday').textContent='';}};
     date.addEventListener('input',weekday);weekday();
     function bindLineEvents(container=main){
-      container.querySelectorAll('.line-amount').forEach(inp=>{
-        inp.removeEventListener('input',update);inp.addEventListener('input',update);
-      });
-      container.querySelectorAll('.remove-line-btn').forEach(btn=>{
-        btn.onclick=()=>{btn.closest('.sale-line').remove();update();};
-      });
+      if(invoiceMode==='item'){
+        container.querySelectorAll('.line-item').forEach(sel=>{
+          sel.onchange=()=>{
+            const opt=sel.selectedOptions[0];const row=sel.closest('.item-line');
+            if(opt && row){
+              const unitSpan=row.querySelector('.line-unit');if(unitSpan && opt.dataset.unit)unitSpan.textContent=opt.dataset.unit;
+              const rateInput=row.querySelector('.line-rate');if(rateInput && !rateInput.value && Number(opt.dataset.rate)>0)rateInput.value=opt.dataset.rate;
+            }
+            update();
+          };
+        });
+        container.querySelectorAll('.line-qty, .line-rate').forEach(inp=>{inp.oninput=update;});
+        container.querySelectorAll('.remove-line-btn').forEach(btn=>{btn.onclick=()=>{btn.closest('.sale-line').remove();update();};});
+      }else{
+        container.querySelectorAll('.line-amount').forEach(inp=>{
+          inp.removeEventListener('input',update);inp.addEventListener('input',update);
+        });
+        container.querySelectorAll('.remove-line-btn').forEach(btn=>{
+          btn.onclick=()=>{btn.closest('.sale-line').remove();update();};
+        });
+      }
     }
     bindLineEvents();
+    main.querySelector('#purchase-add-item-line')?.addEventListener('click',()=>{
+      const container=main.querySelector('#purchase-lines');
+      const idx=container.querySelectorAll('.sale-line').length;
+      const div=document.createElement('div');div.className='sale-line item-line';div.dataset.line=String(idx);
+      div.innerHTML=`
+        <select class="line-item" aria-label="Item name">
+          <option value="">Select Item</option>
+          ${stockItems.map(it=>`<option value="${it.id}" data-rate="${(it.opening_rate/100).toFixed(2)}" data-unit="${escapeHtml(it.unit_symbol||'Nos')}" data-gst="${it.gst_rate||0}">${escapeHtml(it.name)}</option>`).join('')}
+        </select>
+        <select class="line-godown" aria-label="Godown">
+          ${godowns.map(g=>`<option value="${g.id}" ${g.id===defaultGodownId?'selected':''}>${escapeHtml(g.name)}</option>`).join('')}
+        </select>
+        <input class="line-qty" type="number" step="any" min="0" placeholder="0" value="" aria-label="Quantity">
+        <div class="rate-group" style="display:inline-flex;align-items:center;gap:4px;">
+          <input class="line-rate" inputmode="decimal" maxlength="20" placeholder="0.00" value="" aria-label="Rate" style="width:75px;">
+          <span class="line-unit">${stockItems[0]?.unit_symbol||'Nos'}</span>
+        </div>
+        <input class="line-amount" readonly value="0.00" aria-label="Amount">
+        <button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>
+      `;
+      container.appendChild(div);bindLineEvents(div);div.querySelector('.line-item').focus();
+    });
     main.querySelector('#purchase-add-line')?.addEventListener('click',()=>{
       const container=main.querySelector('#purchase-lines');
       const idx=container.querySelectorAll('.sale-line').length;
@@ -73,11 +198,24 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
       div.innerHTML=`<select class="line-ledger"><option value=""></option>${allParticulars.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('')}</select><input class="line-amount" inputmode="decimal" maxlength="20" value=""><button type="button" class="remove-line-btn" tabindex="-1" title="Remove line">✕</button>`;
       container.appendChild(div);bindLineEvents(div);div.querySelector('.line-ledger').focus();
     });
-    main.querySelector('#purchase-amount').addEventListener('input',update);
+    main.querySelector('#purchase-amount')?.addEventListener('input',update);
     main.querySelector('#purchase-form').addEventListener('submit',e=>{e.preventDefault();save();});
     initialInvoice={number:value('invoice'),date:value('invoice-date')};
     bindSupplier();update();initial=snapshot();
     if(voucher){reviewed=signature(read());main.querySelector('#purchase-date').focus();}else main.querySelector('#purchase-invoice').focus();
+  }
+  function toggleMode(){
+    invoiceMode=invoiceMode==='item'?'accounting':'item';
+    const currentSupplier=value('supplier');
+    const supplierId=main.querySelector('#purchase-supplier')?.dataset.supplierId;
+    renderPurchase(editing,origin,'',true);
+    if(currentSupplier){
+      const input=main.querySelector('#purchase-supplier');
+      if(input){
+        input.value=currentSupplier;
+        if(supplierId)input.dataset.supplierId=supplierId;
+      }
+    }
   }
   function bindSupplier(){
     const input=main.querySelector('#purchase-supplier'),list=main.querySelector('#purchase-party-options');let rows=[],index=0;
@@ -99,7 +237,7 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     editVoucherDetails({purchase:true,customer:party,details,escapeHtml,setCaption:caption=>{document.querySelector('.screen-title h1').textContent=caption || (editing?'Accounting Voucher Alteration':'Accounting Voucher Creation');},onDone:next=>{details=next;main.querySelector('#purchase-account').focus();},onCancel:()=>main.querySelector('#purchase-supplier').focus()});
   }
   function readLines(){
-    const lineEls=main.querySelectorAll('.sale-line');const lines=[];
+    const lineEls=main.querySelectorAll('.sale-line:not(.item-line)');const lines=[];
     for(const el of lineEls){
       const select=el.querySelector('.line-ledger, #purchase-account');
       const input=el.querySelector('.line-amount, #purchase-amount');
@@ -114,6 +252,32 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     try{date=parseEntryDate(value('date'));}catch(failure){error(failure.message,'date');return;}
     try{invoiceDate=value('invoice-date').trim()?parseEntryDate(value('invoice-date')):'';}catch(failure){error(failure.message,'invoice-date');return;}
     if(!party){error('Choose an existing supplier or Cash ledger.','supplier');return;}
+    if(invoiceMode==='item'){
+      const item_lines=[];
+      const lineEls=main.querySelectorAll('.sale-line.item-line');
+      for(const el of lineEls){
+        const select=el.querySelector('.line-item');
+        const itemId=Number(select?.value);
+        if(!itemId)continue;
+        const godownId=Number(el.querySelector('.line-godown')?.value) || null;
+        const qty=parseFloat(el.querySelector('.line-qty')?.value) || 0;
+        let rate=0;
+        try{rate=parseRupees(el.querySelector('.line-rate')?.value || '0');}catch{}
+        if(qty>0 && rate>0){
+          item_lines.push({item_id:itemId,godown_id:godownId,quantity:qty,rate});
+        }
+      }
+      if(!item_lines.length){
+        error('Choose a stock item and enter quantity and rate.','first-item-select');
+        return;
+      }
+      const nextDetails={...details,invoice_mode:'item',item_lines};
+      if(editing && value('invoice')===initialInvoice.number && value('invoice-date')===initialInvoice.date){
+        if(Object.hasOwn(editing.details ?? {},'supplier_invoice'))nextDetails.supplier_invoice=structuredClone(editing.details.supplier_invoice);
+        else delete nextDetails.supplier_invoice;
+      }else nextDetails.supplier_invoice={number:value('invoice').trim(),date:invoiceDate};
+      return {type:'purchase',date,supplier_id:party.id,narration:value('narration'),details:nextDetails,...(party.kind==='cash'?{bill:null}:reference?{bill:{reference,terms:billTerms}}:{}),...(editing?{revision:editing.revision}:{})};
+    }
     const lines=readLines();
     if(!lines.length){
       let amount=0;try{amount=parseRupees(value('amount'));}catch(failure){error(failure.message,'amount');return;}
@@ -145,7 +309,11 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
     if(cashParty())return;
     if(saving || document.querySelector('dialog'))return;const input=read();if(!input)return;
     const number=editing?.number ?? Math.max(0,...getBook().vouchers.filter(v=>v.type==='purchase').map(v=>v.number))+1;
-    editBillReference({currency:getBook(),customer:supplier(),reference:reference || input.details.supplier_invoice?.number || String(number),terms:billTerms,amount:input.amount,date:input.date,side:'Cr',description:'purchase',escapeHtml,setCaption:caption=>{document.querySelector('.screen-title h1').textContent=caption || (editing?'Accounting Voucher Alteration':'Accounting Voucher Creation');},onDone:(name,terms)=>{reference=name;billTerms=terms;reviewed=signature(input);main.querySelector('#purchase-narration').focus();},onCancel:()=>main.querySelector('#purchase-amount').focus()});
+    let billAmt=input.amount;
+    if(invoiceMode==='item' && billAmt===undefined){
+      try{billAmt=parseRupees(main.querySelector('#purchase-total').textContent);}catch{billAmt=0;}
+    }
+    editBillReference({currency:getBook(),customer:supplier(),reference:reference || input.details.supplier_invoice?.number || String(number),terms:billTerms,amount:billAmt,date:input.date,side:'Cr',description:'purchase',escapeHtml,setCaption:caption=>{document.querySelector('.screen-title h1').textContent=caption || (editing?'Accounting Voucher Alteration':'Accounting Voucher Creation');},onDone:(name,terms)=>{reference=name;billTerms=terms;reviewed=signature(input);main.querySelector('#purchase-narration').focus();},onCancel:()=>main.querySelector(invoiceMode==='item'?'.line-qty':'#purchase-amount')?.focus()});
   }
   async function save(){
     if(saving || document.querySelector('dialog') || getView()!=='purchase')return;const input=read();if(!input)return;
@@ -165,6 +333,7 @@ export function createPurchaseWorkspace({main,hint,api,setScreen,getBook,refresh
   function onKey(e){
     if(!['purchase','purchase-postings'].includes(getView()))return false;if(saving){e.preventDefault();return true;}
     if(e.ctrlKey && !e.altKey && e.key.toLowerCase()==='a' && getView()==='purchase'){e.preventDefault();save();return true;}
+    if(e.ctrlKey && !e.altKey && e.key.toLowerCase()==='h' && getView()==='purchase'){e.preventDefault();toggleMode();return true;}
     if(e.altKey && !e.ctrlKey && !e.metaKey){
       if(e.key==='F5'){e.preventDefault();leaveFor(()=>openVoucher(null,origin,'debit_note'));return true;}
       if(e.key==='F6'){e.preventDefault();leaveFor(()=>openVoucher(null,origin,'credit_note'));return true;}

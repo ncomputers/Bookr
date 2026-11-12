@@ -6,6 +6,7 @@ import { createFinancialWorkspace } from './financial-reports.js';
 import { createContraWorkspace } from './contra.js';
 import { createChartWorkspace } from './chart-of-accounts.js';
 import { createAccountingMasters } from './accounting-masters.js';
+import { createInventoryMasters } from './inventory-masters.js';
 import {createJournalWorkspace} from './journal.js';
 import {createGeneralJournalWorkspace} from './general-journal.js';
 import {createNotesWorkspace} from './notes.js';
@@ -35,7 +36,7 @@ const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({
 const groups = [
   { title:'MASTERS', items:[{ label:'Create', hot:0 }, { label:'Alter', hot:0 }, { label:'Chart of Accounts', hot:1 }] },
   { title:'TRANSACTIONS', items:[{ label:'Vouchers', hot:0 }, { label:'Day Book', hot:4 }] },
-  { title:'REPORTS', className:'reports', items:[{ label:'Ledger Vouchers', hot:0 }, { label:'Bills Receivable', hot:0 }, { label:'Display More Reports', hot:0 }, {label:'Bills Payable',hot:5}, {label:'Balance Sheet',hot:0}, {label:'Profit & Loss A/c',hot:0}] }
+  { title:'REPORTS', className:'reports', items:[{ label:'Ledger Vouchers', hot:0 }, { label:'Bills Receivable', hot:0 }, { label:'Display More Reports', hot:0 }, {label:'Bills Payable',hot:5}, {label:'Balance Sheet',hot:0}, {label:'Profit & Loss A/c',hot:0}, {label:'Stock Summary',hot:0}] }
 ];
 const menu = [...groups.flatMap(group => group.items), { label:'Quit', hot:0 }];
 let book, view = 'loading', selected = 0, mode = 'create', editing = null, initialValues = '', saving = false;
@@ -87,10 +88,11 @@ const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshB
   openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);}});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const accountingMasters=createAccountingMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
+const inventoryMasters=createInventoryMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
 const chart=createChartWorkspace({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,renderGateway,escapeHtml,api,openGroup:grp=>openFresh(()=>accountingMasters.openGroupForm(grp)),openCostCategory:cat=>openFresh(()=>accountingMasters.openCostCategoryForm(cat)),openCostCentre:c=>openFresh(()=>accountingMasters.openCostCentreForm(c)),openLedger:(ledger,returnTo)=>openFresh(async()=>renderLedger(await api('/api/ledgers/'+ledger.id),'',returnTo)),createLedger:(selection,returnTo)=>openFresh(()=>{const group=ledgerGroups.find(item=>item.value===selection);ledgerGroupSelection=group?.value??null;ledgerKind=group?.kind??selection;renderLedger(null,'',returnTo);})});
 const companyUI=createCompanyWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,getCapabilities:()=>serverCapabilities,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:()=>activeCompanyId,onSelect:id=>lifecycle.select(id),getLoadedIds:()=>lifecycle.read().loadedIds,onShut:id=>lifecycle.shut(id),onEdited:async()=>{await lifecycle.refreshCatalog();await refreshBook();}});
 const companyDataUI=createCompanyDataWorkspace({main,hint,api,setScreen,getView:()=>view,getBook:()=>book,getCapabilities:()=>serverCapabilities,refreshBook,renderGateway,escapeHtml,askDialog,isBusy:()=>busy(),isDirty:()=>isDirty(),activeId:()=>activeCompanyId,onSelect:id=>lifecycle.select(id)});
-const busy = () => saving || sales.isSaving() || receipts.isSaving() || payments.isSaving() || purchases.isSaving() || contra.isSaving() || journal.isSaving() || generalJournal.isSaving() || reports.isSaving() || financial.isSaving() || chart.isSaving() || companyUI.isSaving() || companyDataUI.isSaving();
+const busy = () => saving || sales.isSaving() || receipts.isSaving() || payments.isSaving() || purchases.isSaving() || contra.isSaving() || journal.isSaving() || generalJournal.isSaving() || reports.isSaving() || financial.isSaving() || chart.isSaving() || accountingMasters.isDirty() || inventoryMasters.isDirty() || companyUI.isSaving() || companyDataUI.isSaving();
 
 async function refreshBook() {
   if(activeCompanyId===null)throw new Error('Select a company to open its books.');
@@ -135,7 +137,7 @@ async function api(path, options = {}) {
   return activity.run(async()=>{
   const period=workingDateStore?.period();
   let input;try{input=JSON.parse(options.body);}catch{}
-  const monetary=['POST','PUT'].includes(options.method)&&(/^\/api\/vouchers(?:\/\d+)?$/.test(path)||/^\/api\/(?:ledgers|customers|suppliers|banks)(?:\/\d+)?$/.test(path)&&input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')));
+  const monetary=['POST','PUT'].includes(options.method)&&(/^\/api\/vouchers(?:\/\d+)?$/.test(path)||(input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')||Object.hasOwn(input,'opening_value')||Object.hasOwn(input,'opening_qty'))));
   const response = await fetch(path, { ...options, headers:{ 'Content-Type':'application/json','X-Bookr-Currency-Labels':'1',...(monetary?{'X-Bookr-Currency-Context':encodeCompanyCurrencyContext(numericDraftCurrency??book??{})}:{}),...(activeCompanyId!==null?{'X-Bookr-Company':activeCompanyId}:{}),...(period?{'X-Bookr-Period':period.from+'/'+period.to}:{}), ...options.headers } });
   const value = await response.json();
   if (!response.ok) throw new Error(value.error || 'Unable to complete this request.');
@@ -147,7 +149,7 @@ function setScreen(name, screen, message) {
   ledgerGroupPicker?.destroy();ledgerGroupPicker=null;
   generalJournal.dispose();
   view = screen;
-  if(['ledger','sale','purchase','receipt','payment','contra','journal','journal-general'].includes(screen))numericDraftCurrency=companyCurrency(book??{});
+  if(['ledger','sale','purchase','receipt','payment','contra','journal','journal-general','stock-item-form','unit-form','godown-form','stock-group-form'].includes(screen))numericDraftCurrency=companyCurrency(book??{});
   main.dataset.screen=screen;
   delete main.dataset.mode;
   main.className = screen === 'gateway' ? '' : 'entry-workspace';
@@ -193,7 +195,7 @@ function selectMenu(index, focus = false) {
 }
 function menuButton(item, index, className = '') {
   const label = `${escapeHtml(item.label.slice(0,item.hot))}<span class="hot-letter">${escapeHtml(item.label[item.hot])}</span>${escapeHtml(item.label.slice(item.hot+1))}`;
-  const enabled = [0,1,2,3,4,5,6,7,8,9,10].includes(index);
+  const enabled = [0,1,2,3,4,5,6,7,8,9,10,11].includes(index);
   return `<button class="${className}" data-menu="${index}" aria-disabled="${!enabled}" title="${enabled ? 'Open ' + escapeHtml(item.label) : 'Available in a later layer'}">${label}</button>`;
 }
 function renderGateway(focusIndex = 0) {
@@ -257,17 +259,22 @@ function openGatewayItem() {
   else if (selected === 8) reports.openPayables();
   else if (selected === 9) financial.openBalanceSheet();
   else if (selected === 10) financial.openProfitAndLoss();
+  else if (selected === 11) reports.openStockSummary('gateway');
   else hint.textContent = `${menu[selected].label} will be connected in a later layer.`;
 }
 function renderMasters(nextMode = mode) {
   mode = nextMode;
   ledgerKind='customer';
   setScreen(mode === 'create' ? 'Master Creation' : 'Master Alteration', 'masters', 'Enter to open · Esc to Gateway');
-  main.innerHTML = `<section class="master-menu" aria-label="${mode === 'create' ? 'Create' : 'Alter'} masters"><div class="gateway-menu-title">${mode === 'create' ? 'Master Creation' : 'Master Alteration'}</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING MASTERS</h2><button id="open-group">Group</button><button id="open-ledger" class="selected">Ledger</button><button id="open-cost-category">Cost Category</button><button id="open-cost-centre">Cost Centre</button><p>Groups / Ledgers / Cost Categories / Cost Centres</p></div></section>`;
+  main.innerHTML = `<section class="master-menu" aria-label="${mode === 'create' ? 'Create' : 'Alter'} masters"><div class="gateway-menu-title">${mode === 'create' ? 'Master Creation' : 'Master Alteration'}</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING MASTERS</h2><button id="open-group">Group</button><button id="open-ledger" class="selected">Ledger</button><button id="open-cost-category">Cost Category</button><button id="open-cost-centre">Cost Centre</button><h2 class="menu-heading">INVENTORY MASTERS</h2><button id="open-stock-group">Stock Group</button><button id="open-stock-item">Stock Item</button><button id="open-unit">Unit</button><button id="open-godown">Godown</button><p>Groups / Ledgers / Cost Centres · Stock Items / Units / Godowns</p></div></section>`;
   main.querySelector('#open-group').addEventListener('click', () => openFresh(() => mode === 'create' ? accountingMasters.openGroupForm() : accountingMasters.openGroupSelector()));
   main.querySelector('#open-ledger').addEventListener('click', () => openFresh(() => mode === 'create' ? renderLedger() : renderSelector()));
   main.querySelector('#open-cost-category').addEventListener('click', () => openFresh(() => mode === 'create' ? accountingMasters.openCostCategoryForm() : accountingMasters.openCostCategorySelector()));
   main.querySelector('#open-cost-centre').addEventListener('click', () => openFresh(() => mode === 'create' ? accountingMasters.openCostCentreForm() : accountingMasters.openCostCentreSelector()));
+  main.querySelector('#open-stock-group').addEventListener('click', () => openFresh(() => mode === 'create' ? inventoryMasters.openStockGroupForm() : inventoryMasters.openStockGroupSelector()));
+  main.querySelector('#open-stock-item').addEventListener('click', () => openFresh(() => mode === 'create' ? inventoryMasters.openStockItemForm() : inventoryMasters.openStockItemSelector()));
+  main.querySelector('#open-unit').addEventListener('click', () => openFresh(() => mode === 'create' ? inventoryMasters.openUnitForm() : inventoryMasters.openUnitSelector()));
+  main.querySelector('#open-godown').addEventListener('click', () => openFresh(() => mode === 'create' ? inventoryMasters.openGodownForm() : inventoryMasters.openGodownSelector()));
   main.querySelector('#open-ledger').focus();
 }
 function renderSelector() {
@@ -308,7 +315,7 @@ function ledgerValues() {
   return {kind,group_id:selected?.group_id??null,group_name:selected?.name??'',...Object.fromEntries(['name','alias','mailing_name','address','state','country','pincode'].map(name => [name,main.querySelector(`[name="${name}"]`).value])),...(party?{gstin:main.querySelector('#ledger-gstin')?.value?.trim().toUpperCase()??'',gst_registration_type:main.querySelector('#ledger-gst-registration-type')?.value??'Unregistered'}:{}),...(isDuties?{tax_type:main.querySelector('#ledger-tax-type')?.value??'',tax_rate:Number(main.querySelector('#ledger-tax-rate')?.value)||0}:{}),...(['expense','income'].includes(kind)?{ledger_type:'Not Applicable'}:{}),...(kind==='bank'?{bank:Object.fromEntries([...main.querySelectorAll('[data-bank-field]')].map(field=>[field.dataset.bankField,field.value]))}:{})};
 }
 const ledgerDraft=()=>({...ledgerValues(),opening:openingEditor?.snapshot()});
-function isDirty() { return (view === 'ledger' && JSON.stringify(ledgerDraft()) !== initialValues) || accountingMasters.isDirty() || sales.dirty() || receipts.dirty() || payments.dirty() || purchases.dirty() || contra.dirty() || journal.dirty() || generalJournal.dirty() || companyUI.dirty() || companyDataUI.dirty(); }
+function isDirty() { return (view === 'ledger' && JSON.stringify(ledgerDraft()) !== initialValues) || accountingMasters.isDirty() || inventoryMasters.isDirty() || sales.dirty() || receipts.dirty() || payments.dirty() || purchases.dirty() || contra.dirty() || journal.dirty() || generalJournal.dirty() || companyUI.dirty() || companyDataUI.dirty(); }
 function renderLedger(ledger = null, message = '',returnTo = null) {
   editing = ledger;
   if(ledger)ledgerKind=ledger.kind;
@@ -488,7 +495,8 @@ function goBack() {
   if (['credit-note','debit-note','credit-note-postings','debit-note-postings'].includes(view)) { notes.goBack(); return; }
   if (['chart-masters','chart-ledgers','chart-groups','chart-cost-categories','chart-cost-centres'].includes(view)) { chart.goBack(); return; }
   if (accountingMasters.goBack()) return;
-  if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary'].includes(view)) { reports.goBack(); return; }
+  if (inventoryMasters.goBack()) return;
+  if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary','stock-summary'].includes(view)) { reports.goBack(); return; }
   if (['balance-sheet','profit-loss','financial-group'].includes(view)) { financial.goBack(); return; }
   if (view === 'ledger') {
     const back = () => {
@@ -508,7 +516,7 @@ document.addEventListener('keydown', event => {
   if(companyUI.onKey(event))return;
   if(ledgerGroupPicker?.onKey(event))return;
   if (sales.onKey(event) || notes.onKey(event)) return;
-  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event)) return;
+  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event) || inventoryMasters.onKey(event)) return;
   if (view === 'ledger' && event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'a') {
     event.preventDefault(); saveLedger(); return;
   }
@@ -529,6 +537,8 @@ document.addEventListener('keydown', event => {
     else if (event.key.toLowerCase() === 'c' || event.key.toLowerCase() === 'a') { event.preventDefault(); renderMasters(event.key.toLowerCase() === 'c' ? 'create' : 'alter'); }
     else if (event.key.toLowerCase() === 'v') { event.preventDefault(); openFresh(() => sales.renderSale()); }
     else if (event.key.toLowerCase() === 'k') { event.preventDefault(); sales.openDayBook(); }
+    else if (event.key.toLowerCase() === 'd') { event.preventDefault(); reports.openMoreReports(); }
+    else if (event.key.toLowerCase() === 's') { event.preventDefault(); reports.openStockSummary('gateway'); }
   } else if (view === 'masters') {
     if (!main.contains(event.target)) return;
     const buttons = Array.from(main.querySelectorAll('.master-menu-content button'));
@@ -548,6 +558,12 @@ document.addEventListener('keydown', event => {
     } else if (event.key.toLowerCase() === 'l') {
       event.preventDefault();
       main.querySelector('#open-ledger')?.click();
+    } else if (event.key.toLowerCase() === 'i') {
+      event.preventDefault();
+      main.querySelector('#open-stock-item')?.click();
+    } else if (event.key.toLowerCase() === 'u') {
+      event.preventDefault();
+      main.querySelector('#open-unit')?.click();
     }
   } else if (view === 'selector') {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); selectCandidate(event.key === 'ArrowDown' ? 1 : -1); }

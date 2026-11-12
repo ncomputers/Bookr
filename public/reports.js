@@ -68,11 +68,11 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   }
   function showPeriod(){
     if(busy || document.querySelector('dialog'))return;
-    const trial=getView()==='trial-balance',gst=getView()==='gst-summary';
-    const dates=getBook().vouchers.filter(v=>trial || gst || v.customer_id===ledgerId || v.account_id===ledgerId).map(v=>v.date).sort();
-    const selected=trial?trialPeriod:gst?gstPeriod:periods.get(ledgerId);
+    const trial=getView()==='trial-balance',gst=getView()==='gst-summary',stock=getView()==='stock-summary';
+    const dates=getBook().vouchers.filter(v=>trial || gst || stock || v.customer_id===ledgerId || v.account_id===ledgerId).map(v=>v.date).sort();
+    const selected=trial?trialPeriod:gst?gstPeriod:stock?stockPeriod:periods.get(ledgerId);
     const period={from:selected?.from ?? dates[0] ?? initialEntryDate(getBook()),to:selected?.to ?? dates.at(-1) ?? initialEntryDate(getBook())};
-    editReportPeriod({period,onDone:async next=>{busy=true;try{await refreshBook();if(trial)await renderTrialBalance(next);else if(gst)await renderGstSummary(next);else await renderStatement(ledgerId,next);}finally{busy=false;}}});
+    editReportPeriod({period,onDone:async next=>{busy=true;try{await refreshBook();if(trial)await renderTrialBalance(next);else if(gst)await renderGstSummary(next);else if(stock)await renderStockSummary(next);else await renderStatement(ledgerId,next);}finally{busy=false;}}});
   }
   async function renderOutstanding(id=null,direction=null,asOf=undefined){
     const nextDirection=direction ?? (getBook().ledgers.find(l=>l.id===id)?.kind==='supplier'?'payable':'receivable');
@@ -109,16 +109,20 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   }
 
   let gstPeriod = null;
+  let stockPeriod = null;
+  let stockOrigin = 'gateway';
   function renderMoreReports(){
-    setScreen('Display More Reports','more-reports','Trial Balance · GST Summary · Enter: open · Esc: Gateway');
-    main.innerHTML='<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING</h2><button id="open-trial-balance" class="selected">Trial Balance</button><button id="open-gst-summary">GST Summary</button></div></section>';
+    setScreen('Display More Reports','more-reports','Trial Balance · GST Summary · Stock Summary · Enter: open · Esc: Gateway');
+    main.innerHTML='<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING</h2><button id="open-trial-balance" class="selected">Trial Balance</button><button id="open-gst-summary">GST Summary</button><h2 class="menu-heading">INVENTORY</h2><button id="open-stock-summary">Stock Summary</button></div></section>';
     main.querySelector('#open-trial-balance').onclick=openTrialBalance;
     main.querySelector('#open-gst-summary').onclick=openGstSummary;
+    main.querySelector('#open-stock-summary').onclick=()=>openStockSummary('reports');
     main.querySelector('#open-trial-balance').focus();
   }
   const openMoreReports=()=>run(()=>renderMoreReports());
   const openTrialBalance=()=>run(()=>renderTrialBalance());
   const openGstSummary=()=>run(()=>renderGstSummary());
+  const openStockSummary=(from='gateway',period=stockPeriod)=>{stockOrigin=from;return run(()=>renderStockSummary(period));};
   function openTrialLedger(id){statementOrigin='trial-balance';run(()=>renderStatement(id,trialPeriod));}
   async function renderTrialBalance(period=trialPeriod){
     const query=period?'?'+new URLSearchParams(period):'';
@@ -189,9 +193,70 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     const dateKey=document.querySelector('.function-rail button');dateKey.disabled=false;dateKey.innerHTML='<span><u>F2</u>: Period</span><span>‹</span>';dateKey.onclick=showPeriod;
   }
 
-  function goBack(){if(getView()==='monthly-summary')monthlyContext.back();else if(getView()==='trial-balance'||getView()==='gst-summary')openMoreReports();else if(getView()==='more-reports')renderGateway(7);else if(getView()==='statement'){if(typeof statementOrigin==='function')statementOrigin();else if(statementOrigin==='trial-balance')openTrialBalance();else chooseLedger();}else if(getView()==='outstanding' && ledgerId)openStatement(ledgerId);else renderGateway(getView()==='outstanding'?(outstandingDirection==='payable'?8:6):5);}
+  async function renderStockSummary(period=stockPeriod){
+    const query=period?'?'+new URLSearchParams(period):'';
+    const report=await api('/api/stock-summary'+query);
+    stockPeriod=period;
+    rows=report.items;
+    index=0;
+    setScreen('Stock Summary','stock-summary','Stock items closing balance and valuation · F2: Period · Esc: back');
+    const caption=period?entryDate(period.from)+' to '+entryDate(period.to):'All saved movements';
+    main.innerHTML=`<section class="day-book stock-summary-report">
+      <div class="report-ledger-name"><strong>Stock Summary</strong><span id="stock-period-caption">${caption}</span></div>
+      <div class="report-table-scroll">
+        <table class="voucher-report">
+          <thead>
+            <tr>
+              <th rowspan="2">Item Name</th>
+              <th colspan="2" style="text-align:center;">Opening Balance</th>
+              <th colspan="2" style="text-align:center;">Inwards</th>
+              <th colspan="2" style="text-align:center;">Outwards</th>
+              <th colspan="3" style="text-align:center;">Closing Balance</th>
+            </tr>
+            <tr>
+              <th class="amount">Quantity</th>
+              <th class="amount">Value</th>
+              <th class="amount">Quantity</th>
+              <th class="amount">Value</th>
+              <th class="amount">Quantity</th>
+              <th class="amount">Value</th>
+              <th class="amount">Quantity</th>
+              <th class="amount">Rate</th>
+              <th class="amount">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((r,i)=>`
+              <tr data-report-row="${i}">
+                <td><strong>${escapeHtml(r.item_name)}</strong>${r.part_number?` <small>[${escapeHtml(r.part_number)}]</small>`:''}${r.group_name?` <small>(${escapeHtml(r.group_name)})</small>`:''}</td>
+                <td class="amount">${r.opening_qty?r.opening_qty+' '+(r.unit_symbol||''):''}</td>
+                <td class="amount">${r.opening_val?formatRupees(r.opening_val):''}</td>
+                <td class="amount">${r.inward_qty?r.inward_qty+' '+(r.unit_symbol||''):''}</td>
+                <td class="amount">${r.inward_val?formatRupees(r.inward_val):''}</td>
+                <td class="amount">${r.outward_qty?r.outward_qty+' '+(r.unit_symbol||''):''}</td>
+                <td class="amount">${r.outward_val?formatRupees(r.outward_val):''}</td>
+                <td class="amount"><strong>${r.closing_qty} ${r.unit_symbol||''}</strong></td>
+                <td class="amount">${r.closing_rate?formatRupees(r.closing_rate):''}</td>
+                <td class="amount"><strong class="stock-closing-val">${formatRupees(r.closing_val)}</strong></td>
+              </tr>
+            `).join('') || '<tr><td colspan="10" class="empty-report">No stock items in this period.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      <div class="trial-totals">
+        <strong>Grand Total</strong>
+        <strong id="stock-total-val">${formatRupees(report.totals.closing_val)}</strong>
+      </div>
+    </section>`;
+    button('stock-period','F2: Period',showPeriod);
+    if(period)button('stock-all-dates','All dates',()=>run(()=>renderStockSummary(null)));
+    const dateKey=document.querySelector('.function-rail button');dateKey.disabled=false;dateKey.innerHTML='<span><u>F2</u>: Period</span><span>‹</span>';dateKey.onclick=showPeriod;
+    highlight();main.focus();
+  }
+
+  function goBack(){if(getView()==='monthly-summary')monthlyContext.back();else if(getView()==='trial-balance'||getView()==='gst-summary')openMoreReports();else if(getView()==='stock-summary'){if(stockOrigin==='gateway')renderGateway(11);else openMoreReports();}else if(getView()==='more-reports')renderGateway(7);else if(getView()==='statement'){if(typeof statementOrigin==='function')statementOrigin();else if(statementOrigin==='trial-balance')openTrialBalance();else chooseLedger();}else if(getView()==='outstanding' && ledgerId)openStatement(ledgerId);else renderGateway(getView()==='outstanding'?(outstandingDirection==='payable'?8:6):5);}
   function onKey(e){
-    if(!['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary'].includes(getView()))return false;
+    if(!['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary','stock-summary'].includes(getView()))return false;
     if(busy){e.preventDefault();return true;}
     if(e.ctrlKey || e.altKey || e.metaKey)return false;
     if(getView()==='monthly-summary'){
@@ -205,7 +270,7 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       }return false;
     }
     if(e.key==='F6' && getView()==='statement'){e.preventDefault();openMonthly();return true;}
-    if(e.key==='F2' && ['statement','trial-balance','gst-summary'].includes(getView())){e.preventDefault();showPeriod();return true;}
+    if(e.key==='F2' && ['statement','trial-balance','gst-summary','stock-summary'].includes(getView())){e.preventDefault();showPeriod();return true;}
     if(e.key==='F2' && getView()==='outstanding'){e.preventDefault();showOutstandingAsOf();return true;}
     if(e.key==='F5' && getView()==='statement'){e.preventDefault();if(['customer','supplier'].includes(getBook().ledgers.find(l=>l.id===ledgerId)?.kind))openOutstanding(ledgerId);return true;}
     if(getView()==='more-reports'){if(e.key==='Enter'){e.preventDefault();openTrialBalance();return true;}return false;}
@@ -214,5 +279,5 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       e.preventDefault();if(e.key==='Enter'){if(rows.length){if(getView()==='report-selector')openStatement(rows[index].id);else if(getView()==='trial-balance')openTrialLedger(rows[index].id);else reopen(rows[index].id);}}else highlight(e.key==='ArrowDown'?1:-1);return true;
     }return false;
   }
-  return {chooseLedger,openStatement,openLedgerFromReport,openOutstanding,openPayables,openMoreReports,openGstSummary,goBack,onKey,isSaving:()=>busy};
+  return {chooseLedger,openStatement,openLedgerFromReport,openOutstanding,openPayables,openMoreReports,openGstSummary,openStockSummary,goBack,onKey,isSaving:()=>busy};
 }

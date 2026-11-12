@@ -28,7 +28,7 @@ await mkdir(dirname(dbPath), { recursive: true });
 const companies = new CompanyStore({defaultFile:dbPath});
 const geography=new GeographyStore(dbPath+'.locations.json');
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml' };
-const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true,company_mobile_calling_code:true,company_backup_v3:true,company_geography_masters:true});
+const capabilities=Object.freeze({general_journal:true,company_alter:true,cash_purchases:true,current_period:true,company_backup:true,company_calendar_alteration:true,company_currency_labels:true,company_backup_v2:true,company_mobile_calling_code:true,company_backup_v3:true,company_geography_masters:true,inventory:true});
 const send = (res, status, value) => { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
 const body = async (req,limit=16384) => {
   if(Number(req.headers['content-length'])>limit){req.resume();throw new BookError('Request is too large.',413);}
@@ -99,8 +99,34 @@ const handler = async (req, res) => {
       const companyId=req.headers['x-bookr-company']??'default';
       requireCurrencyAwareness(req.headers,companies.profile(companyId));
       const book=companies.book(companyId);
-      const write=async(action,{voucher=false}={})=>{const input=req.method==='DELETE'?{}:await body(req),monetary=voucher||Boolean(input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')));return companies.writeBook(companyId,req.headers,input,action,{monetary});};
+      const write=async(action,{voucher=false}={})=>{const input=req.method==='DELETE'?{}:await body(req),monetary=voucher||Boolean(input&&typeof input==='object'&&(Object.hasOwn(input,'opening_balance')||Object.hasOwn(input,'opening_bills')||Object.hasOwn(input,'opening_value')||Object.hasOwn(input,'opening_qty')));return companies.writeBook(companyId,req.headers,input,action,{monetary});};
       if (req.method === 'GET' && url.pathname === '/api/state') return send(res,200,{...book.state(),capabilities,...(previewLabel?{preview:{label:previewLabel}}:{})});
+      if (req.method === 'GET' && url.pathname === '/api/stock-summary') return send(res,200,book.stockSummary({from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
+      if (req.method === 'GET' && url.pathname === '/api/inventory/masters') return send(res,200,book.inventoryMasters());
+      if (req.method === 'GET' && url.pathname === '/api/inventory/units') return send(res,200,book.inventory.listUnits());
+      const unitMatch=url.pathname.match(/^\/api\/inventory\/units\/(\d+)$/);
+      if(req.method==='GET' && unitMatch){const u=book.inventory.getUnit(Number(unitMatch[1]));if(!u)throw new BookError('Unit not found.',404);return send(res,200,u);}
+      if(req.method==='PUT' && unitMatch)return send(res,200,await write((fresh,input)=>fresh.inventory.updateUnit(Number(unitMatch[1]),input)));
+      if(req.method==='DELETE' && unitMatch)return send(res,200,await write(fresh=>fresh.inventory.deleteUnit(Number(unitMatch[1]))));
+      if(req.method==='POST' && url.pathname==='/api/inventory/units')return send(res,201,await write((fresh,input)=>fresh.inventory.createUnit(input)));
+      if (req.method === 'GET' && url.pathname === '/api/inventory/godowns') return send(res,200,book.inventory.listGodowns());
+      const godownMatch=url.pathname.match(/^\/api\/inventory\/godowns\/(\d+)$/);
+      if(req.method==='GET' && godownMatch){const g=book.inventory.getGodown(Number(godownMatch[1]));if(!g)throw new BookError('Godown not found.',404);return send(res,200,g);}
+      if(req.method==='PUT' && godownMatch)return send(res,200,await write((fresh,input)=>fresh.inventory.updateGodown(Number(godownMatch[1]),input)));
+      if(req.method==='DELETE' && godownMatch)return send(res,200,await write(fresh=>fresh.inventory.deleteGodown(Number(godownMatch[1]))));
+      if(req.method==='POST' && url.pathname==='/api/inventory/godowns')return send(res,201,await write((fresh,input)=>fresh.inventory.createGodown(input)));
+      if (req.method === 'GET' && url.pathname === '/api/inventory/stock-groups') return send(res,200,book.inventory.listStockGroups());
+      const stockGroupMatch=url.pathname.match(/^\/api\/inventory\/stock-groups\/(\d+)$/);
+      if(req.method==='GET' && stockGroupMatch){const sg=book.inventory.getStockGroup(Number(stockGroupMatch[1]));if(!sg)throw new BookError('Stock group not found.',404);return send(res,200,sg);}
+      if(req.method==='PUT' && stockGroupMatch)return send(res,200,await write((fresh,input)=>fresh.inventory.updateStockGroup(Number(stockGroupMatch[1]),input)));
+      if(req.method==='DELETE' && stockGroupMatch)return send(res,200,await write(fresh=>fresh.inventory.deleteStockGroup(Number(stockGroupMatch[1]))));
+      if(req.method==='POST' && url.pathname==='/api/inventory/stock-groups')return send(res,201,await write((fresh,input)=>fresh.inventory.createStockGroup(input)));
+      if (req.method === 'GET' && url.pathname === '/api/inventory/stock-items') return send(res,200,book.inventory.listStockItems());
+      const stockItemMatch=url.pathname.match(/^\/api\/inventory\/stock-items\/(\d+)$/);
+      if(req.method==='GET' && stockItemMatch){const si=book.inventory.getStockItem(Number(stockItemMatch[1]));if(!si)throw new BookError('Stock item not found.',404);return send(res,200,si);}
+      if(req.method==='PUT' && stockItemMatch)return send(res,200,await write((fresh,input)=>fresh.inventory.updateStockItem(Number(stockItemMatch[1]),input)));
+      if(req.method==='DELETE' && stockItemMatch)return send(res,200,await write(fresh=>fresh.inventory.deleteStockItem(Number(stockItemMatch[1]))));
+      if(req.method==='POST' && url.pathname==='/api/inventory/stock-items')return send(res,201,await write((fresh,input)=>fresh.inventory.createStockItem(input)));
       if(req.method==='GET' && url.pathname==='/api/outstanding'){
         const allowed=['direction','as_of','ledger'];
         if([...url.searchParams.keys()].some(key=>!allowed.includes(key)) || allowed.some(key=>url.searchParams.getAll(key).length>1))throw new BookError('Choose each outstanding filter once: direction, as_of and ledger.');
