@@ -190,6 +190,16 @@ const handler = async (req, res) => {
         ];
         return send(res, 200, stats);
       }
+      if (req.method === 'GET' && url.pathname === '/api/ratio-analysis') {
+        return send(res, 200, book.ratioAnalysis({ from: url.searchParams.get('from'), to: url.searchParams.get('to') }));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/cash-bank-summary') {
+        return send(res, 200, book.cashBankSummary({ from: url.searchParams.get('from'), to: url.searchParams.get('to') }));
+      }
+      if (req.method === 'GET' && url.pathname === '/api/cash-flow') {
+        const month = url.searchParams.get('month') || null;
+        return send(res, 200, book.cashFlow({ period: { from: url.searchParams.get('from'), to: url.searchParams.get('to') }, month }));
+      }
       if (req.method === 'GET' && url.pathname === '/api/statement') return send(res,200,book.statement(url.searchParams.get('ledger'),{from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/monthly-summary') {
         const allowed=['ledger','from','to'];

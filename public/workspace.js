@@ -26,6 +26,9 @@ import {companyCurrency,encodeCompanyCurrencyContext,confirmCompanyCurrency} fro
 import {createBankReconciliationWorkspace} from './bank-reconciliation.js';
 import {createVoucherRegistersWorkspace} from './voucher-registers.js';
 import {createStatisticsWorkspace} from './statistics.js';
+import {createRatioAnalysisWorkspace} from './ratio-analysis.js';
+import {createCashBankSummaryWorkspace} from './cash-bank-summary.js';
+import {createCashFlowWorkspace} from './cash-flow.js';
 import {STATE_CODE_TO_NAME, GST_REGISTRATION_TYPES} from './gst.js';
 
 const main = document.querySelector('#main');
@@ -39,7 +42,7 @@ const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({
 const groups = [
   { title:'MASTERS', items:[{ label:'Create', hot:0 }, { label:'Alter', hot:0 }, { label:'Chart of Accounts', hot:1 }] },
   { title:'TRANSACTIONS', items:[{ label:'Vouchers', hot:0 }, { label:'Day Book', hot:4 }] },
-  { title:'REPORTS', className:'reports', items:[{ label:'Ledger Vouchers', hot:0 }, { label:'Bills Receivable', hot:0 }, { label:'Display More Reports', hot:0 }, {label:'Bills Payable',hot:5}, {label:'Balance Sheet',hot:0}, {label:'Profit & Loss A/c',hot:0}, {label:'Stock Summary',hot:0}] }
+  { title:'REPORTS', className:'reports', items:[{ label:'Ledger Vouchers', hot:0 }, { label:'Bills Receivable', hot:0 }, { label:'Display More Reports', hot:0 }, {label:'Bills Payable',hot:5}, {label:'Balance Sheet',hot:0}, {label:'Profit & Loss A/c',hot:0}, {label:'Ratio Analysis',hot:0}, {label:'Stock Summary',hot:0}] }
 ];
 const menu = [...groups.flatMap(group => group.items), { label:'Quit', hot:0 }];
 let book, view = 'loading', selected = 0, mode = 'create', editing = null, initialValues = '', saving = false;
@@ -96,6 +99,9 @@ const statisticsUI=createStatisticsWorkspace({main,hint,api,setScreen,getBook:()
     else if(key==='stock_items'||key==='stock_groups')reports.openStockSummary('reports');
     else chart.open();
   }});
+const ratioAnalysisUI=createRatioAnalysisWorkspace({main,hint,api,setScreen,getBook:()=>book,renderGateway,formatRupees,entryDate});
+const cashBankSummaryUI=createCashBankSummaryWorkspace({main,hint,api,setScreen,getBook:()=>book,renderGateway,formatRupees,entryDate,openMonthlySummary:id=>reports.openMonthlySummary(id)});
+const cashFlowUI=createCashFlowWorkspace({main,hint,api,setScreen,getBook:()=>book,renderGateway,formatRupees,entryDate});
 const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,getView:()=>view,
   openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);},
   openSalesRegister:()=>voucherRegisters.openSummary('sales'),
@@ -107,7 +113,9 @@ const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshB
   openDebitNoteRegister:()=>voucherRegisters.openSummary('debit_note'),
   openCreditNoteRegister:()=>voucherRegisters.openSummary('credit_note'),
   openBankReconciliation:()=>bankReconciliation.chooseBank(),
-  openStatistics:()=>statisticsUI.open()});
+  openStatistics:()=>statisticsUI.open(),
+  openCashBankSummary:()=>cashBankSummaryUI.open(),
+  openCashFlow:()=>cashFlowUI.open()});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const accountingMasters=createAccountingMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
 const inventoryMasters=createInventoryMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
@@ -217,7 +225,7 @@ function selectMenu(index, focus = false) {
 }
 function menuButton(item, index, className = '') {
   const label = `${escapeHtml(item.label.slice(0,item.hot))}<span class="hot-letter">${escapeHtml(item.label[item.hot])}</span>${escapeHtml(item.label.slice(item.hot+1))}`;
-  const enabled = [0,1,2,3,4,5,6,7,8,9,10,11].includes(index);
+  const enabled = [0,1,2,3,4,5,6,7,8,9,10,11,12].includes(index);
   return `<button class="${className}" data-menu="${index}" aria-disabled="${!enabled}" title="${enabled ? 'Open ' + escapeHtml(item.label) : 'Available in a later layer'}">${label}</button>`;
 }
 function renderGateway(focusIndex = 0) {
@@ -281,7 +289,8 @@ function openGatewayItem() {
   else if (selected === 8) reports.openPayables();
   else if (selected === 9) financial.openBalanceSheet();
   else if (selected === 10) financial.openProfitAndLoss();
-  else if (selected === 11) reports.openStockSummary('gateway');
+  else if (selected === 11) ratioAnalysisUI.open();
+  else if (selected === 12) reports.openStockSummary('gateway');
   else hint.textContent = `${menu[selected].label} will be connected in a later layer.`;
 }
 function renderMasters(nextMode = mode) {
@@ -520,8 +529,10 @@ function goBack() {
   if (inventoryMasters.goBack()) return;
   if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary','stock-summary'].includes(view)) { reports.goBack(); return; }
   if (['balance-sheet','profit-loss','financial-group'].includes(view)) { financial.goBack(); return; }
+  if (['ratio-analysis'].includes(view)) { renderGateway(11); return; }
+  if (view === 'cash-flow-drilldown') { if (cashFlowUI.back()) return; }
   if (['voucher-register-month'].includes(view)) { voucherRegisters.openSummary(); return; }
-  if (['voucher-register-summary','bank-reconciliation','select-bank','statistics'].includes(view)) { reports.openMoreReports(); return; }
+  if (['voucher-register-summary','bank-reconciliation','select-bank','statistics','cash-flow','cash-bank-summary'].includes(view)) { reports.openMoreReports(); return; }
   if (view === 'ledger') {
     const back = () => {
       if (ledgerReturn) { const returnTo = ledgerReturn; ledgerReturn = null; returnTo.onCancel(); }
@@ -563,6 +574,9 @@ document.addEventListener('keydown', event => {
     else if (event.key.toLowerCase() === 'k') { event.preventDefault(); sales.openDayBook(); }
     else if (event.key.toLowerCase() === 'd') { event.preventDefault(); reports.openMoreReports(); }
     else if (event.key.toLowerCase() === 's') { event.preventDefault(); reports.openStockSummary('gateway'); }
+    else if (event.key.toLowerCase() === 'r') { event.preventDefault(); ratioAnalysisUI.open(); }
+    else if (event.key.toLowerCase() === 'b') { event.preventDefault(); financial.openBalanceSheet(); }
+    else if (event.key.toLowerCase() === 'p') { event.preventDefault(); financial.openProfitAndLoss(); }
   } else if (view === 'masters') {
     if (!main.contains(event.target)) return;
     const buttons = Array.from(main.querySelectorAll('.master-menu-content button'));

@@ -35,4 +35,14 @@
 .statistics-table button{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:#285484;text-align:left}
 .statistics-table button:hover,.statistics-table button:focus{text-decoration:underline;color:#000}
 .stats-right{text-align:right}
+.ratio-columns,.cashflow-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+.ratio-pane,.cashflow-pane{background:#fff;border:1px solid #c8d4e2}
+.ratio-heading,.cashflow-heading{background:#285484;color:#fff;padding:6px 12px;font-weight:bold;font-size:13px}
+.ratio-table{width:100%;border-collapse:collapse;font-size:13px}
+.ratio-table td{padding:4px 10px;border-bottom:1px solid #eee}
+.ratio-table .ratio-val{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+.ratio-sub{font-size:11px;color:#666;font-style:italic;display:block}
+.cashflow-total-bar{background:#f4f7fb;border-top:2px solid #285484;padding:8px 14px;font-weight:bold;font-size:13px;margin-top:8px;display:flex;justify-content:space-between}
+.group-bold{font-weight:bold;background:#fafafa}
+.indent-ledger{padding-left:24px}
 

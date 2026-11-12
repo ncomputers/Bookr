@@ -4,7 +4,7 @@ import {monthlyMarkup} from './monthly-summary.js';
 import {dueDateText} from './bill-terms.js';
 import {companyPeriod,initialEntryDate} from './company-context.js';
 
-export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster,openSalesRegister,openPurchaseRegister,openJournalRegister,openPaymentRegister,openReceiptRegister,openContraRegister,openDebitNoteRegister,openCreditNoteRegister,openBankReconciliation,openStatistics}) {
+export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster,openSalesRegister,openPurchaseRegister,openJournalRegister,openPaymentRegister,openReceiptRegister,openContraRegister,openDebitNoteRegister,openCreditNoteRegister,openBankReconciliation,openStatistics,openCashBankSummary,openCashFlow}) {
   let ledgerId=null,rows=[],index=0,busy=false;
   let outstandingDirection='receivable',trialPeriod=null,showZero=false,statementOrigin='selector';
   let outstandingAsOf=null;
@@ -51,6 +51,10 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     const back=()=>run(async()=>{statementOrigin=origin;await renderStatement(id,period);index=selected;highlight();});
     run(()=>renderMonthly({id,back,index:0}));
   }
+  const openMonthlySummary = (id) => run(() => {
+    const back = () => openCashBankSummary ? run(openCashBankSummary) : openMoreReports();
+    return renderMonthly({id, back, index: 0});
+  });
   async function renderMonthly(context){
     const report=await api('/api/monthly-summary?ledger='+context.id);
     monthlyContext=context;ledgerId=context.id;rows=report.rows;index=context.index;
@@ -112,10 +116,12 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   let stockPeriod = null;
   let stockOrigin = 'gateway';
   function renderMoreReports(){
-    setScreen('Display More Reports','more-reports','Trial Balance · Statistics · Registers · Stock Summary · Enter: open · Esc: Gateway');
+    setScreen('Display More Reports','more-reports','Trial Balance · Statistics · Cash Flow · Registers · Stock Summary · Enter: open · Esc: Gateway');
     main.innerHTML=`<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content">
       <h2 class="menu-heading">ACCOUNTING</h2>
       <button id="open-trial-balance" class="selected">Trial Balance</button>
+      <button id="open-cash-flow">Cash Flow</button>
+      <button id="open-cash-bank-summary">Cash/Bank Book(s)</button>
       <button id="open-statistics">Statistics</button>
       <button id="open-bank-reconciliation">Bank Reconciliation</button>
       <button id="open-gst-summary">GST Summary</button>
@@ -133,6 +139,8 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
     </div></section>`;
     main.querySelector('#open-trial-balance').onclick=openTrialBalance;
     main.querySelector('#open-gst-summary').onclick=openGstSummary;
+    if(openCashFlow)main.querySelector('#open-cash-flow').onclick=()=>run(openCashFlow);
+    if(openCashBankSummary)main.querySelector('#open-cash-bank-summary').onclick=()=>run(openCashBankSummary);
     if(openStatistics)main.querySelector('#open-statistics').onclick=()=>run(openStatistics);
     if(openSalesRegister)main.querySelector('#open-sales-register').onclick=()=>run(openSalesRegister);
     if(openPurchaseRegister)main.querySelector('#open-purchase-register').onclick=()=>run(openPurchaseRegister);
@@ -324,5 +332,5 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
       e.preventDefault();if(e.key==='Enter'){if(rows.length){if(getView()==='report-selector')openStatement(rows[index].id);else if(getView()==='trial-balance')openTrialLedger(rows[index].id);else reopen(rows[index].id);}}else highlight(e.key==='ArrowDown'?1:-1);return true;
     }return false;
   }
-  return {chooseLedger,openStatement,openLedgerFromReport,openOutstanding,openPayables,openMoreReports,openGstSummary,openStockSummary,goBack,onKey,isSaving:()=>busy};
+  return {chooseLedger,openStatement,openLedgerFromReport,openOutstanding,openPayables,openMoreReports,openGstSummary,openStockSummary,openMonthlySummary,goBack,onKey,isSaving:()=>busy};
 }
