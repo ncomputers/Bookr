@@ -28,4 +28,11 @@
 .brs-summary-row{display:flex;justify-content:space-between}
 .brs-summary-final{display:flex;justify-content:space-between;border-top:1px solid #c8d4e2;padding-top:4px;font-weight:bold}
 .brs-unreflected-debit{margin-right:24px}
+.statistics-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.statistics-pane{background:#fff;border:1px solid #c8d4e2}
+.statistics-heading{background:#285484;color:#fff;padding:6px 12px;font-weight:bold;font-size:13px}
+.statistics-table{width:100%;border-collapse:collapse}
+.statistics-table button{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:#285484;text-align:left}
+.statistics-table button:hover,.statistics-table button:focus{text-decoration:underline;color:#000}
+.stats-right{text-align:right}
 

@@ -167,6 +167,29 @@ const handler = async (req, res) => {
         const columnar = url.searchParams.get('columnar') === 'true';
         return send(res, 200, book.voucherRegisterMonth(type, year, month, { columnar }));
       }
+      if (req.method === 'GET' && url.pathname === '/api/statistics') {
+        const stats = book.statistics();
+        let customGroupsCount = 0;
+        let categoriesCount = 0;
+        let costCentresCount = 0;
+        try {
+          customGroupsCount = companies.groups(companyId).listGroups().length;
+          const costCentres = companies.costCentres(companyId);
+          categoriesCount = costCentres.listCategories().length;
+          costCentresCount = costCentres.listCentres().length;
+        } catch {}
+        stats.types_of_accounts = [
+          { key: 'groups', name: 'Groups', count: 28 + customGroupsCount },
+          { key: 'ledgers', name: 'Ledgers', count: book.ledgers().length },
+          { key: 'cost_categories', name: 'Cost Categories', count: categoriesCount },
+          { key: 'cost_centres', name: 'Cost Centres', count: costCentresCount },
+          { key: 'stock_groups', name: 'Stock Groups', count: book.inventory.listStockGroups().length },
+          { key: 'stock_items', name: 'Stock Items', count: book.inventory.listStockItems().length },
+          { key: 'units', name: 'Units', count: book.inventory.listUnits().length },
+          { key: 'godowns', name: 'Godowns', count: book.inventory.listGodowns().length }
+        ];
+        return send(res, 200, stats);
+      }
       if (req.method === 'GET' && url.pathname === '/api/statement') return send(res,200,book.statement(url.searchParams.get('ledger'),{from:url.searchParams.get('from'),to:url.searchParams.get('to')}));
       if (req.method === 'GET' && url.pathname === '/api/monthly-summary') {
         const allowed=['ledger','from','to'];

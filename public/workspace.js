@@ -25,6 +25,7 @@ import {createActivityTracker} from './workspace-activity.js';
 import {companyCurrency,encodeCompanyCurrencyContext,confirmCompanyCurrency} from './company-currency.js';
 import {createBankReconciliationWorkspace} from './bank-reconciliation.js';
 import {createVoucherRegistersWorkspace} from './voucher-registers.js';
+import {createStatisticsWorkspace} from './statistics.js';
 import {STATE_CODE_TO_NAME, GST_REGISTRATION_TYPES} from './gst.js';
 
 const main = document.querySelector('#main');
@@ -88,12 +89,25 @@ const generalJournal=createGeneralJournalWorkspace({main,hint,api,setScreen,getV
 const notes=createNotesWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,askDialog,renderGateway,getView:()=>view,openDayBook:()=>sales.openDayBook(),openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type))});
 const bankReconciliation=createBankReconciliationWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,formatRupees,entryDate});
 const voucherRegisters=createVoucherRegistersWorkspace({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,formatRupees,entryDate,openVoucher:(voucher,from,type)=>openFresh(()=>openVoucher(voucher,from,type))});
+const statisticsUI=createStatisticsWorkspace({main,hint,api,setScreen,getBook:()=>book,escapeHtml,
+  openRegister:type=>voucherRegisters.openSummary(type),
+  openMasters:key=>{
+    if(key==='groups'||key==='ledgers'||key==='cost_categories'||key==='cost_centres')chart.open();
+    else if(key==='stock_items'||key==='stock_groups')reports.openStockSummary('reports');
+    else chart.open();
+  }});
 const reports = createReports({main,hint,api,setScreen,getBook:()=>book,refreshBook,escapeHtml,renderGateway,getView:()=>view,
   openVoucher,openOpeningMaster:async(id,back,openingBillId)=>{await refreshBook();renderLedger(await api('/api/ledgers/'+id),'',{onSaved:back,onCancel:back,lockKind:true});if(openingBillId!=null)openingEditor.showBills(openingBillId);},
   openSalesRegister:()=>voucherRegisters.openSummary('sales'),
   openPurchaseRegister:()=>voucherRegisters.openSummary('purchase'),
   openJournalRegister:()=>voucherRegisters.openSummary('journal'),
-  openBankReconciliation:()=>bankReconciliation.chooseBank()});
+  openPaymentRegister:()=>voucherRegisters.openSummary('payment'),
+  openReceiptRegister:()=>voucherRegisters.openSummary('receipt'),
+  openContraRegister:()=>voucherRegisters.openSummary('contra'),
+  openDebitNoteRegister:()=>voucherRegisters.openSummary('debit_note'),
+  openCreditNoteRegister:()=>voucherRegisters.openSummary('credit_note'),
+  openBankReconciliation:()=>bankReconciliation.chooseBank(),
+  openStatistics:()=>statisticsUI.open()});
 const financial=createFinancialWorkspace({main,hint,api,setScreen,refreshBook,getBook:()=>book,getView:()=>view,renderGateway,escapeHtml,openLedger:reports.openLedgerFromReport});
 const accountingMasters=createAccountingMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
 const inventoryMasters=createInventoryMasters({main,hint,setScreen,getView:()=>view,getBook:()=>book,refreshBook,api,escapeHtml,askDialog,openMastersMenu:m=>openFresh(()=>renderMasters(m))});
@@ -163,7 +177,7 @@ function setScreen(name, screen, message) {
   main.className = screen === 'gateway' ? '' : 'entry-workspace';
   title.textContent = name;
   document.querySelector('.screen-company')?.remove();
-  if (['ledger','sale','receipt','purchase','payment','contra','contra-postings','daybook','postings','receipt-postings','purchase-postings','payment-postings','statement','outstanding','trial-balance','balance-sheet','profit-loss','financial-group','chart-ledgers','monthly-summary','journal','journal-postings','journal-general','journal-general-postings','company-alter','bank-reconciliation','select-bank','voucher-register-summary','voucher-register-month'].includes(screen)) {
+  if (['ledger','sale','receipt','purchase','payment','contra','contra-postings','daybook','postings','receipt-postings','purchase-postings','payment-postings','statement','outstanding','trial-balance','balance-sheet','profit-loss','financial-group','chart-ledgers','monthly-summary','journal','journal-postings','journal-general','journal-general-postings','company-alter','bank-reconciliation','select-bank','voucher-register-summary','voucher-register-month','statistics'].includes(screen)) {
     const company = document.createElement('span');
     company.className = 'screen-company'; company.textContent = book.company; title.after(company);
   }
@@ -507,7 +521,7 @@ function goBack() {
   if (['report-selector','statement','outstanding','more-reports','trial-balance','monthly-summary','gst-summary','stock-summary'].includes(view)) { reports.goBack(); return; }
   if (['balance-sheet','profit-loss','financial-group'].includes(view)) { financial.goBack(); return; }
   if (['voucher-register-month'].includes(view)) { voucherRegisters.openSummary(); return; }
-  if (['voucher-register-summary','bank-reconciliation','select-bank'].includes(view)) { reports.openMoreReports(); return; }
+  if (['voucher-register-summary','bank-reconciliation','select-bank','statistics'].includes(view)) { reports.openMoreReports(); return; }
   if (view === 'ledger') {
     const back = () => {
       if (ledgerReturn) { const returnTo = ledgerReturn; ledgerReturn = null; returnTo.onCancel(); }
@@ -526,7 +540,7 @@ document.addEventListener('keydown', event => {
   if(companyUI.onKey(event))return;
   if(ledgerGroupPicker?.onKey(event))return;
   if (sales.onKey(event) || notes.onKey(event)) return;
-  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event) || inventoryMasters.onKey(event) || bankReconciliation.onKey(event) || voucherRegisters.onKey(event)) return;
+  if (receipts.onKey(event) || payments.onKey(event) || purchases.onKey(event) || contra.onKey(event) || journal.onKey(event) || generalJournal.onKey(event) || reports.onKey(event) || financial.onKey(event) || chart.onKey(event) || accountingMasters.onKey(event) || inventoryMasters.onKey(event) || bankReconciliation.onKey(event) || voucherRegisters.onKey(event) || statisticsUI.onKey(event)) return;
   if (view === 'ledger' && event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'a') {
     event.preventDefault(); saveLedger(); return;
   }

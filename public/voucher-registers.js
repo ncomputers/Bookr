@@ -28,6 +28,11 @@ export function createVoucherRegistersWorkspace({
     if (type === 'sales' || type === 'sale') return 'Sales Register';
     if (type === 'purchase') return 'Purchase Register';
     if (type === 'journal') return 'Journal Register';
+    if (type === 'payment') return 'Payment Register';
+    if (type === 'receipt') return 'Receipt Register';
+    if (type === 'contra') return 'Contra Register';
+    if (type === 'credit_note') return 'Credit Note Register';
+    if (type === 'debit_note') return 'Debit Note Register';
     return `${type.charAt(0).toUpperCase() + type.slice(1)} Register`;
   }
 
@@ -36,7 +41,7 @@ export function createVoucherRegistersWorkspace({
     const title = registerTitle(currentRegisterType);
     setScreen(title, 'voucher-register-summary', '↑ ↓ Enter: select month · Esc: Gateway');
 
-    const isJournal = currentRegisterType === 'journal';
+    const isTransactionRegister = !['sales', 'sale', 'purchase'].includes(currentRegisterType);
     const isSales = currentRegisterType === 'sales' || currentRegisterType === 'sale';
 
     main.innerHTML = `
@@ -50,14 +55,14 @@ export function createVoucherRegistersWorkspace({
             <thead>
               <tr>
                 <th>Particulars</th>
-                ${isJournal ? '<th>Total Vouchers</th><th>Debit</th><th>Credit</th>' : '<th>Debit</th><th>Credit</th><th>Closing Balance</th>'}
+                ${isTransactionRegister ? '<th>Total Vouchers</th><th>Debit</th><th>Credit</th>' : '<th>Debit</th><th>Credit</th><th>Closing Balance</th>'}
               </tr>
             </thead>
             <tbody>
               ${currentSummary.months.map((m, i) => `
                 <tr class="month-row ${i === 0 ? 'selected' : ''}" data-month-index="${i}" data-year="${m.year}" data-month="${m.month_index}">
                   <td><button type="button" class="month-btn" data-idx="${i}"><strong>${escapeHtml(m.month_name)}</strong></button></td>
-                  ${isJournal ? `
+                  ${isTransactionRegister ? `
                     <td class="amount">${m.voucher_count > 0 ? m.voucher_count : ''}</td>
                     <td class="amount">${m.debit > 0 ? formatRupees(m.debit) : ''}</td>
                     <td class="amount">${m.credit > 0 ? formatRupees(m.credit) : ''}</td>
@@ -73,7 +78,7 @@ export function createVoucherRegistersWorkspace({
         </div>
         <div class="trial-totals">
           <strong>Grand Total</strong>
-          ${isJournal ? `
+          ${isTransactionRegister ? `
             <strong>${currentSummary.totals.voucher_count}</strong>
             <strong>${formatRupees(currentSummary.totals.debit)}</strong>
             <strong>${formatRupees(currentSummary.totals.credit)}</strong>

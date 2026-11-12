@@ -4,7 +4,7 @@ import {monthlyMarkup} from './monthly-summary.js';
 import {dueDateText} from './bill-terms.js';
 import {companyPeriod,initialEntryDate} from './company-context.js';
 
-export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster,openSalesRegister,openPurchaseRegister,openJournalRegister,openBankReconciliation}) {
+export function createReports({main,hint,api,setScreen,getBook,refreshBook,escapeHtml,getView,renderGateway,openVoucher,openOpeningMaster,openSalesRegister,openPurchaseRegister,openJournalRegister,openPaymentRegister,openReceiptRegister,openContraRegister,openDebitNoteRegister,openCreditNoteRegister,openBankReconciliation,openStatistics}) {
   let ledgerId=null,rows=[],index=0,busy=false;
   let outstandingDirection='receivable',trialPeriod=null,showZero=false,statementOrigin='selector';
   let outstandingAsOf=null;
@@ -112,13 +112,36 @@ export function createReports({main,hint,api,setScreen,getBook,refreshBook,escap
   let stockPeriod = null;
   let stockOrigin = 'gateway';
   function renderMoreReports(){
-    setScreen('Display More Reports','more-reports','Trial Balance · GST Summary · Registers · Stock Summary · Enter: open · Esc: Gateway');
-    main.innerHTML='<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content"><h2 class="menu-heading">ACCOUNTING</h2><button id="open-trial-balance" class="selected">Trial Balance</button><button id="open-gst-summary">GST Summary</button><button id="open-sales-register">Sales Register</button><button id="open-purchase-register">Purchase Register</button><button id="open-journal-register">Journal Register</button><button id="open-bank-reconciliation">Bank Reconciliation</button><h2 class="menu-heading">INVENTORY</h2><button id="open-stock-summary">Stock Summary</button></div></section>';
+    setScreen('Display More Reports','more-reports','Trial Balance · Statistics · Registers · Stock Summary · Enter: open · Esc: Gateway');
+    main.innerHTML=`<section class="master-menu"><div class="gateway-menu-title">Display More Reports</div><div class="master-menu-content">
+      <h2 class="menu-heading">ACCOUNTING</h2>
+      <button id="open-trial-balance" class="selected">Trial Balance</button>
+      <button id="open-statistics">Statistics</button>
+      <button id="open-bank-reconciliation">Bank Reconciliation</button>
+      <button id="open-gst-summary">GST Summary</button>
+      <h2 class="menu-heading">REGISTERS</h2>
+      <button id="open-sales-register">Sales Register</button>
+      <button id="open-purchase-register">Purchase Register</button>
+      <button id="open-journal-register">Journal Register</button>
+      <button id="open-payment-register">Payment Register</button>
+      <button id="open-receipt-register">Receipt Register</button>
+      <button id="open-contra-register">Contra Register</button>
+      <button id="open-debit-note-register">Debit Note Register</button>
+      <button id="open-credit-note-register">Credit Note Register</button>
+      <h2 class="menu-heading">INVENTORY</h2>
+      <button id="open-stock-summary">Stock Summary</button>
+    </div></section>`;
     main.querySelector('#open-trial-balance').onclick=openTrialBalance;
     main.querySelector('#open-gst-summary').onclick=openGstSummary;
+    if(openStatistics)main.querySelector('#open-statistics').onclick=()=>run(openStatistics);
     if(openSalesRegister)main.querySelector('#open-sales-register').onclick=()=>run(openSalesRegister);
     if(openPurchaseRegister)main.querySelector('#open-purchase-register').onclick=()=>run(openPurchaseRegister);
     if(openJournalRegister)main.querySelector('#open-journal-register').onclick=()=>run(openJournalRegister);
+    if(openPaymentRegister)main.querySelector('#open-payment-register').onclick=()=>run(openPaymentRegister);
+    if(openReceiptRegister)main.querySelector('#open-receipt-register').onclick=()=>run(openReceiptRegister);
+    if(openContraRegister)main.querySelector('#open-contra-register').onclick=()=>run(openContraRegister);
+    if(openDebitNoteRegister)main.querySelector('#open-debit-note-register').onclick=()=>run(openDebitNoteRegister);
+    if(openCreditNoteRegister)main.querySelector('#open-credit-note-register').onclick=()=>run(openCreditNoteRegister);
     if(openBankReconciliation)main.querySelector('#open-bank-reconciliation').onclick=()=>run(openBankReconciliation);
     main.querySelector('#open-stock-summary').onclick=()=>openStockSummary('reports');
     main.querySelector('#open-trial-balance').focus();

@@ -51,11 +51,7 @@ try {
     executablePath: process.env.BOOKR_BROWSER_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
   });
   page = await browser.newPage({viewport: {width: 1229, height: 655}, deviceScaleFactor: 1});
-  page.on('pageerror', e => {
-    console.error('PAGE ERROR:', e);
-    errors.push(e.message);
-  });
-  page.on('console', msg => console.log('PAGE CONSOLE:', msg.text()));
+  page.on('pageerror', e => errors.push(e.message));
   page.setDefaultTimeout(5000);
   await page.goto(base, {waitUntil: 'networkidle'});
 
@@ -173,7 +169,7 @@ try {
 
   step = 'toggle Basis of Values with Ctrl+B to view all vouchers';
   await page.keyboard.press('Control+b');
-  await page.waitForFunction(() => document.querySelector('.brs-table tbody tr input') !== null);
+  await page.waitForFunction(() => document.querySelectorAll('.brs-table tbody tr').length === 2);
   const allRowsCount = await page.locator('.brs-table tbody tr').count();
   assert.equal(allRowsCount, 2);
 
@@ -184,9 +180,6 @@ try {
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({passed: true, checks: 7}));
 } catch (error) {
-  if (page) {
-    console.error('FAILURE BODY:', await page.evaluate(() => document.body.innerHTML));
-  }
   console.error('Bank reconciliation browser test failed at ' + step, error);
   throw error;
 } finally {
