@@ -19,8 +19,9 @@ if (tailscaleIp) {
   const parts = tailscaleIp.split('.').map(Number);
   if (isIP(tailscaleIp) !== 4 || parts[0] !== 100 || parts[1] < 64 || parts[1] > 127) throw new Error('Use this laptop’s Tailscale IPv4 address for Bookr.');
 }
-const addresses = ['127.0.0.1', ...(tailscaleIp ? [tailscaleIp] : [])];
-const allowedHosts = new Set([...addresses, 'localhost'].map(address => `${address}:${port}`));
+const localIp = process.env.BOOKR_LOCAL_IP || '';
+const addresses = ['127.0.0.1', '::1', ...(tailscaleIp ? [tailscaleIp] : []), ...(localIp ? [localIp] : [])];
+const allowedHosts = new Set([...addresses, 'localhost', '[::1]'].map(address => `${address}:${port}`));
 const allowedOrigins = new Set([...allowedHosts].map(host => `http://${host}`));
 const dbPath = resolve(process.env.BOOKR_DB || resolve(root, 'storage/book.sqlite'));
 const previewLabel=String(process.env.BOOKR_PREVIEW_LABEL || '').trim().slice(0,24);
