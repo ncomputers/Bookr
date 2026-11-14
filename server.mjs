@@ -20,7 +20,9 @@ if (tailscaleIp) {
   if (isIP(tailscaleIp) !== 4 || parts[0] !== 100 || parts[1] < 64 || parts[1] > 127) throw new Error('Use this laptop’s Tailscale IPv4 address for Bookr.');
 }
 const localIp = process.env.BOOKR_LOCAL_IP || '';
-const addresses = ['127.0.0.1', '::1', ...(tailscaleIp ? [tailscaleIp] : []), ...(localIp ? [localIp] : [])];
+const hostIp = process.env.HOST || '';
+const allowAllHosts = process.env.ALLOWED_HOSTS === '*' || hostIp === '0.0.0.0' || !!process.env.COOLIFY_APP_ID;
+const addresses = hostIp ? [hostIp] : ['127.0.0.1', '::1', ...(tailscaleIp ? [tailscaleIp] : []), ...(localIp ? [localIp] : [])];
 const allowedHosts = new Set([...addresses, 'localhost', '[::1]'].map(address => `${address}:${port}`));
 const allowedOrigins = new Set([...allowedHosts].map(host => `http://${host}`));
 const dbPath = resolve(process.env.BOOKR_DB || resolve(root, 'storage/book.sqlite'));
@@ -46,13 +48,13 @@ const handler = async (req, res) => {
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'");
   const host = req.headers.host;
-  if (!allowedHosts.has(host)) return send(res, 403, { error:'Host not allowed.' });
+  if (!allowAllHosts && !allowedHosts.has(host)) return send(res, 403, { error:'Host not allowed.' });
   try {
     const url = new URL(req.url, `http://${host}`);
     if (url.pathname.startsWith('/api/')) {
       if (!['GET','POST','PUT','DELETE'].includes(req.method)) throw new BookError('Method not supported.',405);
       if (req.method !== 'GET') {
-        if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) throw new BookError('Origin not allowed.',403);
+        if (req.headers.origin && !allowAllHosts && !allowedOrigins.has(req.headers.origin)) throw new BookError('Origin not allowed.',403);
         if (['POST','PUT'].includes(req.method) && !String(req.headers['content-type']).startsWith('application/json')) throw new BookError('JSON content type required.',415);
       }
       if(url.pathname==='/api/capabilities'){
